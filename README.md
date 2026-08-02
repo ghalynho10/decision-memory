@@ -110,16 +110,26 @@ The first adapter targets specs from a spec-driven pipeline (`docs/specs/<n>-<na
 **Not in v1**
 
 - Capture (creating records where no artifacts exist) — planned, see below
+- MCP server and web UI — planned, see below
 - Reconstructing history from a codebase that never recorded it
-- Web UI
 - Cross-repo querying
 - Auto-approving generated records without human review
+
+Built in Python. The CLI is one interface onto the retrieval core, not the product; the core keeps a clean query boundary so other interfaces can sit on top of it without touching retrieval logic.
 
 ## Planned: capture
 
 Adapters only help projects that already produce decision-shaped artifacts. Capture is the on-ramp for everyone else: at the end of a working session it interviews for what was built, what was decided, what was rejected, and why, then writes a canonical record directly.
 
 Deliberately deferred past v1. Interviewing well is harder than parsing, and validating retrieval against records that already exist is faster than building the record-creation path first and then discovering retrieval does not work.
+
+## Planned: other interfaces
+
+**MCP server** — exposes the query function as an MCP tool, so decision history is queryable from inside a coding agent, in the editor where the work is happening. This is where the day-to-day utility lives.
+
+**Web UI** — a frontend over a thin HTTP layer on the core.
+
+Both are wrappers, not rewrites. The retrieval core stays interface-agnostic.
 
 ## Prior art
 
