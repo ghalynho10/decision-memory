@@ -1,0 +1,111 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.key
+credentials.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+develop-eggs/
+sdist/
+wheels/
+share/python-wheels/
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# uv
+.uv/
+uv.lock.bak
+
+# Testing and coverage
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+
+# Type checking and linting
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+.pytype/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Vector stores and local indexes
+# These are derived artifacts, rebuildable from source records.
+# Committing them bloats the repo and they go stale immediately.
+.chroma/
+chroma_db/
+*.faiss
+*.index
+lancedb/
+.lancedb/
+storage/
+index/
+embeddings_cache/
+
+# Local model weights
+models/
+*.gguf
+*.safetensors
+*.bin
+
+# Ingested corpora
+# Adapters read from external project directories; anything copied
+# in locally for testing is not this repo's to version.
+corpora/
+data/raw/
+data/ingested/
+
+# Logs and databases
+*.log
+logs/
+*.sqlite
+*.sqlite3
+*.db
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# Editors
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json.example
+.idea/
+*.swp
+*.swo
+*~
+.\#*
+\#*\#
+
+# Claude Code / agent local state
+.claude/
+.agents/
