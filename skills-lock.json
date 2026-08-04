@@ -23,13 +23,13 @@
       "source": "ghalynho10/skills",
       "sourceType": "github",
       "skillPath": "skills/checkpoint/SKILL.md",
-      "computedHash": "fe027fbb722cd092adaf96bdca60247c411f7f6b0da1f798c9371c099f840f39"
+      "computedHash": "b21641a92722e4edb5364d10fd2456d69b6676280a26bc63c36d5d30f8522cd0"
     },
     "debug": {
       "source": "ghalynho10/skills",
       "sourceType": "github",
       "skillPath": "skills/debug/SKILL.md",
-      "computedHash": "eabd45d8a0b782c254e159f6e0cbec8cb0fc74e1c9ced9b55dea2d42a4bd3c80"
+      "computedHash": "c73891284ff66f04d00a7eb4e826d7202cf14d92d809eacacb355b184bdde55d"
     },
     "develop": {
       "source": "ghalynho10/skills",
@@ -47,7 +47,13 @@
       "source": "ghalynho10/skills",
       "sourceType": "github",
       "skillPath": "skills/overview/SKILL.md",
-      "computedHash": "99651138ae971aa931b07dfaf0fd50904c96534398d70a6d84d45e4b94a166de"
+      "computedHash": "f33c805bcf853f5151448fba79340256ab63d355cfdb5eb9aacd0730aa443cd7"
+    },
+    "recover": {
+      "source": "ghalynho10/skills",
+      "sourceType": "github",
+      "skillPath": "skills/recover/SKILL.md",
+      "computedHash": "b0eb768aa5d5205e1bb676d27611f378d4bd15328731169cd789a45ba5c87501"
     },
     "scope": {
       "source": "ghalynho10/skills",
