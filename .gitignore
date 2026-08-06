@@ -109,3 +109,4 @@ desktop.ini
 # Claude Code / agent local state
 .claude/
 .agents/
+mvp.md
