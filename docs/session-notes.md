@@ -1,2 +1,0 @@
-## Open threads
-- JobPilot is the chosen validation corpus (see docs/scope/scope.md, features 4, 5, 7), but the repo location itself is not written down anywhere durable yet: `github.com/ghalynho10/job_pilot`, specs under its `docs/specs/`. Spec 0019 (resume generation quality) is the one already checked against the adapter's two file `index.md` plus `rationale.md` mapping. Whoever runs `/architect jsmastery specs adapter` or `/architect core cited query` will need this path to point the adapter at real files.

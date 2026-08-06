@@ -41,6 +41,7 @@ The YAML frontmatter plus markdown body schema (id, title, status, context, deci
 ### 4. jsmastery specs adapter · needs a decision
 Reads `docs/specs/<n> <name>/index.md` (plus `rationale.md` where present) and implements discover, parse, and fingerprint, following the field mapping and degradation policy already defined (rationale as list only, prose only, both, or absent; a missing rejection reason; no Decision section means no record). The fingerprint covers every file that contributes to a record, not only the entry file.
 **Done when:** run against JobPilot's real `docs/specs/`, the adapter produces valid canonical records for well formed specs and a clear warning, never a fabricated field, for each degraded case in the policy table.
+**Validation corpus:** `github.com/ghalynho10/job_pilot`, specs under its `docs/specs/`. Spec 0019 (resume generation quality) has already been checked against the adapter's two file `index.md` plus `rationale.md` mapping.
 - [ ] Design it (spec): `/architect jsmastery specs adapter`
 
 ## Slice 1: Core cited query
