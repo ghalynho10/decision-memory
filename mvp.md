@@ -260,4 +260,6 @@ with no CLI-specific formatting leaking into retrieval logic. It costs nothing t
 
 Dependency management with `uv`.
 
+**Packaging: v1 ships as a pip/`uv`-installable CLI package** (`uvx decision-memory query "..."` or equivalent). This falls out of decisions already made here, not a new one — Python, a CLI interface, and the `query(question, filters) -> Answer` boundary already point here. An MCP server or a VS Code extension are real future distribution targets, but they're downstream of the v2 MCP/web-UI decisions already parked above, not something to design now.
+
 No TypeScript in v1. If the web UI happens later it brings its own frontend stack, talking to the Python core over HTTP rather than replacing any of it.
