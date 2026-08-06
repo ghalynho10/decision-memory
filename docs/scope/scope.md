@@ -11,7 +11,7 @@ _You are in charge. Every box below is a suggestion, not a gate: run any, skip a
 
 | # | Feature | Phase | Status |
 |---|---------|-------|--------|
-| 1 | Stack & architecture | Foundation | planned |
+| 1 | Stack & architecture | Foundation | in-progress |
 | 2 | Coding standards & tooling | Foundation | planned |
 | 3 | Canonical decision record schema & validator | Foundation | planned |
 | 4 | jsmastery specs adapter | Foundation | planned |
@@ -21,10 +21,12 @@ _You are in charge. Every box below is a suggestion, not a gate: run any, skip a
 
 ## Foundations
 
-### 1. Stack & architecture · needs a decision
+### 1. Stack & architecture
 Decide the embedding model, vector store, chunking library, and the `uv` managed CLI package layout, then scaffold a runnable empty project.
 **Done when:** the stack is recorded in a spec and the empty scaffold boots locally (`uvx decision-memory`) and passes build.
-- [ ] Decide the stack (spec): `/architect stack & architecture`
+spec [0001](../specs/0001-stack-and-architecture.md)
+- [x] Decide the stack (spec): `/architect stack & architecture`
+- [ ] Scaffold from the decision: `/develop stack & architecture`
 
 ### 2. Coding standards & tooling
 Capture conventions from the real scaffolded project into root `AGENTS.md`, then install lint, format, and pre commit enforcement.
