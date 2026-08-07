@@ -13,7 +13,7 @@ _You are in charge. Every box below is a suggestion, not a gate: run any, skip a
 |---|---------|-------|--------|
 | 1 | Stack & architecture | Foundation | done |
 | 2 | Coding standards & tooling | Foundation | done |
-| 3 | Canonical decision record schema & validator | Foundation | planned |
+| 3 | Canonical decision record schema & validator | Foundation | in-progress |
 | 4 | jsmastery specs adapter | Foundation | planned |
 | 5 | Core cited query | Slice 1 | planned |
 | 6 | Reliable multi source retrieval | Slice 2 | planned |
@@ -33,10 +33,12 @@ Capture conventions from the real scaffolded project into root `AGENTS.md`, then
 **Done when:** root `AGENTS.md` reflects the real stack, and lint, format, and pre commit run clean.
 - [x] Capture conventions + tooling choices: `/audit`
 
-### 3. Canonical decision record schema & validator · needs a decision
+### 3. Canonical decision record schema & validator
 The YAML frontmatter plus markdown body schema (id, title, status, context, decision, why, rationale summary, consequences, evidence, tags, supersedes), and a validator that enforces the field rules: evidence must resolve, alternatives need a rejection reason, at least one of why or rationale summary is populated, and any field an adapter attempted and failed to populate is flagged rather than silently absent.
 **Done when:** a hand written record that violates each rule above is rejected with a clear reason, and a valid record passes.
-- [ ] Design it (spec): `/architect canonical decision record schema & validator`
+spec [0002](../specs/0002-canonical-decision-record-schema.md)
+- [x] Design it (spec): `/architect canonical decision record schema & validator`
+- [ ] Build it: `/develop canonical decision record schema & validator`
 
 ### 4. jsmastery specs adapter · needs a decision
 Reads `docs/specs/<n> <name>/index.md` (plus `rationale.md` where present) and implements discover, parse, and fingerprint, following the field mapping and degradation policy already defined (rationale as list only, prose only, both, or absent; a missing rejection reason; no Decision section means no record). The fingerprint covers every file that contributes to a record, not only the entry file.
