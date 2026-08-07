@@ -1,0 +1,21 @@
+# Pre commit checks: lint, format, and typecheck, as recorded by /audit.
+# Local hooks run through uv so they use the project's locked tool versions.
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-lint
+        name: ruff lint
+        entry: uv run ruff check --fix
+        language: system
+        types: [python]
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format
+        language: system
+        types: [python]
+      - id: mypy
+        name: mypy strict
+        entry: uv run mypy src
+        language: system
+        types: [python]
+        pass_filenames: false

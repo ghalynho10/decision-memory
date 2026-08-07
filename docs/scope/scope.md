@@ -12,7 +12,7 @@ _You are in charge. Every box below is a suggestion, not a gate: run any, skip a
 | # | Feature | Phase | Status |
 |---|---------|-------|--------|
 | 1 | Stack & architecture | Foundation | in-progress |
-| 2 | Coding standards & tooling | Foundation | planned |
+| 2 | Coding standards & tooling | Foundation | in-progress |
 | 3 | Canonical decision record schema & validator | Foundation | planned |
 | 4 | jsmastery specs adapter | Foundation | planned |
 | 5 | Core cited query | Slice 1 | planned |
@@ -31,7 +31,7 @@ spec [0001](../specs/0001-stack-and-architecture.md) · code in src/decision_mem
 ### 2. Coding standards & tooling
 Capture conventions from the real scaffolded project into root `AGENTS.md`, then install lint, format, and pre commit enforcement.
 **Done when:** root `AGENTS.md` reflects the real stack, and lint, format, and pre commit run clean.
-- [ ] Capture conventions + tooling choices: `/audit`
+- [x] Capture conventions + tooling choices: `/audit`
 
 ### 3. Canonical decision record schema & validator · needs a decision
 The YAML frontmatter plus markdown body schema (id, title, status, context, decision, why, rationale summary, consequences, evidence, tags, supersedes), and a validator that enforces the field rules: evidence must resolve, alternatives need a rejection reason, at least one of why or rationale summary is populated, and any field an adapter attempted and failed to populate is flagged rather than silently absent.
