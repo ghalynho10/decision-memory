@@ -7,3 +7,6 @@ In session residue that has not earned a place in scope, a spec, or AGENTS.md ye
 
 ## Ruled out
 - Plain single command Typer app (one `@app.command` plus `no_args_is_help`) does not dispatch in Typer 0.27.1: it auto invokes the command and rejects the command name. The CLI uses a callback (`invoke_without_command`) plus commands instead.
+
+## Standing instructions
+- Commit messages in this project leave out the `Co-Authored-By: Claude` trailer. Asked for directly, so do not add it back on later commits.
