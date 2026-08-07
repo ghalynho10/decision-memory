@@ -11,8 +11,8 @@ _You are in charge. Every box below is a suggestion, not a gate: run any, skip a
 
 | # | Feature | Phase | Status |
 |---|---------|-------|--------|
-| 1 | Stack & architecture | Foundation | in-progress |
-| 2 | Coding standards & tooling | Foundation | in-progress |
+| 1 | Stack & architecture | Foundation | done |
+| 2 | Coding standards & tooling | Foundation | done |
 | 3 | Canonical decision record schema & validator | Foundation | planned |
 | 4 | jsmastery specs adapter | Foundation | planned |
 | 5 | Core cited query | Slice 1 | planned |

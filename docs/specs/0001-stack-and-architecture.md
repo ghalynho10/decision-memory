@@ -1,7 +1,7 @@
 # 0001. Foundational stack for decision-memory
 
 **Date**: 2026-08-06
-**Status**: In Progress
+**Status**: Accepted
 
 ## Summary
 
