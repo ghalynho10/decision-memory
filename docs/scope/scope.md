@@ -24,9 +24,9 @@ _You are in charge. Every box below is a suggestion, not a gate: run any, skip a
 ### 1. Stack & architecture
 Decide the embedding model, vector store, chunking library, and the `uv` managed CLI package layout, then scaffold a runnable empty project.
 **Done when:** the stack is recorded in a spec and the empty scaffold boots locally (`uvx decision-memory`) and passes build.
-spec [0001](../specs/0001-stack-and-architecture.md)
+spec [0001](../specs/0001-stack-and-architecture.md) · code in src/decision_memory/
 - [x] Decide the stack (spec): `/architect stack & architecture`
-- [ ] Scaffold from the decision: `/develop stack & architecture`
+- [x] Scaffold from the decision: `/develop stack & architecture`
 
 ### 2. Coding standards & tooling
 Capture conventions from the real scaffolded project into root `AGENTS.md`, then install lint, format, and pre commit enforcement.

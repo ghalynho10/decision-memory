@@ -1,0 +1,25 @@
+[project]
+name = "decision-memory"
+version = "0.1.0"
+description = "Answer why a project is built the way it is, with cited answers backed by its decision records."
+readme = "README.md"
+authors = [
+    { name = "Ghaly Nicolas Jules", email = "mghalynho@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.13.4",
+    "typer>=0.27.1",
+]
+
+[project.scripts]
+decision-memory = "decision_memory.cli:app"
+
+[build-system]
+requires = ["uv_build>=0.11.32,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]

@@ -57,6 +57,9 @@ dmypy.json
 # Committing them bloats the repo and they go stale immediately.
 .chroma/
 chroma_db/
+
+# Runtime storage (spec 0001): canonical records DB + Chroma persistent dir
+.decision-memory/
 *.faiss
 *.index
 lancedb/
