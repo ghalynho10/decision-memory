@@ -58,6 +58,7 @@ _CONSUMED_SECTIONS = frozenset(
 )
 
 _HEADING_RE = re.compile(r"^(#{1,6})\s+(.*)$")
+_FENCE_RE = re.compile(r"^\s*(`{3,}|~{3,})")
 _BOLD_LABEL_RE = re.compile(r"^\s*(?:[-*]\s+)?\*\*([^*]+?)\*\*\s*[:：]?\s*(.*)$")
 _INLINE_CODE_RE = re.compile(r"`([^`]+)`")
 _LINK_RE = re.compile(r"\[([^\]]*)\]\([^)]*\)")
@@ -249,6 +250,7 @@ class JsmasteryAdapter:
         consequences_body = index_sections.get("Consequences")
         positive: list[str] = []
         negative: list[str] = []
+        consumed = _CONSUMED_SECTIONS
         if (
             consequences_body is None
             or _is_stub(consequences_body, sibling_names)
@@ -259,8 +261,17 @@ class JsmasteryAdapter:
         else:
             positive = _list_under_label(consequences_body, "Positive")
             negative = _list_under_label(consequences_body, "Negative")
+            if not positive and not negative:
+                # Present, but written with labels the mapping does not know.
+                # Flag it and let the section fall through to the body, so an
+                # unrecognized heading loses no content.
+                attempted.add("consequences.positive")
+                attempted.add("consequences.negative")
+                consumed = consumed - {"Consequences"}
 
-        body = _residue_body(index_sections, rationale_sections, sibling_names)
+        body = _residue_body(
+            index_sections, rationale_sections, sibling_names, consumed
+        )
         evidence, unresolved = _evidence_and_unresolved(spec)
 
         record = CanonicalDecisionRecord(
@@ -364,19 +375,50 @@ def _h2_sections(text: str) -> dict[str, str]:
     return {block.heading: block.body for block in _blocks(text) if block.level == 2}
 
 
+def _fenced_line_numbers(lines: list[str]) -> frozenset[int]:
+    """Line numbers covered by a fenced code block that is actually closed.
+
+    A fence closes only on the same delimiter character, repeated at least as
+    many times as the opening run, so a ``~~~`` inside a ```` ``` ```` block
+    does not end it. A fence that is never closed covers nothing: treating it
+    as running to the end of file would let one stray delimiter swallow every
+    heading after it, which loses whole sections rather than one snippet.
+    """
+    fenced: set[int] = set()
+    opened_at: int | None = None
+    opening = ""
+    for index, line in enumerate(lines):
+        match = _FENCE_RE.match(line)
+        if match is None:
+            continue
+        marker = match.group(1)
+        if opened_at is None:
+            opened_at = index
+            opening = marker
+        elif marker[0] == opening[0] and len(marker) >= len(opening):
+            fenced.update(range(opened_at, index + 1))
+            opened_at = None
+            opening = ""
+    return frozenset(fenced)
+
+
 def _blocks(text: str, split_levels: tuple[int, ...] = (1, 2)) -> list[_Block]:
     """Split text into heading blocks on the given levels.
 
     A section is an H2 block running from its heading to the next H2 or end
     of file, including any nested H3 headings, so H3 headings stay inside the
     parent block's body. Content before the first split heading is dropped.
+    A ``#`` line inside a closed fenced code block is body text, never a
+    heading, since a fence can hold a shell comment or a markdown snippet
+    that looks like one. See ``_fenced_line_numbers`` for what counts.
     """
     lines = text.split("\n")
+    fenced = _fenced_line_numbers(lines)
     blocks: list[_Block] = []
     current: _Block | None = None
     body: list[str] = []
-    for line in lines:
-        match = _HEADING_RE.match(line)
+    for index, line in enumerate(lines):
+        match = None if index in fenced else _HEADING_RE.match(line)
         if match and len(match.group(1)) in split_levels:
             if current is not None:
                 blocks.append(
@@ -430,12 +472,18 @@ def _residue_body(
     index_sections: dict[str, str],
     rationale_sections: dict[str, str],
     sibling_names: set[str],
+    consumed: frozenset[str] = _CONSUMED_SECTIONS,
 ) -> str:
-    """Every unconsumed section from both files, headings kept intact."""
+    """Every unconsumed section from both files, headings kept intact.
+
+    ``consumed`` lets the caller narrow the default set when a section the
+    mapping normally claims turned out to yield nothing, so its content falls
+    through to the body instead of being dropped.
+    """
     parts: list[str] = []
     for sections in (index_sections, rationale_sections):
         for heading, body in sections.items():
-            if heading in _CONSUMED_SECTIONS:
+            if heading in consumed:
                 continue
             if not body.strip():
                 continue
@@ -455,14 +503,37 @@ def _bold_field(text: str, label: str) -> str | None:
     return None
 
 
+def _matches_label(heading: str, label: str) -> bool:
+    """Whether ``heading`` names ``label``, allowing a trailing qualifier.
+
+    The corpus writes both a bare ``Negative`` and a qualified
+    ``Negative / tradeoffs``; both name the same list, so a heading counts
+    as a match when it starts with the label and the next character (if
+    any) is not itself a letter or digit, e.g. ``Negative / tradeoffs``
+    matches but ``Negatively`` does not.
+    """
+    heading = heading.strip().lower()
+    label = label.strip().lower()
+    if not heading.startswith(label):
+        return False
+    return len(heading) == len(label) or not heading[len(label)].isalnum()
+
+
 def _list_under_label(body: str, label: str) -> list[str]:
-    """Bullet items following a ``**Label**`` line until the next bold label."""
+    """Bullet items following a ``**Label**`` line until the next section label.
+
+    Only a line that opens directly with ``**`` is a section label; a bullet
+    whose text happens to start with a bold lead in (``- **Term**: ...``)
+    stays a bullet, since ``_BOLD_LABEL_RE`` alone can't tell the two apart.
+    """
     items: list[str] = []
     collecting = False
     for line in body.split("\n"):
         stripped = line.strip()
-        label_match = _BOLD_LABEL_RE.match(stripped)
-        if label_match and label_match.group(1).strip().lower() == label.lower():
+        label_match = (
+            _BOLD_LABEL_RE.match(stripped) if stripped.startswith("**") else None
+        )
+        if label_match and _matches_label(label_match.group(1), label):
             collecting = True
             inline = label_match.group(2).strip()
             if inline:
@@ -470,7 +541,7 @@ def _list_under_label(body: str, label: str) -> list[str]:
             continue
         if not collecting:
             continue
-        if label_match and label_match.group(1).strip().lower() != label.lower():
+        if label_match:
             break
         bullet = re.match(r"^[-*]\s+(.+)$", stripped)
         if bullet:
@@ -762,6 +833,7 @@ def _extract_code_paths(text: str, corpus_root: Path) -> tuple[list[str], int]:
     resolved: list[str] = []
     seen: set[str] = set()
     unresolved = 0
+    listdir_cache: dict[Path, frozenset[str]] = {}
     for span in _INLINE_CODE_RE.findall(text):
         for token in span.split():
             token = token.strip()
@@ -774,7 +846,7 @@ def _extract_code_paths(text: str, corpus_root: Path) -> tuple[list[str], int]:
             if token.startswith("/") or token.startswith("@") or "*" in token:
                 continue
             normalized = normalize_target(token)
-            if path_resolves_case_sensitive(corpus_root, normalized):
+            if path_resolves_case_sensitive(corpus_root, normalized, listdir_cache):
                 if normalized not in seen:
                     seen.add(normalized)
                     resolved.append(normalized)

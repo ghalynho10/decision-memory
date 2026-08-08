@@ -188,9 +188,13 @@ def adapt_corpus(
             )
             continue
         previous_fingerprint = previous.get(spec.id)
-        if previous_fingerprint == fingerprint:
+        record_exists = (output_dir / f"{spec.id}.md").is_file()
+        if previous_fingerprint == fingerprint and record_exists:
             state = "unchanged"
         elif spec.id in previous:
+            # A matching fingerprint with no file on disk lands here too: the
+            # manifest alone cannot say a record is current, or a deleted
+            # record would never be restored.
             state = "rewritten"
         else:
             state = "written"
@@ -213,7 +217,8 @@ def adapt_corpus(
                 violations=result.violations,
             )
         )
-        writes.append((spec, result))
+        if state != "unchanged":
+            writes.append((spec, result))
 
     if not dry_run:
         for spec, result in writes:

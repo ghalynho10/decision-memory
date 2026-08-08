@@ -56,14 +56,49 @@ def test_second_run_rewrites_only_changed(tmp_path) -> None:
     _run(corpus)
     record_path = _records_dir(corpus) / "DM-0001.md"
     first_text = record_path.read_text(encoding="utf-8")
+    first_mtime = record_path.stat().st_mtime_ns
     outcome_two = _run(corpus)
     assert [record.state for record in outcome_two.records] == ["unchanged"]
+    assert record_path.stat().st_mtime_ns == first_mtime
     (spec_dir / "rationale.md").write_text(
         RATIONALE + "\nA later refinement.\n", encoding="utf-8"
     )
     outcome_three = _run(corpus)
     assert [record.state for record in outcome_three.records] == ["rewritten"]
     assert record_path.read_text(encoding="utf-8") != first_text
+
+
+def test_deleted_record_is_restored_even_when_the_fingerprint_matches(
+    tmp_path,
+) -> None:
+    corpus = make_corpus(tmp_path)
+    write_spec(corpus, "0001-first")
+    _run(corpus)
+    record_path = _records_dir(corpus) / "DM-0001.md"
+    original = record_path.read_text(encoding="utf-8")
+
+    # The manifest still lists the record, so the fingerprint matches, but
+    # the file itself is gone. Skipping the write here would leave the
+    # manifest pointing at nothing.
+    record_path.unlink()
+
+    outcome = _run(corpus)
+    assert [record.state for record in outcome.records] == ["rewritten"]
+    assert outcome.exit_code == 0
+    assert record_path.is_file()
+    assert record_path.read_text(encoding="utf-8") == original
+
+
+def test_dry_run_reports_a_missing_record_without_restoring_it(tmp_path) -> None:
+    corpus = make_corpus(tmp_path)
+    write_spec(corpus, "0001-first")
+    _run(corpus)
+    record_path = _records_dir(corpus) / "DM-0001.md"
+    record_path.unlink()
+
+    outcome = _run(corpus, dry_run=True)
+    assert [record.state for record in outcome.records] == ["rewritten"]
+    assert not record_path.is_file()
 
 
 def test_dry_run_writes_nothing_on_first_run(tmp_path) -> None:

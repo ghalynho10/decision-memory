@@ -620,3 +620,304 @@ def test_real_style_panel_options_with_heading_questions(tmp_path) -> None:
         in result.record.decision.alternatives[0].rejection_reason
     )
     assert result.attempted_fields == frozenset()
+
+
+REAL_QUALIFIED_NEGATIVE_INDEX = """\
+# 0019. Resume generation quality
+
+**Date**: 2026-08-01
+**Status**: Accepted
+
+## Context
+
+Generated resumes need to read as if a person wrote them.
+
+## Decision
+
+**Chosen option**: A single prompt with a style guide
+
+## Consequences
+
+**Positive**:
+- Consistent tone across resumes.
+
+**Negative / tradeoffs**:
+- Longer prompts cost more per generation.
+- **Style drift**: a style guide update needs a re-run to take effect everywhere.
+- Harder to test than a template based approach.
+
+## Rationale
+
+See [rationale.md](rationale.md).
+"""
+
+REAL_QUALIFIED_NEGATIVE_RATIONALE = """\
+# 0019. Resume generation quality
+
+## Rationale
+
+A single prompt keeps voice consistent across every resume.
+"""
+
+
+def test_qualified_negative_label_and_bold_bullet_are_not_dropped(tmp_path) -> None:
+    corpus = make_corpus(tmp_path)
+    write_spec(
+        corpus,
+        "0019-resume-quality",
+        index=REAL_QUALIFIED_NEGATIVE_INDEX,
+        rationale=REAL_QUALIFIED_NEGATIVE_RATIONALE,
+    )
+    result = _adapt(corpus)
+    assert result.record.consequences.positive == ["Consistent tone across resumes."]
+    assert result.record.consequences.negative == [
+        "Longer prompts cost more per generation.",
+        "**Style drift**: a style guide update needs a re-run to take effect "
+        "everywhere.",
+        "Harder to test than a template based approach.",
+    ]
+    assert "consequences.positive" not in result.attempted_fields
+    assert "consequences.negative" not in result.attempted_fields
+
+
+FENCED_HEADING_INDEX = """\
+# 0021. Something fenced
+
+**Date**: 2026-08-01
+**Status**: Accepted
+
+## Context
+
+Some context here.
+
+## Decision
+
+**Chosen option**: Ship it
+
+## Consequences
+
+**Positive**:
+- Good.
+
+## Notes
+
+Example command:
+
+```bash
+## this looks like a heading but is inside a fence
+echo hi
+```
+
+The paragraph after the fence stays in this section.
+
+## Rationale
+
+See [rationale.md](rationale.md).
+"""
+
+FENCED_HEADING_RATIONALE = """\
+# 0021. Something fenced
+
+## Rationale
+
+Shipping it is the simplest option available.
+"""
+
+
+def test_heading_like_line_inside_a_fence_is_not_a_section_break(tmp_path) -> None:
+    corpus = make_corpus(tmp_path)
+    write_spec(
+        corpus,
+        "0021-fenced",
+        index=FENCED_HEADING_INDEX,
+        rationale=FENCED_HEADING_RATIONALE,
+    )
+    result = _adapt(corpus)
+    body = result.record.body
+    # The fenced line stays fenced (one occurrence, inside the code block)
+    # rather than also being split out as its own "## <heading>" section.
+    assert body.count("## this looks like a heading but is inside a fence") == 1
+    assert (
+        "```bash\n"
+        "## this looks like a heading but is inside a fence\n"
+        "echo hi\n"
+        "```" in body
+    )
+    assert body.count("## Notes") == 1
+    assert "The paragraph after the fence stays in this section." in body
+
+
+UNKNOWN_CONSEQUENCE_LABELS_INDEX = """\
+# 0030. Odd consequence labels
+
+**Date**: 2026-08-01
+**Status**: Accepted
+
+## Context
+
+Some context.
+
+## Decision
+
+**Chosen option**: Ship it
+
+## Consequences
+
+**Upsides**:
+- Faster to run.
+
+**Downsides**:
+- Costs more per call.
+
+## Rationale
+
+See [rationale.md](rationale.md).
+"""
+
+UNKNOWN_CONSEQUENCE_LABELS_RATIONALE = """\
+# 0030. Odd consequence labels
+
+## Rationale
+
+Shipping it is the simplest option.
+"""
+
+
+def test_unrecognized_consequence_labels_are_flagged_and_kept(tmp_path) -> None:
+    corpus = make_corpus(tmp_path)
+    write_spec(
+        corpus,
+        "0030-odd-labels",
+        index=UNKNOWN_CONSEQUENCE_LABELS_INDEX,
+        rationale=UNKNOWN_CONSEQUENCE_LABELS_RATIONALE,
+    )
+    result = _adapt(corpus)
+    # Neither list maps, so the field stays empty, but the failure is
+    # reported rather than silent, and the prose survives in the body.
+    assert result.record.consequences is None
+    assert "consequences.positive" in result.attempted_fields
+    assert "consequences.negative" in result.attempted_fields
+    assert "## Consequences" in result.record.body
+    assert "Faster to run." in result.record.body
+    assert "Costs more per call." in result.record.body
+
+
+UNCLOSED_FENCE_INDEX = """\
+# 0031. Unclosed fence
+
+**Date**: 2026-08-01
+**Status**: Accepted
+
+## Context
+
+Some context.
+
+## Decision
+
+**Chosen option**: Ship it
+
+## Notes
+
+```bash
+echo "this fence is never closed"
+
+## Consequences
+
+**Positive**:
+- Still found.
+
+## Rationale
+
+See [rationale.md](rationale.md).
+"""
+
+UNCLOSED_FENCE_RATIONALE = """\
+# 0031. Unclosed fence
+
+## Rationale
+
+Shipping it is the simplest option.
+"""
+
+
+def test_a_fence_that_never_closes_does_not_swallow_later_sections(tmp_path) -> None:
+    corpus = make_corpus(tmp_path)
+    write_spec(
+        corpus,
+        "0031-unclosed",
+        index=UNCLOSED_FENCE_INDEX,
+        rationale=UNCLOSED_FENCE_RATIONALE,
+    )
+    result = _adapt(corpus)
+    # One stray delimiter must not delete the rest of the document.
+    assert result.record.consequences is not None
+    assert result.record.consequences.positive == ["Still found."]
+    assert result.record.decision.chosen == "Ship it"
+
+
+MIXED_FENCE_INDEX = """\
+# 0032. Mixed fence markers
+
+**Date**: 2026-08-01
+**Status**: Accepted
+
+## Context
+
+Some context.
+
+## Decision
+
+**Chosen option**: Ship it
+
+## Notes
+
+```markdown
+~~~
+## not a real heading, it is inside the backtick fence
+```
+
+After the fence.
+
+## Consequences
+
+**Positive**:
+- Real one.
+
+## Rationale
+
+See [rationale.md](rationale.md).
+"""
+
+MIXED_FENCE_RATIONALE = """\
+# 0032. Mixed fence markers
+
+## Rationale
+
+Shipping it is the simplest option.
+"""
+
+
+def test_a_different_delimiter_inside_a_fence_does_not_close_it(tmp_path) -> None:
+    corpus = make_corpus(tmp_path)
+    write_spec(
+        corpus,
+        "0032-mixed-fence",
+        index=MIXED_FENCE_INDEX,
+        rationale=MIXED_FENCE_RATIONALE,
+    )
+    result = _adapt(corpus)
+    body = result.record.body
+    # The tilde line does not end the backtick fence, so the heading-looking
+    # line inside it never becomes a section of its own.
+    assert "## not a real heading" in body
+    assert body.count("## Notes") == 1
+    assert result.record.consequences.positive == ["Real one."]
+
+
+def test_recognized_consequences_stay_out_of_the_body(tmp_path) -> None:
+    corpus = make_corpus(tmp_path)
+    write_spec(corpus, "0001-first")
+    result = _adapt(corpus)
+    assert result.record.consequences.positive
+    assert "consequences.positive" not in result.attempted_fields
+    assert "## Consequences" not in result.record.body
