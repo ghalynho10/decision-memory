@@ -4,7 +4,7 @@ A local, cited RAG system that makes software decision history queryable.
 
 Point it at a project's decision records and ask why something is built the way it is. Every answer comes back with citations to the source spec, commit, or file — or an honest "not enough evidence here" when the history does not support one.
 
-> **Status: early development.** The schema, validator, and first adapter (jsmastery specs) are shipped. `adapt` turns a project's decision specs into validated records today. The `query` command and retrieval are the next slice.
+> **Status: early development.** The schema, validator, and first adapter (jsmastery specs) are shipped. `adapt` turns a project's decision specs into validated records today. Two tracks are in flight next: the retrieval pipeline behind the `query` command, and the adapter work that makes the tool usable on a corpus it was not built for (a `doctor` diagnostic, runtime adapter loading, a conformance suite, and built-in ADR adapters).
 
 ## The problem
 
@@ -63,6 +63,12 @@ why:
   - Allows metadata filters before semantic search
   - Makes classification errors visible and correctable
 
+rationale_summary: >
+  Vector search alone cannot filter before retrieval, so its wrong-document
+  errors stay invisible; per-type collections fix filtering but force each
+  document into a single label. A catalog plus a separate chunk index keeps
+  filtering available without collapsing documents to one category.
+
 consequences:
   positive: [Better source selection, Auditable retrieval path]
   negative: [More ingestion and metadata work per document]
@@ -79,8 +85,9 @@ tags: [retrieval, data-model]
 Three rules carry most of the value:
 
 - **Rejected alternatives need a reason.** A list without `rejected_because` is decoration. "What did we already rule out" is the query that stops a team relitigating a settled decision.
-- **Superseded records are never deleted.** "Why did we do it the old way, and what changed" is one of the most useful questions this system answers, and it is impossible without explicit supersession links.
-- **Evidence must resolve.** Every reference points at a real file, spec, or commit. An uncited record is the exact failure mode this project exists to prevent.
+- **`why` and `rationale_summary` are separate on purpose.** `why` is a list of discrete reasons; `rationale_summary` is the connected prose weighing the chosen option against the alternatives. At least one must be present. Collapsing them loses whichever gets flattened into the other.
+- **Superseded records are never deleted.** "Why did we do it the old way, and what changed" is one of the most useful questions this system aims to answer. The schema supports it with `supersedes`/`superseded_by`; the first adapter does not populate them yet, so that query returns an honest "not enough evidence" until a source actually records supersession.
+- **Evidence must resolve.** Every reference points at a real file, spec, or commit backing the decision. An uncited record is the exact failure mode this project exists to prevent — and separately, each retrieved chunk carries its own source path, so an answer built from one part of a record cites exactly the file that part came from.
 
 ## Adapters
 
@@ -88,12 +95,26 @@ An adapter turns project-native artifacts into canonical records. It reads; it n
 
 ```
 adapter.name              -> "jsmastery-specs"
-adapter.discover(root)    -> source paths this adapter claims
-adapter.parse(path)       -> canonical records (may be empty)
-adapter.fingerprint(path) -> hash or mtime, for incremental re-ingestion
+adapter.discover(root)    -> the sources this adapter claims, plus skips and id collisions
+adapter.parse(spec)       -> a record (or none), with violations, attempted fields, and unresolved mentions
+adapter.fingerprint(spec) -> hash over every contributing file, for incremental re-ingestion
 ```
 
-The first adapter targets specs from a spec-driven pipeline (`docs/specs/<n>-<name>/index.md`), mapping decision sections, options considered, and rationale onto the canonical shape. Provisional specs map to `proposed` rather than `accepted`, so a query never presents an unratified guess as settled fact.
+The first adapter targets specs from a spec-driven pipeline (`docs/specs/<n>-<name>/index.md`, plus a sibling `rationale.md`), mapping decision sections, options considered, and rationale onto the canonical shape. Provisional specs map to `proposed` rather than `accepted`, so a query never presents an unratified guess as settled fact.
+
+Adapters degrade rather than guess. A missing rejection reason is recorded as missing, not invented. A section that turns out to be a pointer rather than content is detected and skipped, not stored as if it were the content. A source with no decision in it produces no record at all. Every one of these emits a warning naming what was dropped and why.
+
+### Using it on a project it was not built for
+
+Three pieces make that practical, in the order they help:
+
+**`doctor`** reads an unfamiliar corpus and reports what is actually there: how many markdown files, the most common H2 headings, and documents grouped by their exact heading set, with samples. It makes no mapping claims and produces no records. It exists so you can tell whether a built-in adapter fits before writing anything.
+
+**Built-in adapters** for common formats (MADR, plain ADR) ship with the tool and are versioned (`madr@1`), so many projects never write an adapter at all. They are calibrated against real repositories rather than a format's documentation, because a format's spec and a format's actual use are not the same thing. On a corpus that only partly fits, they adapt what matches and report the rest as skipped — never a thin record standing in for a document they could not read.
+
+**Runtime loading** lets a third-party adapter be used by module path, so writing one means writing your own package rather than forking this one. A minimal starter template and a short guide come with it; `.decision-memory.yml` persists the adapter, corpus root, and output directory per project.
+
+**`test-adapter`** runs a conformance suite against any adapter, including format-drift fixtures — deliberately malformed input, wrong headings, missing fields — and confirms no confident record comes out. This is what makes the anti-fabrication guarantees checkable rather than merely promised.
 
 ## Scope
 
@@ -101,8 +122,9 @@ The first adapter targets specs from a spec-driven pipeline (`docs/specs/<n>-<na
 
 - Canonical record schema, with a validator
 - First adapter, for spec-driven pipeline output
-- Ingestion: parse, chunk prose fields, embed, index; metadata stays queryable as structured fields
-- Hybrid retrieval: metadata filter, then keyword, then semantic
+- `doctor`, runtime adapter loading, a conformance suite, and built-in ADR adapters
+- Ingestion: parse, chunk on canonical field boundaries, embed, index; metadata stays queryable as structured fields
+- Hybrid retrieval: structured filters, keyword, and semantic search, with filtering able to constrain the candidate set before semantic similarity chooses among it
 - Query interface (CLI) returning answers with resolving citations
 - An explicit "not enough evidence" response
 - Evaluation harness: fixed questions with known-correct sources, so retrieval changes are measured rather than guessed at
@@ -110,6 +132,7 @@ The first adapter targets specs from a spec-driven pipeline (`docs/specs/<n>-<na
 **Not in v1**
 
 - Capture (creating records where no artifacts exist) — planned, see below
+- Declarative adapters: a YAML mapping file instead of Python, for formats simple enough not to need branching logic
 - MCP server and web UI — planned, see below
 - Reconstructing history from a codebase that never recorded it
 - Cross-repo querying
@@ -122,6 +145,14 @@ Built in Python. The CLI is one interface onto the retrieval core, not the produ
 Adapters only help projects that already produce decision-shaped artifacts. Capture is the on-ramp for everyone else: at the end of a working session it interviews for what was built, what was decided, what was rejected, and why, then writes a canonical record directly.
 
 Deliberately deferred past v1. Interviewing well is harder than parsing, and validating retrieval against records that already exist is faster than building the record-creation path first and then discovering retrieval does not work.
+
+## Planned: declarative adapters
+
+For formats simple enough not to need branching logic, an adapter should be a YAML mapping file rather than a Python package — sections to fields, with light transforms. The engine keeps stub detection, warn-never-invent, evidence resolution, and attempted-field reporting as its own guarantees, so an author cannot configure them away.
+
+It has a stated ceiling rather than a hidden one: real branching logic (the kind the first adapter needed to work out which option actually won) cannot be expressed in config, and those formats are pointed back at a Python adapter rather than guessed at.
+
+Deferred until at least two hand-written adapters exist. A config schema designed against one format encodes that format's assumptions.
 
 ## Planned: other interfaces
 
@@ -149,17 +180,23 @@ It is not a general assistant. It does not guess, and it only knows what was wri
 
 ### The workflow
 
-Two steps, run once per project:
+1. **Look** at what the project actually contains, if you have not adapted it before (coming in a later release):
 
-1. **Adapt** turns the project's decision specs into canonical records:
+   ```bash
+   uv run decision-memory doctor <project-path>
+   ```
+
+   Reports file counts, common headings, and how documents group by structure — enough to tell whether a built-in adapter fits.
+
+2. **Adapt** turns the project's decision specs into canonical records:
 
    ```bash
    uv run decision-memory adapt <project-path>
    ```
 
-   Use `--dry-run` to preview without writing anything. Records land in `.decision-memory/records/` inside the project.
+   Use `--dry-run` to preview without writing anything. Records land in `.decision-memory/records/` inside the project. Read the report: skipped sources, unresolved references, and fields the adapter tried and failed to fill are all listed there, and they are the fastest signal that a corpus does not fit the adapter you chose.
 
-2. **Query** asks a question about those records (coming in a later release; not available yet):
+3. **Query** asks a question about those records (coming in a later release; not available yet):
 
    ```bash
    uv run decision-memory query "why was the private beta gate added?"
