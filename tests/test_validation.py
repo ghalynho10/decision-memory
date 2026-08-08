@@ -412,6 +412,16 @@ class TestFileReader:
         assert result.record.date == "2026-08-07"
         assert result.violations == []
 
+    def test_unquoted_impossible_calendar_date_is_unparseable_not_a_crash(
+        self, tmp_path: Path
+    ) -> None:
+        text = self.VALID_TEXT.replace(
+            "status: accepted\n", "status: accepted\ndate: 2026-02-30\n"
+        )
+        result = parse_record_file(self._write(tmp_path, text))
+        assert result.record is None
+        assert rules(result.violations) == {"file.frontmatter_unparseable"}
+
     def test_bom_and_crlf_parse_identically(self, tmp_path: Path) -> None:
         crlf = "\ufeff" + self.VALID_TEXT.replace("\n", "\r\n")
         plain = parse_record_file(self._write(tmp_path, self.VALID_TEXT))

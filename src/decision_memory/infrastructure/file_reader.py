@@ -151,7 +151,7 @@ def parse_record_file(path: Path) -> ParseResult:
     frontmatter, body = split
     try:
         data = yaml.safe_load(frontmatter)
-    except yaml.YAMLError:
+    except (yaml.YAMLError, ValueError):
         return ParseResult(
             record=None,
             violations=[
