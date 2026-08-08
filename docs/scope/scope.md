@@ -14,7 +14,7 @@ _You are in charge. Every box below is a suggestion, not a gate: run any, skip a
 | 1 | Stack & architecture | Foundation | done |
 | 2 | Coding standards & tooling | Foundation | done |
 | 3 | Canonical decision record schema & validator | Foundation | done |
-| 4 | jsmastery specs adapter | Foundation | planned |
+| 4 | jsmastery specs adapter | Foundation | in-progress |
 | 5 | Core cited query | Slice 1 | planned |
 | 6 | Reliable multi source retrieval | Slice 2 | planned |
 | 7 | Proven correctness (evaluation harness) | Slice 3 | planned |
@@ -42,11 +42,20 @@ spec [0002](../specs/0002-canonical-decision-record-schema.md) · code in src/de
 - [x] Verify it: `/check verify` (all behaviors passed, incl. the AC-16/AC-10 date-crash fix, 2026-08-07)
 - [x] Test it: `/test` (59 unit tests passing, incl. regression for the fix, 2026-08-07)
 
-### 4. jsmastery specs adapter · needs a decision
+### 4. jsmastery specs adapter · in-progress
 Reads `docs/specs/<n> <name>/index.md` (plus `rationale.md` where present) and implements discover, parse, and fingerprint, following the field mapping and degradation policy already defined (rationale as list only, prose only, both, or absent; a missing rejection reason; no Decision section means no record). The fingerprint covers every file that contributes to a record, not only the entry file.
 **Done when:** run against JobPilot's real `docs/specs/`, the adapter produces valid canonical records for well formed specs and a clear warning, never a fabricated field, for each degraded case in the policy table.
 **Validation corpus:** `github.com/ghalynho10/job_pilot`, specs under its `docs/specs/`. Spec 0019 (resume generation quality) has already been checked against the adapter's two file `index.md` plus `rationale.md` mapping.
-- [ ] Design it (spec): `/architect jsmastery specs adapter`
+spec [0003](../specs/0003-jsmastery-specs-adapter/index.md) · code in src/decision_memory/
+- [x] Design it (spec): `/architect jsmastery specs adapter`
+- [ ] Build it: `/develop jsmastery specs adapter`
+  - [ ] Discovery, id derivation, skip reporting, and the `adapt` command shell with `--dry-run` (AC-1, AC-2, AC-17, AC-20)
+  - [ ] Required field mapping, record serialization, and writing only records that validate (AC-3, AC-7, AC-16, AC-18, AC-21, AC-24)
+  - [ ] Change the shipped validation path: direct target checks, directory resolution, exported normalization, the new rule id (AC-22, AC-23)
+  - [ ] Full field mapping: code path evidence, section precedence and stubs, residue body, attempted fields, and alternatives across both option shapes (AC-4, AC-5, AC-6, AC-8, AC-9, AC-10, AC-11, AC-12)
+  - [ ] Fingerprint, manifest, incremental rewriting, and collision reporting (AC-13, AC-14, AC-15, AC-19, AC-25)
+- [ ] Verify it: `/check verify jsmastery specs adapter`
+- [ ] Test it: `/test jsmastery specs adapter`
 
 ## Slice 1: Core cited query
 
@@ -78,6 +87,8 @@ Out of scope for the current build pass, kept so the plan stays honest.
 - **Multi project or cross repo querying**
 - **Auto generating records without human review**
 - **Corpus backfill from git history**: padding the JobPilot corpus from commit history if it proves too thin to evaluate hybrid versus semantic only retrieval; a conscious later choice, not assumed now
+- **Flat single file spec support** (from spec 0003): the adapter reads directory specs only; five of the twenty sources, including the four most recent, are flat `NNNN-title.md` files. Adding them makes `DM-0019` a genuine duplicate rather than a reported collision, so the id scheme needs a tiebreak first
+- **Corpus scoped record ids** (from spec 0003): `DM-<number>` is constant, not derived from the corpus, so a second project collides. Settle this before multi project querying starts, since changing ids later invalidates stored citations and embeddings
 
 ## Legend
 
