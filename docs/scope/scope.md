@@ -14,7 +14,7 @@ _You are in charge. Every box below is a suggestion, not a gate: run any, skip a
 | 1 | Stack & architecture | Foundation | done |
 | 2 | Coding standards & tooling | Foundation | done |
 | 3 | Canonical decision record schema & validator | Foundation | done |
-| 4 | jsmastery specs adapter | Foundation | in-progress |
+| 4 | jsmastery specs adapter | Foundation | done |
 | 5 | Core cited query | Slice 1 | planned |
 | 6 | Reliable multi source retrieval | Slice 2 | planned |
 | 7 | Proven correctness (evaluation harness) | Slice 3 | planned |
@@ -42,7 +42,7 @@ spec [0002](../specs/0002-canonical-decision-record-schema.md) · code in src/de
 - [x] Verify it: `/check verify` (all behaviors passed, incl. the AC-16/AC-10 date-crash fix, 2026-08-07)
 - [x] Test it: `/test` (59 unit tests passing, incl. regression for the fix, 2026-08-07)
 
-### 4. jsmastery specs adapter · in-progress
+### 4. jsmastery specs adapter · done
 Reads `docs/specs/<n> <name>/index.md` (plus `rationale.md` where present) and implements discover, parse, and fingerprint, following the field mapping and degradation policy already defined (rationale as list only, prose only, both, or absent; a missing rejection reason; no Decision section means no record). The fingerprint covers every file that contributes to a record, not only the entry file.
 **Done when:** run against JobPilot's real `docs/specs/`, the adapter produces valid canonical records for well formed specs and a clear warning, never a fabricated field, for each degraded case in the policy table.
 **Validation corpus:** `github.com/ghalynho10/job_pilot`, specs under its `docs/specs/`. Spec 0019 (resume generation quality) has already been checked against the adapter's two file `index.md` plus `rationale.md` mapping.
@@ -55,7 +55,7 @@ spec [0003](../specs/0003-jsmastery-specs-adapter/index.md) · code in src/decis
   - [x] Full field mapping: code path evidence, section precedence and stubs, residue body, attempted fields, and alternatives across both option shapes (AC-4, AC-5, AC-6, AC-8, AC-9, AC-10, AC-11, AC-12)
   - [x] Fingerprint, manifest, incremental rewriting, and collision reporting (AC-13, AC-14, AC-15, AC-19, AC-25)
 - [x] Verify it: `/check verify jsmastery specs adapter`
-- [ ] Test it: `/test jsmastery specs adapter`
+- [x] Test it: `/test jsmastery specs adapter`
 
 ## Slice 1: Core cited query
 
