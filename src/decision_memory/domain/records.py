@@ -122,8 +122,9 @@ class ValidationContext:
     """Everything the validator needs beyond the record, supplied by callers.
 
     Supplying these sets keeps the validator pure: it performs no filesystem or
-    git access of its own. ``attempted_fields`` is empty in this slice; feature
-    4's adapter is what fills it.
+    git access of its own. ``attempted_fields`` names fields the adapter tried
+    to populate and could not; ``unresolved_mention_count`` is the number of
+    code path mentions that did not resolve, reported as a warning.
     """
 
     attempted_fields: frozenset[str] = frozenset()
@@ -131,3 +132,4 @@ class ValidationContext:
     existing_paths: frozenset[str] = frozenset()
     known_commits: frozenset[str] = frozenset()
     git_available: bool = False
+    unresolved_mention_count: int = 0

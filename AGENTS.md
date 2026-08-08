@@ -33,7 +33,7 @@ Clean Architecture:
 - Boundary crossing uses DTOs or plain objects; domain entities never reach the CLI. Domain and application unit tested without infrastructure mocks; infrastructure integration tested.
 
 Additional standards:
-- Strict types (mypy or pyright, no any); organize `src/decision_memory/` by layer: cli, ingest, retrieval, generation, storage.
+- Strict types (mypy or pyright, no any); organize `src/decision_memory/` by Clean Architecture layer: domain, application, infrastructure, and cli.
 - One consistent error handling pattern; validate required env vars at startup and fail loudly (`OPENAI_API_KEY` comes with Slice 1).
 - Conventional commits; documented public APIs; consistent naming.
 - Ruff for lint and format, wired into the verify and test step, not a manual optional step.
