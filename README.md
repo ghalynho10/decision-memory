@@ -4,7 +4,7 @@ A local, cited RAG system that makes software decision history queryable.
 
 Point it at a project's decision records and ask why something is built the way it is. Every answer comes back with citations to the source spec, commit, or file — or an honest "not enough evidence here" when the history does not support one.
 
-> **Status: early development.** The design is settled (schema, adapter boundary, MVP scope); implementation is in progress. Nothing here is usable yet.
+> **Status: early development.** The schema, validator, and first adapter (jsmastery specs) are shipped. `adapt` turns a project's decision specs into validated records today. The `query` command and retrieval are the next slice.
 
 ## The problem
 
@@ -138,3 +138,43 @@ Both are wrappers, not rewrites. The retrieval core stays interface-agnostic.
 ## License
 
 TBD
+
+## User guide
+
+### What this tool is for
+
+decision-memory answers one kind of question about one project: **why is it built this way?** It reads the project's recorded decision history and answers from that history, with citations you can check, or an honest "not enough evidence here" when the history does not support an answer.
+
+It is not a general assistant. It does not guess, and it only knows what was written down. If a decision was never recorded, the tool cannot answer from it.
+
+### The workflow
+
+Two steps, run once per project:
+
+1. **Adapt** turns the project's decision specs into canonical records:
+
+   ```bash
+   uv run decision-memory adapt <project-path>
+   ```
+
+   Use `--dry-run` to preview without writing anything. Records land in `.decision-memory/records/` inside the project.
+
+2. **Query** asks a question about those records (coming in a later release; not available yet):
+
+   ```bash
+   uv run decision-memory query "why was the private beta gate added?"
+   ```
+
+### Questions this tool answers well
+
+Questions shaped as "why", "what was decided", "what changed", and "what was rejected":
+
+- Why was X built this way?
+- What was decided about a topic?
+- What was chosen over what, and why?
+- Which decisions are still provisional?
+- What changed the earlier approach to Y?
+
+### What an answer looks like
+
+Every answer comes with citations to the source specs it came from, so you can verify the claim. When nothing in the records supports an answer, the tool says so plainly. "Not enough evidence here" is a correct answer, not a failure. The quality of the answer depends entirely on the quality of the records, so run `adapt` first and validate the output before you ask.
