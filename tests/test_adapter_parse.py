@@ -386,7 +386,9 @@ def test_code_paths_extract_resolve_and_count_unresolved(tmp_path) -> None:
         if entry.kind == EvidenceKind.FILE
     }
     assert file_targets == {"app/dashboard/page.tsx", "lib"}
-    assert result.unresolved_mention_count == 4
+    # uv run decision-memory and the shell tokens are not path shaped (AC-6);
+    # only the wrong case typo counts, because it contains a slash.
+    assert result.unresolved_mention_count == 1
     rules = {violation.rule for violation in result.violations}
     assert "evidence.mentions_unresolved" in rules
 
@@ -414,6 +416,63 @@ def test_wrong_case_token_does_not_resolve(tmp_path) -> None:
         if entry.kind == EvidenceKind.FILE
     }
     assert file_targets == set()
+    assert result.unresolved_mention_count == 1
+
+
+def test_non_path_tokens_do_not_count_as_unresolved(tmp_path) -> None:
+    corpus = make_corpus(tmp_path)
+    index = (
+        "# 0013. Code paths\n\n"
+        "**Date**: 2026-08-07\n"
+        "**Status**: Accepted\n\n"
+        "## Decision\n\n"
+        "**Chosen option**: Option 1: Wire the page\n\n"
+        "## Rationale\n\n"
+        "See [rationale.md](rationale.md).\n\n"
+        "## Build plan\n\n"
+        "- A quoted span such as `read only` adds nothing.\n"
+        "- A dotted field name `decision.chosen` is not a path.\n"
+    )
+    write_spec(corpus, "0013-code-paths", index=index, rationale=CODE_RATIONALE)
+    result = _adapt(corpus)
+    assert result.unresolved_mention_count == 0
+
+
+def test_renamed_single_segment_dir_counts_via_pre_strip_slash(tmp_path) -> None:
+    corpus = make_corpus(tmp_path)
+    index = (
+        "# 0013. Code paths\n\n"
+        "**Date**: 2026-08-07\n"
+        "**Status**: Accepted\n\n"
+        "## Decision\n\n"
+        "**Chosen option**: Option 1: Wire the page\n\n"
+        "## Rationale\n\n"
+        "See [rationale.md](rationale.md).\n\n"
+        "## Build plan\n\n"
+        "- A renamed directory `oldlib/` still counts.\n"
+    )
+    write_spec(corpus, "0013-code-paths", index=index, rationale=CODE_RATIONALE)
+    result = _adapt(corpus)
+    assert result.unresolved_mention_count == 1
+
+
+def test_extension_comparison_ignores_case(tmp_path) -> None:
+    corpus = make_corpus(tmp_path)
+    index = (
+        "# 0013. Code paths\n\n"
+        "**Date**: 2026-08-07\n"
+        "**Status**: Accepted\n\n"
+        "## Decision\n\n"
+        "**Chosen option**: Option 1: Wire the page\n\n"
+        "## Rationale\n\n"
+        "See [rationale.md](rationale.md).\n\n"
+        "## Build plan\n\n"
+        "- A missing file `missing.MD` counts as an unresolved path.\n"
+    )
+    write_spec(corpus, "0013-code-paths", index=index, rationale=CODE_RATIONALE)
+    result = _adapt(corpus)
+    # `.MD` matches the known `.md` extension without regard to case, so the
+    # missing file is still a path shaped mention even though the casing differs.
     assert result.unresolved_mention_count == 1
 
 

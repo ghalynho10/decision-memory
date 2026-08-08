@@ -41,7 +41,30 @@ from decision_memory.infrastructure.path_resolution import (
 )
 
 # Bumped by hand when the mapping changes; part of every record's fingerprint.
-ADAPTER_VERSION = "1"
+ADAPTER_VERSION = "2"
+
+# Known file extensions that make a non resolving inline token count toward
+# the unresolved mention total (AC-6 step 7). Corpus calibration, not a
+# principle: extending it is expected. Compared without regard to case.
+_KNOWN_PATH_EXTENSIONS = frozenset(
+    {
+        ".md",
+        ".py",
+        ".json",
+        ".ts",
+        ".tsx",
+        ".js",
+        ".jsx",
+        ".toml",
+        ".yaml",
+        ".yml",
+        ".txt",
+        ".lock",
+        ".cfg",
+        ".ini",
+        ".sh",
+    }
+)
 
 _STATUS_MAP: dict[str, Status] = {
     "Accepted": Status.ACCEPTED,
@@ -822,13 +845,31 @@ def _paragraphs(section_body: str) -> str:
     return _collapse_whitespace("\n".join(lines))
 
 
+def _looks_like_path(token: str) -> bool:
+    """True when a non resolving token is shaped like a code path (AC-6).
+
+    A token is path shaped when it contains a slash, ends in a known file
+    extension compared without regard to case, or starts with a dot. The
+    caller passes the token as it stood before the trailing slash was
+    stripped, so a trailing slash counts as a path signal in its own right.
+    """
+    if "/" in token:
+        return True
+    if token.startswith("."):
+        return True
+    lowered = token.lower()
+    return any(lowered.endswith(ext) for ext in _KNOWN_PATH_EXTENSIONS)
+
+
 def _extract_code_paths(text: str, corpus_root: Path) -> tuple[list[str], int]:
     """Resolved code path targets plus the count of unresolved mentions.
 
     Applies the AC-4 pipeline to every inline code span: split on whitespace,
     strip a trailing line number and slash, discard absolute, package, and
     glob tokens, then resolve each survivor case sensitively against the
-    corpus root.
+    corpus root. A survivor that does not resolve counts toward the unresolved
+    total only when it is shaped like a path (AC-6 step 7), tested against
+    the token as it stood before the trailing slash was stripped.
     """
     resolved: list[str] = []
     seen: set[str] = set()
@@ -840,6 +881,7 @@ def _extract_code_paths(text: str, corpus_root: Path) -> tuple[list[str], int]:
             if not token:
                 continue
             token = _TRAILING_LINE_RE.sub("", token)
+            shape_token = token
             token = token.rstrip("/")
             if not token:
                 continue
@@ -850,7 +892,7 @@ def _extract_code_paths(text: str, corpus_root: Path) -> tuple[list[str], int]:
                 if normalized not in seen:
                     seen.add(normalized)
                     resolved.append(normalized)
-            else:
+            elif _looks_like_path(shape_token):
                 unresolved += 1
     return resolved, unresolved
 
