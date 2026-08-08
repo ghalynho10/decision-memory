@@ -365,6 +365,7 @@ def test_unit_with_unknown_winner_emits_no_alternatives(tmp_path) -> None:
 
 
 def test_code_paths_extract_resolve_and_count_unresolved(tmp_path) -> None:
+    # covers AC-4, AC-6, AC-23
     corpus = make_corpus(tmp_path)
     (corpus / "app" / "dashboard").mkdir(parents=True)
     (corpus / "app" / "dashboard" / "page.tsx").write_text("x", encoding="utf-8")
@@ -394,6 +395,7 @@ def test_code_paths_extract_resolve_and_count_unresolved(tmp_path) -> None:
 
 
 def test_wrong_case_token_does_not_resolve(tmp_path) -> None:
+    # covers AC-5, AC-6, AC-23
     corpus = make_corpus(tmp_path)
     (corpus / "app" / "dashboard").mkdir(parents=True)
     (corpus / "app" / "dashboard" / "page.tsx").write_text("x", encoding="utf-8")
@@ -420,6 +422,7 @@ def test_wrong_case_token_does_not_resolve(tmp_path) -> None:
 
 
 def test_non_path_tokens_do_not_count_as_unresolved(tmp_path) -> None:
+    # covers AC-6
     corpus = make_corpus(tmp_path)
     index = (
         "# 0013. Code paths\n\n"
@@ -439,6 +442,7 @@ def test_non_path_tokens_do_not_count_as_unresolved(tmp_path) -> None:
 
 
 def test_renamed_single_segment_dir_counts_via_pre_strip_slash(tmp_path) -> None:
+    # covers AC-6
     corpus = make_corpus(tmp_path)
     index = (
         "# 0013. Code paths\n\n"
@@ -457,6 +461,7 @@ def test_renamed_single_segment_dir_counts_via_pre_strip_slash(tmp_path) -> None
 
 
 def test_extension_comparison_ignores_case(tmp_path) -> None:
+    # covers AC-6
     corpus = make_corpus(tmp_path)
     index = (
         "# 0013. Code paths\n\n"
@@ -473,6 +478,63 @@ def test_extension_comparison_ignores_case(tmp_path) -> None:
     result = _adapt(corpus)
     # `.MD` matches the known `.md` extension without regard to case, so the
     # missing file is still a path shaped mention even though the casing differs.
+    assert result.unresolved_mention_count == 1
+
+
+def test_missing_file_with_known_extension_counts_without_slash(tmp_path) -> None:
+    # covers AC-6
+    corpus = make_corpus(tmp_path)
+    index = (
+        "# 0013. Code paths\n\n"
+        "**Date**: 2026-08-07\n"
+        "**Status**: Accepted\n\n"
+        "## Decision\n\n"
+        "**Chosen option**: Option 1: Wire the page\n\n"
+        "## Rationale\n\n"
+        "See [rationale.md](rationale.md).\n\n"
+        "## Build plan\n\n"
+        "- A missing file `missing.py` still looks like a path.\n"
+    )
+    write_spec(corpus, "0013-code-paths", index=index, rationale=CODE_RATIONALE)
+    result = _adapt(corpus)
+    assert result.unresolved_mention_count == 1
+
+
+def test_repeated_missing_path_counts_occurrences_not_distinct(tmp_path) -> None:
+    # covers AC-6
+    corpus = make_corpus(tmp_path)
+    index = (
+        "# 0013. Code paths\n\n"
+        "**Date**: 2026-08-07\n"
+        "**Status**: Accepted\n\n"
+        "## Decision\n\n"
+        "**Chosen option**: Option 1: Wire the page\n\n"
+        "## Rationale\n\n"
+        "See [rationale.md](rationale.md).\n\n"
+        "## Build plan\n\n"
+        "- A missing file `missing.py` named twice: `missing.py`.\n"
+    )
+    write_spec(corpus, "0013-code-paths", index=index, rationale=CODE_RATIONALE)
+    result = _adapt(corpus)
+    assert result.unresolved_mention_count == 2
+
+
+def test_leading_dot_token_counts_as_path(tmp_path) -> None:
+    # covers AC-6
+    corpus = make_corpus(tmp_path)
+    index = (
+        "# 0013. Code paths\n\n"
+        "**Date**: 2026-08-07\n"
+        "**Status**: Accepted\n\n"
+        "## Decision\n\n"
+        "**Chosen option**: Option 1: Wire the page\n\n"
+        "## Rationale\n\n"
+        "See [rationale.md](rationale.md).\n\n"
+        "## Build plan\n\n"
+        "- A renamed dotfile `.env` still counts.\n"
+    )
+    write_spec(corpus, "0013-code-paths", index=index, rationale=CODE_RATIONALE)
+    result = _adapt(corpus)
     assert result.unresolved_mention_count == 1
 
 
