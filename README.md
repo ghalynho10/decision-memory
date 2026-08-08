@@ -126,7 +126,7 @@ Three pieces make that practical, in the order they help:
 - Ingestion: parse, chunk on canonical field boundaries, embed, index; metadata stays queryable as structured fields
 - Hybrid retrieval: structured filters, keyword, and semantic search, with filtering able to constrain the candidate set before semantic similarity chooses among it
 - Query interface (CLI) returning answers with resolving citations
-- An explicit "not enough evidence" response
+- An explicit "not enough evidence" response, plus a debug view showing which records were retrieved, their scores, and why an answer was refused
 - Evaluation harness: fixed questions with known-correct sources, so retrieval changes are measured rather than guessed at
 
 **Not in v1**
@@ -152,7 +152,7 @@ For formats simple enough not to need branching logic, an adapter should be a YA
 
 It has a stated ceiling rather than a hidden one: real branching logic (the kind the first adapter needed to work out which option actually won) cannot be expressed in config, and those formats are pointed back at a Python adapter rather than guessed at.
 
-Deferred until at least two hand-written adapters exist. A config schema designed against one format encodes that format's assumptions.
+Best built after a second hand-written adapter exists. A config schema designed against one format encodes that format's assumptions, so a second real adapter to design against derisks the schema considerably — it is a strong reason to sequence that way, not a hard prerequisite.
 
 ## Planned: other interfaces
 
@@ -214,4 +214,8 @@ Questions shaped as "why", "what was decided", "what changed", and "what was rej
 
 ### What an answer looks like
 
-Every answer comes with citations to the source specs it came from, so you can verify the claim. When nothing in the records supports an answer, the tool says so plainly. "Not enough evidence here" is a correct answer, not a failure. The quality of the answer depends entirely on the quality of the records, so run `adapt` first and validate the output before you ask.
+Every answer comes with citations to the source specs it came from, so you can verify the claim. When nothing in the records supports an answer, the tool says so plainly. "Not enough evidence here" is a correct answer, not a failure.
+
+A refusal you did not expect is worth inspecting rather than accepting: the debug view shows which records were retrieved, how they scored, and whether the answer was refused because nothing relevant came back or because no claim could be traced to a source. That distinction matters — the first means the history genuinely does not cover your question, the second means something went wrong.
+
+The quality of the answer depends entirely on the quality of the records, so run `adapt` first and validate the output before you ask.

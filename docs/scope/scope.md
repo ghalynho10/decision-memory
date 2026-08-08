@@ -22,7 +22,9 @@ _You are in charge. Every box below is a suggestion, not a gate: run any, skip a
 | 9 | Core cited query | Slice 1 | planned |
 | 10 | Reliable multi source retrieval | Slice 2 | planned |
 | 11 | Proven correctness (evaluation harness) | Slice 3 | planned |
-| 12 | Declarative adapters | V2 | planned |
+| 12 | Flat single file spec support | V2 | planned |
+| 13 | Declarative adapters | V2 | planned |
+| 14 | MCP server interface | V2 | planned |
 
 ## Foundations
 
@@ -86,8 +88,8 @@ Ship built-in adapters for common ADR formats such as MADR and plain ADR, versio
 ## Slice 1: Core cited query
 
 ### 9. Core cited query · needs a decision
-Ingest real specs (parse, chunk on canonical field boundaries, embed, index, with metadata kept as structured queryable fields), semantic only retrieval, and a CLI `query` command returning an answer plus citations through a clean function boundary, with an explicit "not enough evidence" path when nothing supports an answer. Incremental re ingestion via the adapter's fingerprint is built in here, not deferred, since retrofitting it later means re embedding everything. This retrieval pipeline can proceed in parallel with adapter accessibility work.
-**Done when:** a user runs the CLI against JobPilot's real specs and gets a cited answer, or an honest no evidence response, to query 1 (why was the private beta access gate added, and what was the alternative) end to end.
+Ingest real specs (parse, chunk on canonical field boundaries, embed, index, with metadata kept as structured queryable fields), semantic only retrieval, and a CLI `query` command returning an answer plus citations through a clean function boundary, with an explicit "not enough evidence" path when nothing supports an answer. Include query transparency: a debug view showing retrieved chunks, scores, filters, excluded candidates, and whether abstention happened at retrieval or after claim verification. Incremental re ingestion via the adapter's fingerprint is built in here, not deferred, since retrofitting it later means re embedding everything. This retrieval pipeline can proceed in parallel with adapter accessibility work.
+**Done when:** a user runs the CLI against JobPilot's real specs and gets a cited answer, or an honest no evidence response, to query 1 (why was the private beta access gate added, and what was the alternative) end to end, and can inspect enough retrieval detail to distinguish unsupported evidence from retrieval failure.
 - [ ] Design it (spec): `/architect core cited query`
 
 ## Slice 2: Reliable multi source retrieval
@@ -106,22 +108,33 @@ The five defining queries as fixtures with known correct sources, plus two furth
 
 ## V2
 
-### 12. Declarative adapters · needs a decision
-Let common decision formats implement the `SourceAdapter` protocol from a YAML mapping file instead of Python, while keeping stub detection, warn never invent behavior, evidence resolution, and attempted fields as engine owned guarantees.
+V2 theme: usable on more corpora, used more often. These are hypotheses formed before v1 has real usage, so they may be reordered or replaced once v1 evidence exists. Nothing in V2 starts before the evaluation harness passes.
+
+### 12. Flat single file spec support · needs a decision
+Extend adapter coverage to flat `NNNN-title.md` specs, the shape the existing directory adapter never touched and the current validation corpus still misses.
+**Done when:** the adapter reads the flat spec files already present in the corpus, resolves the `DM-0019` duplicate with a deliberate id strategy, and produces valid records or clear skips without weakening the existing directory spec behavior.
+- [ ] Design it (spec): `/architect flat single file spec support`
+
+### 13. Declarative adapters · needs a decision
+Let common decision formats implement the `SourceAdapter` protocol from a YAML mapping file instead of Python, while keeping stub detection, warn never invent behavior, evidence resolution, and attempted fields as engine owned guarantees. Flat single file support derisks this by giving the config schema a second real adapter to compare against, but it is not a hard unlock if a different useful second adapter appears first.
 **Done when:** after at least two hand written adapters exist, a config driven adapter can map a simple real corpus into valid canonical records, malformed configs fail clearly, and formats needing branching logic are pointed back to a Python adapter rather than guessed.
 - [ ] Design it (spec): `/architect declarative adapters`
+
+### 14. MCP server interface · needs a decision
+Expose the query function as an MCP tool inside a coding agent, where day to day decision memory is most likely to be used.
+**Done when:** an agent can ask the project why a decision was made and receive the same cited answer or honest no evidence response as the CLI, through a small MCP surface.
+- [ ] Design it (spec): `/architect MCP server interface`
 
 ## Deferred
 Out of scope for the current build pass, kept so the plan stays honest.
 - **Capture**: interview based record creation for projects with no existing decision shaped artifacts · needs a decision
-- **MCP server interface**: exposes the query function as an MCP tool inside a coding agent · needs a decision
+- **Capture revisit trigger**: revisit capture after the tool has been used on three projects that lack decision shaped artifacts and the need is demonstrated.
 - **Web UI**: a frontend over a thin HTTP layer on the core · needs a decision
 - **History reconstruction**: recovering decisions from a codebase that never recorded them
 - **Multi project or cross repo querying**
 - **Auto generating records without human review**
 - **Adapter accessibility sequencing**: `doctor`, then real corpus survey using `doctor`, then the importlib part of runtime loading, then `test-adapter`, then built-in adapters, then the `.decision-memory.yml` config and starter template remainder of runtime loading. Core retrieval can proceed in parallel.
 - **Corpus backfill from git history**: padding the JobPilot corpus from commit history if it proves too thin to evaluate hybrid versus semantic only retrieval; a conscious later choice, not assumed now
-- **Flat single file spec support** (from spec 0003): the adapter reads directory specs only; five of the twenty sources, including the four most recent, are flat `NNNN-title.md` files. Adding them makes `DM-0019` a genuine duplicate rather than a reported collision, so the id scheme needs a tiebreak first. Build this by hand before declarative adapters, because the config schema must be designed against at least two real hand written adapters, not only `jsmastery-specs`.
 - **Corpus scoped record ids** (from spec 0003): `DM-<number>` is constant, not derived from the corpus, so a second project collides. Settle this before multi project querying starts, since changing ids later invalidates stored citations and embeddings
 - **Recalibrate the code path shape test** (from spec 0003): the rule deciding which unresolved mentions are worth counting is tuned to one corpus's backtick habits and is already on its third calibration. A corpus that quotes prose containing slashes, or names files with no extension, will read differently. Retune when a second corpus exists, and record what changed
 - **Hooks for declarative adapters**: a later escape hatch where a YAML mapping names a small Python function for one field. Do not scope this until real declarative adapters show which escapes repeat; repeated hook patterns should become config vocabulary instead.
