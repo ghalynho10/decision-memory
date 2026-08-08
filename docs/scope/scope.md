@@ -54,7 +54,7 @@ spec [0003](../specs/0003-jsmastery-specs-adapter/index.md) · code in src/decis
   - [x] Change the shipped validation path: direct target checks, directory resolution, exported normalization, the new rule id (AC-22, AC-23)
   - [x] Full field mapping: code path evidence, section precedence and stubs, residue body, attempted fields, and alternatives across both option shapes (AC-4, AC-5, AC-6, AC-8, AC-9, AC-10, AC-11, AC-12)
   - [x] Fingerprint, manifest, incremental rewriting, and collision reporting (AC-13, AC-14, AC-15, AC-19, AC-25)
-- [ ] Verify it: `/check verify jsmastery specs adapter`
+- [x] Verify it: `/check verify jsmastery specs adapter`
 - [ ] Test it: `/test jsmastery specs adapter`
 
 ## Slice 1: Core cited query

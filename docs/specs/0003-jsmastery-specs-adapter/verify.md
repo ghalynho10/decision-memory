@@ -6,28 +6,28 @@ _Steps derived from spec 0003 acceptance criteria. `/check verify` runs these; `
 
 Run from the decision-memory repo, with a corpus holding real specs. The real validation corpus is `github.com/ghalynho10/job_pilot`; a fresh clone is a good target.
 
-- [ ] `uv run decision-memory adapt <corpus> --dry-run` → prints the full report, writes no record file and no manifest, and the output directory is not created on a first run → AC-1, AC-17
-- [ ] `uv run decision-memory adapt <corpus>` → writes one record per adaptable spec directory plus `manifest.json`, and exits 0 → AC-1, AC-14, AC-21, AC-25
-- [ ] run `adapt` again with no source changes → every record reports `unchanged` and nothing is rewritten → AC-15
-- [ ] edit one spec's `rationale.md`, run `adapt` again → exactly that record reports `rewritten`, the rest stay `unchanged` → AC-13, AC-15
-- [ ] `uv run decision-memory adapt /tmp/job_pilot` against the real corpus → 15 records written, every record validates, exit 0 → AC-1 through AC-25 on real data
-- [ ] `uv run decision-memory validate <record> --project-root <corpus>` → prints `valid record, no violations` and exits 0 → AC-22
-- [ ] `uv run pytest`, `uv run mypy src`, `uv run ruff check src tests` → all pass → build plan task 8
+- [x] `uv run decision-memory adapt <corpus> --dry-run` → prints the full report, writes no record file and no manifest, and the output directory is not created on a first run → AC-1, AC-17
+- [x] `uv run decision-memory adapt <corpus>` → writes one record per adaptable spec directory plus `manifest.json`, and exits 0 → AC-1, AC-14, AC-21, AC-25
+- [x] run `adapt` again with no source changes → every record reports `unchanged` and nothing is rewritten → AC-15
+- [x] edit one spec's `rationale.md`, run `adapt` again → exactly that record reports `rewritten`, the rest stay `unchanged` → AC-13, AC-15
+- [x] `uv run decision-memory adapt /tmp/job_pilot` against the real corpus → 15 records written, every record validates, exit 0 → AC-1 through AC-25 on real data
+- [x] `uv run decision-memory validate <record> --project-root <corpus>` → prints `valid record, no violations` and exits 0 → AC-22
+- [x] `uv run pytest`, `uv run mypy src`, `uv run ruff check src tests` → all pass → build plan task 8
 
 ## Manual
 
-- [ ] a spec directory with no leading digits in its name is skipped with that reason, and the run continues → AC-2, AC-20
-- [ ] a directory with no `index.md` is reported as not a spec and does not fail the run → AC-1, AC-20
-- [ ] a spec whose `index.md` has no `## Decision` section is skipped with that reason → AC-20
-- [ ] a spec whose `**Status**` value is unmapped (for example `Draft`) is skipped with that reason → AC-7
-- [ ] a panel spec such as 0012 carries the panel question prefix on every alternative, and Panel 3, whose decision names Option B first, resolves to Option B with Option A listed as the alternative → AC-9, AC-10
-- [ ] a non panel spec whose chosen line drops the ordinal resolves its winner by title match → AC-9
-- [ ] a code path token whose casing differs from the entry on disk does not resolve and is counted as a dropped mention → AC-5, AC-6, AC-23
-- [ ] a spec whose `rationale.md` has no `## Rationale` section produces a record that fails validation, is not written, and is reported with its violations → AC-16, AC-21
-- [ ] a record the adapter writes parses back to an equal record, and its filename is the record id plus `.md` → AC-24
-- [ ] a corpus path with no `docs/specs/` directory exits 3 → AC-21
-- [ ] `--output <dir>` writes elsewhere, and the records still validate with the corpus as project root → AC-18
-- [ ] two sources deriving the same id are reported as a collision naming every path and the one used, and the run continues → AC-19
+- [x] a spec directory with no leading digits in its name is skipped with that reason, and the run continues → AC-2, AC-20
+- [x] a directory with no `index.md` is reported as not a spec and does not fail the run → AC-1, AC-20
+- [x] a spec whose `index.md` has no `## Decision` section is skipped with that reason → AC-20
+- [x] a spec whose `**Status**` value is unmapped (for example `Draft`) is skipped with that reason → AC-7
+- [x] a panel spec such as 0012 carries the panel question prefix on every alternative, and Panel 3, whose decision names Option B first, resolves to Option B with Option A listed as the alternative → AC-9, AC-10
+- [x] a non panel spec whose chosen line drops the ordinal resolves its winner by title match → AC-9
+- [x] a code path token whose casing differs from the entry on disk does not resolve and is counted as a dropped mention → AC-5, AC-6, AC-23
+- [x] a spec whose `rationale.md` has no `## Rationale` section produces a record that fails validation, is not written, and is reported with its violations → AC-16, AC-21
+- [x] a record the adapter writes parses back to an equal record, and its filename is the record id plus `.md` → AC-24
+- [x] a corpus path with no `docs/specs/` directory exits 3 → AC-21
+- [x] `--output <dir>` writes elsewhere, and the records still validate with the corpus as project root → AC-18
+- [x] two sources deriving the same id are reported as a collision naming every path and the one used, and the run continues → AC-19
 
 ## Acceptance-criteria coverage
 
