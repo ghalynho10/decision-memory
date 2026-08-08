@@ -1,7 +1,7 @@
 # 0003. jsmastery specs adapter
 
 **Date**: 2026-08-08
-**Status**: Accepted
+**Status**: In Progress
 
 ## Summary
 
@@ -23,7 +23,7 @@ It also adds a command, `adapt`, that runs the conversion against a real corpus 
 - **AC-3**: Every contributing file is cited on the record as `spec` evidence: `index.md` always, `rationale.md` when it exists.
 - **AC-4**: Code paths are extracted from inline code spans, split into whitespace separated tokens, with a trailing `:NN` and a trailing `/` stripped, and with any token discarded that starts with `/`, starts with `@`, or contains `*`. Each surviving token is resolved against the corpus root, and those that resolve are added as `file` evidence.
 - **AC-5**: Resolution is case sensitive. A token whose casing differs from the entry on disk does not resolve, including on a case insensitive filesystem such as macOS.
-- **AC-6**: A token that does not resolve is dropped from evidence, never emitted, and reported through a warning carrying the count of dropped mentions.
+- **AC-6**: A token that does not resolve is dropped from evidence and never emitted. The warning counts only the dropped tokens that are shaped like a path. The shape is tested against the token as it stood **before** the trailing `/` was stripped, so a trailing slash is itself a path signal: the token contains a `/`, ends in a known file extension matched without regard to case, or starts with a `.`. A dropped token shaped like prose or an identifier is not counted. The count is of occurrences, not of distinct tokens, matching the `unresolved_mention_count` field it feeds. The count therefore means paths this spec names that are not in the corpus, which is a drift signal a person can act on.
 - **AC-7**: `status` maps `Accepted` to `accepted`, `Proposed` to `proposed`, `Done` to `accepted`, and `In Progress` to `proposed`. The raw value is preserved as the tag `source-status:<raw>`. A value outside that set skips the spec with that reason.
 - **AC-8**: Where both files carry the same section, `rationale.md` is used and `index.md` is the fallback. A fallback section whose whole body is a short pointer to the sibling file is treated as absent, falls through, and is discarded rather than joining the body.
 - **AC-9**: The winning option is identified per decision unit by the ladder in `## Feature design`. A panel spec has one decision unit per panel; every other spec has one, the whole `## Options considered` section. A unit whose winner resolves contributes its non winning options to `decision.alternatives`; a unit whose winner does not resolve contributes nothing and causes `decision.alternatives` to be named in `attempted_fields`. An option is never emitted as an alternative on the strength of a unit whose winner is unknown.
@@ -125,6 +125,11 @@ Sources are `index.md` and `rationale.md`. Where both carry the same section, `r
 4. Discard a token that starts with `/` (a URL route), starts with `@` (a package name), or contains `*` (a glob).
 5. Resolve each survivor against the corpus root. Existence is the disambiguator, so an identifier such as `agentRunsEnabled` falls out on its own without any identifier heuristic.
 6. Resolution confirms the entry name appears exactly, character for character, in its parent directory's listing, which preserves the case sensitivity rule from spec 0002 on a case insensitive filesystem (**AC-5**).
+7. Count a token that did not resolve only when it is shaped like a path (**AC-6**), counting occurrences rather than distinct tokens. Test the shape against the token as it stood after step 3 stripped a trailing `:NN` but **before** it stripped a trailing `/`, so a trailing slash counts as a path signal in its own right. A token is shaped like a path when it contains a `/`, ends in a known file extension compared without regard to case, or starts with a `.`. The known extensions are `.md`, `.py`, `.json`, `.ts`, `.tsx`, `.js`, `.jsx`, `.toml`, `.yaml`, `.yml`, `.txt`, `.lock`, `.cfg`, `.ini`, and `.sh`, held as a module constant in the jsmastery adapter beside `ADAPTER_VERSION`; the list is corpus calibration, not a principle, and extending it is expected.
+
+The shape test in step 7 gates the warning only, never extraction. Steps 1 to 6 are unchanged, so existence remains the disambiguator for evidence and a bare directory reference such as `` `tests` `` or `` `lib/` `` still becomes evidence when it resolves. Putting the shape test upstream instead would drop those, because a bare directory name has no slash, no extension, and no leading dot. The two questions are genuinely different: what is evidence is settled by whether the thing exists, and what is worth warning about is settled by whether a missing thing looked like a path.
+
+Testing the shape before the trailing slash is stripped matters for one case that is easy to miss. A renamed single segment directory, written `` `oldlib/` ``, arrives at step 7 as `oldlib` once the slash is gone: no slash, no extension, no leading dot, so it would go uncounted even though it is exactly the drift the warning exists to report. Multi segment paths keep an internal slash and are caught either way. The current corpus contains no such case, so no measurement distinguishes the two orderings; the rule is written this way on reasoning, not on evidence.
 
 **State transitions**: none. Records have a `status` field carried from the source, and this feature enforces no transitions between values.
 
@@ -164,6 +169,7 @@ A directory with no `index.md` is reported as not a spec and does not affect the
 | `parse` | violations | the adapter emitted rules, plus what `validate` returns for the built record |
 | `fingerprint` | fingerprint string | SHA-256 over contributing file paths and bytes in fixed order, plus the adapter version |
 | `fingerprint` | adapter version | `ADAPTER_VERSION`, a module constant in the jsmastery adapter, initial value `"1"`, bumped by hand when the mapping changes |
+| `unresolved_mention_count` | the known file extensions | `_KNOWN_PATH_EXTENSIONS`, a module constant in the jsmastery adapter beside `ADAPTER_VERSION`, holding the 15 extensions listed in step 7, compared without regard to case and extended by hand when a corpus needs it (**AC-6**) |
 | `parse` | alternative title | the option label, prefix and trailing chosen marker removed, panel question prefixed in a panel unit |
 | `parse` | rejection reason | the option's Cons block, bounded as defined above |
 | CLI `adapt` | record filename | the record id plus `.md` |
@@ -198,6 +204,10 @@ A directory with no `index.md` is reported as not a spec and does not affect the
 - Edge case: a span holding a shell command yields its path token; `/dashboard`, `@insforge/cli`, and `app/api/**/route.ts` are all discarded; `app/dashboard/page.tsx:67` and `lib/` resolve after stripping, verifies **AC-4**
 - Failure case: a token differing only in casing from the real entry does not resolve on macOS, verifies **AC-5**
 - Edge case: a spec naming a since renamed file drops it and reports the count as a warning, verifies **AC-6**, **AC-23**
+- Edge case: a span holding quoted prose such as `` `read only` `` adds nothing to the count, while a bare directory reference such as `` `tests` `` still resolves as evidence, verifies **AC-6**
+- Failure case: a dotted field name such as `` `decision.chosen` `` is not counted, because `.chosen` is not a known file extension, verifies **AC-6**
+- Failure case: a renamed single segment directory written `` `oldlib/` `` is counted, because the shape test sees the trailing slash before it is stripped, verifies **AC-6**
+- Edge case: a token ending `.MD` is counted the same as one ending `.md`, since the extension comparison ignores case, verifies **AC-6**
 - Edge case: an `In Progress` spec maps to `proposed` and carries the tag `source-status:In Progress`, verifies **AC-7**
 - Edge case: 0005, whose `index.md` has a real `## Context` and a stub `## Options considered`, uses `rationale.md` for both, and the stub reaches neither a field nor the body, verifies **AC-8**, **AC-11**
 - Edge case: 0001, 0011, and 0013 resolve their winner by ordinal; 0006, whose heading says `(recommended)` and whose Decision line drops the ordinal, resolves by title match; 0009 and 0012 resolve per panel by letter, verifies **AC-9**
@@ -251,6 +261,11 @@ Step 3 sits where it does deliberately. It changes code that shipped in feature 
 - Ladder step 4 does real work only for panel units, where entries carry their own `(chosen)` marker. For plain option specs steps 2 and 3 always resolve first, so step 4 is untested by anything in the current corpus.
 - `DM-<number>` is not corpus scoped, so a second corpus collides on ids and will force a migration of stored citations.
 - Flat single file specs stay unreadable this slice, which leaves a quarter of the corpus, including its most recent entries, out of the evaluation harness in feature 7.
+- The step 7 shape test is calibrated to one corpus's backtick habits and is now on its third calibration. It will need retuning against a second corpus, and a project that writes bare filenames without extensions, or quotes prose that happens to contain a slash, will read differently.
+- The known extension list is a maintained list, so a corpus using a file type outside it undercounts real misses until someone extends it. That was the deliberate trade against overcounting every dotted identifier.
+- A file with no extension at all, such as `Makefile`, `Dockerfile`, or `LICENSE`, is invisible to the warning once it is renamed, because it has no slash, no extension, and no leading dot. Nothing in the current corpus names one, so this is untested rather than known good.
+- A corpus that quotes prose containing a slash undercuts the whole filter: `` `and/or` ``, `` `Settings/Profile` ``, and a quoted URL path all read as path shaped and would be counted. This corpus's habit is backticked prose without slashes, which is why the slash rule is safe here and may not be elsewhere.
+- Evidence and the warning now answer two different questions with two different tests, which is one more thing to hold in mind when reading the extraction code than a single filter would be.
 
 **Neutral**:
 - Establishes the adapter protocol that a second source format implements later.
@@ -261,6 +276,7 @@ Step 3 sits where it does deliberately. It changes code that shipped in feature 
 
 - [ ] Add flat single file spec support in a later slice. Note that doing so makes `DM-0019` a genuine duplicate rather than a reported collision, so the id scheme needs a tiebreak before that slice ships
 - [ ] Update spec 0002 to record the `ValidationContext` change, the `evidence.mentions_unresolved` rule id, and the narrowed meaning of `existing_paths`
+- [ ] Recalibrate the step 7 shape test against the second corpus when one exists, and record what changed. Treat the current rule as calibration, not a principle; it has already been retuned twice
 - [ ] Close spec 0002's follow up about bounding the project root scan; step 3 removes the scan rather than bounding it
 - [ ] Update `AGENTS.md` and spec 0001 if the layer list changes as the adapter lands
 - [ ] Decide a corpus scoped id scheme before multi project querying leaves the deferred list, since changing ids later invalidates stored citations and embeddings
