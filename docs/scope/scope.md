@@ -48,7 +48,7 @@ Reads `docs/specs/<n> <name>/index.md` (plus `rationale.md` where present) and i
 **Validation corpus:** `github.com/ghalynho10/job_pilot`, specs under its `docs/specs/`. Spec 0019 (resume generation quality) has already been checked against the adapter's two file `index.md` plus `rationale.md` mapping.
 spec [0003](../specs/0003-jsmastery-specs-adapter/index.md) · code in src/decision_memory/
 - [x] Design it (spec): `/architect jsmastery specs adapter`
-- [ ] Build it: `/develop jsmastery specs adapter`
+- [x] Build it: `/develop jsmastery specs adapter`
   - [x] Discovery, id derivation, skip reporting, and the `adapt` command shell with `--dry-run` (AC-1, AC-2, AC-17, AC-20)
   - [x] Required field mapping, record serialization, and writing only records that validate (AC-3, AC-7, AC-16, AC-18, AC-21, AC-24)
   - [x] Change the shipped validation path: direct target checks, directory resolution, exported normalization, the new rule id (AC-22, AC-23)
