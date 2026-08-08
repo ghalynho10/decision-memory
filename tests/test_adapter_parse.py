@@ -441,6 +441,65 @@ def test_non_path_tokens_do_not_count_as_unresolved(tmp_path) -> None:
     assert result.unresolved_mention_count == 0
 
 
+def test_double_backtick_literal_does_not_hide_later_code_span(tmp_path) -> None:
+    # covers AC-4, AC-6
+    corpus = make_corpus(tmp_path)
+    (corpus / "tests").mkdir()
+    index = (
+        "# 0013. Code paths\n\n"
+        "**Date**: 2026-08-07\n"
+        "**Status**: Accepted\n\n"
+        "## Decision\n\n"
+        "**Chosen option**: Option 1: Wire the page\n\n"
+        "## Rationale\n\n"
+        "See [rationale.md](rationale.md).\n\n"
+        "## Build plan\n\n"
+        "- A literal inline example `` `read only` `` is prose.\n"
+        "- A later bare directory `tests` still resolves.\n"
+    )
+    write_spec(corpus, "0013-code-paths", index=index, rationale=CODE_RATIONALE)
+    result = _adapt(corpus)
+    file_targets = {
+        entry.target
+        for entry in result.record.evidence
+        if entry.kind == EvidenceKind.FILE
+    }
+    assert file_targets == {"tests"}
+    assert result.unresolved_mention_count == 0
+
+
+def test_fenced_code_block_does_not_contribute_code_paths(tmp_path) -> None:
+    # covers AC-4, AC-6
+    corpus = make_corpus(tmp_path)
+    (corpus / "tests").mkdir()
+    (corpus / "app").mkdir()
+    (corpus / "app" / "existing.py").write_text("x", encoding="utf-8")
+    index = (
+        "# 0013. Code paths\n\n"
+        "**Date**: 2026-08-07\n"
+        "**Status**: Accepted\n\n"
+        "## Decision\n\n"
+        "**Chosen option**: Option 1: Wire the page\n\n"
+        "## Rationale\n\n"
+        "See [rationale.md](rationale.md).\n\n"
+        "## Build plan\n\n"
+        "```text\n"
+        "app/existing.py\n"
+        "missing.py\n"
+        "```\n\n"
+        "- A later bare directory `tests` still resolves.\n"
+    )
+    write_spec(corpus, "0013-code-paths", index=index, rationale=CODE_RATIONALE)
+    result = _adapt(corpus)
+    file_targets = {
+        entry.target
+        for entry in result.record.evidence
+        if entry.kind == EvidenceKind.FILE
+    }
+    assert file_targets == {"tests"}
+    assert result.unresolved_mention_count == 0
+
+
 def test_renamed_single_segment_dir_counts_via_pre_strip_slash(tmp_path) -> None:
     # covers AC-6
     corpus = make_corpus(tmp_path)

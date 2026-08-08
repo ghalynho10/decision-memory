@@ -41,7 +41,7 @@ from decision_memory.infrastructure.path_resolution import (
 )
 
 # Bumped by hand when the mapping changes; part of every record's fingerprint.
-ADAPTER_VERSION = "2"
+ADAPTER_VERSION = "3"
 
 # Known file extensions that make a non resolving inline token count toward
 # the unresolved mention total (AC-6 step 7). Corpus calibration, not a
@@ -83,7 +83,7 @@ _CONSUMED_SECTIONS = frozenset(
 _HEADING_RE = re.compile(r"^(#{1,6})\s+(.*)$")
 _FENCE_RE = re.compile(r"^\s*(`{3,}|~{3,})")
 _BOLD_LABEL_RE = re.compile(r"^\s*(?:[-*]\s+)?\*\*([^*]+?)\*\*\s*[:：]?\s*(.*)$")
-_INLINE_CODE_RE = re.compile(r"`([^`]+)`")
+_BACKTICK_RUN_RE = re.compile(r"`+")
 _LINK_RE = re.compile(r"\[([^\]]*)\]\([^)]*\)")
 _TRAILING_LINE_RE = re.compile(r":\d+$")
 _OPTION_LINE_RE = re.compile(r"^\*\*Option\s+([A-Za-z0-9]+)\s*[:—-]\s*")
@@ -861,6 +861,37 @@ def _looks_like_path(token: str) -> bool:
     return any(lowered.endswith(ext) for ext in _KNOWN_PATH_EXTENSIONS)
 
 
+def _inline_code_spans(text: str) -> list[str]:
+    """Return CommonMark style inline code span bodies."""
+    text = _without_closed_fenced_blocks(text)
+    spans: list[str] = []
+    run_matches = list(_BACKTICK_RUN_RE.finditer(text))
+    opener_index = 0
+    while opener_index < len(run_matches):
+        opener = run_matches[opener_index]
+        opener_length = len(opener.group(0))
+        closer_index = opener_index + 1
+        while closer_index < len(run_matches):
+            closer = run_matches[closer_index]
+            if len(closer.group(0)) == opener_length:
+                spans.append(text[opener.end() : closer.start()])
+                opener_index = closer_index + 1
+                break
+            closer_index += 1
+        else:
+            opener_index += 1
+    return spans
+
+
+def _without_closed_fenced_blocks(text: str) -> str:
+    """Replace closed fenced code block lines with blanks."""
+    lines = text.split("\n")
+    fenced = _fenced_line_numbers(lines)
+    return "\n".join(
+        "" if index in fenced else line for index, line in enumerate(lines)
+    )
+
+
 def _extract_code_paths(text: str, corpus_root: Path) -> tuple[list[str], int]:
     """Resolved code path targets plus the count of unresolved mentions.
 
@@ -875,7 +906,7 @@ def _extract_code_paths(text: str, corpus_root: Path) -> tuple[list[str], int]:
     seen: set[str] = set()
     unresolved = 0
     listdir_cache: dict[Path, frozenset[str]] = {}
-    for span in _INLINE_CODE_RE.findall(text):
+    for span in _inline_code_spans(text):
         for token in span.split():
             token = token.strip()
             if not token:
