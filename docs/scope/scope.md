@@ -15,11 +15,14 @@ _You are in charge. Every box below is a suggestion, not a gate: run any, skip a
 | 2 | Coding standards & tooling | Foundation | done |
 | 3 | Canonical decision record schema & validator | Foundation | done |
 | 4 | jsmastery specs adapter | Foundation | done |
-| 5 | Runtime adapter loading | Foundation | planned |
-| 6 | Core cited query | Slice 1 | planned |
-| 7 | Reliable multi source retrieval | Slice 2 | planned |
-| 8 | Proven correctness (evaluation harness) | Slice 3 | planned |
-| 9 | Declarative adapters | V2 | planned |
+| 5 | `doctor` diagnostic | Foundation | planned |
+| 6 | Runtime adapter loading | Foundation | planned |
+| 7 | Adapter conformance suite and `test-adapter` | Foundation | planned |
+| 8 | Built-in ADR adapters | Foundation | planned |
+| 9 | Core cited query | Slice 1 | planned |
+| 10 | Reliable multi source retrieval | Slice 2 | planned |
+| 11 | Proven correctness (evaluation harness) | Slice 3 | planned |
+| 12 | Declarative adapters | V2 | planned |
 
 ## Foundations
 
@@ -60,35 +63,50 @@ spec [0003](../specs/0003-jsmastery-specs-adapter/index.md) · code in src/decis
 - [x] Verify it: `/check verify jsmastery specs adapter`
 - [x] Test it: `/test jsmastery specs adapter`
 
-### 5. Runtime adapter loading · needs a decision
-Make third party adapters usable without forking: `adapt` and `validate` can load an adapter by Python module path, while `jsmastery-specs` remains the default adapter behind the same protocol.
-**Done when:** a minimal fake adapter loads through the CLI flag, passes protocol checks, runs through ingestion and validation without changing core code, and adapter authors have a conformance suite proving their adapter does not fabricate fields or silently drop warnings.
+### 5. `doctor` diagnostic · needs a decision
+A reading aid for unfamiliar decision corpora. Point it at a directory and it reports markdown file count, common H2 headings, and exact H2 heading set groups with samples, using deterministic parsing and no fuzzy matching.
+**Done when:** a user can run `decision-memory doctor <path>` on an ADR corpus and see whether a built-in adapter is likely to fit, without producing records or inferring meaning.
+- [ ] Design it (spec): `/architect doctor diagnostic`
+
+### 6. Runtime adapter loading · needs a decision
+Make third party adapters usable without forking: `adapt` and `validate` can load an adapter by Python module path, while `jsmastery-specs` remains the default adapter behind the same protocol. Persist adapter, corpus root, and output directory in `.decision-memory.yml`, and ship a minimal starter adapter template plus a short writing guide.
+**Done when:** a minimal fake adapter loads through the CLI flag, the importlib loading mechanism is available for `test-adapter`, project config can persist the common adapter settings, and an adapter author has a small teaching template plus documentation separate from spec 0003.
 - [ ] Design it (spec): `/architect runtime adapter loading`
+
+### 7. Adapter conformance suite and `test-adapter` · needs a decision
+A battery of checks any adapter author can run against their adapter to prove protocol compliance and anti fabrication behavior, including format drift fixtures with wrong headings and missing fields.
+**Done when:** `decision-memory test-adapter my_module` gives a clear pass or fail report, malformed inputs produce no confident records, and every built-in adapter passes the same suite.
+- [ ] Design it (spec): `/architect adapter conformance suite and test-adapter`
+
+### 8. Built-in ADR adapters · needs a decision
+Ship built-in adapters for common ADR formats such as MADR and plain ADR, versioned as adapter ids like `madr@1`, calibrated against real corpora rather than synthetic examples.
+**Done when:** `doctor` has surveyed 2 to 3 real MADR or plain ADR repositories, the adapters produce valid records for standard corpora, pass `test-adapter` including format drift tests, and adapt at least 80 percent of documents in each survey corpus or report that the corpus is not a fit.
+- [ ] Design it (spec): `/architect built-in ADR adapters`
 
 ## Slice 1: Core cited query
 
-### 6. Core cited query · needs a decision
-Ingest real specs (parse, chunk on canonical field boundaries, embed, index, with metadata kept as structured queryable fields), semantic only retrieval, and a CLI `query` command returning an answer plus citations through a clean function boundary, with an explicit "not enough evidence" path when nothing supports an answer. Incremental re ingestion via the adapter's fingerprint is built in here, not deferred, since retrofitting it later means re embedding everything.
+### 9. Core cited query · needs a decision
+Ingest real specs (parse, chunk on canonical field boundaries, embed, index, with metadata kept as structured queryable fields), semantic only retrieval, and a CLI `query` command returning an answer plus citations through a clean function boundary, with an explicit "not enough evidence" path when nothing supports an answer. Incremental re ingestion via the adapter's fingerprint is built in here, not deferred, since retrofitting it later means re embedding everything. This retrieval pipeline can proceed in parallel with adapter accessibility work.
 **Done when:** a user runs the CLI against JobPilot's real specs and gets a cited answer, or an honest no evidence response, to query 1 (why was the private beta access gate added, and what was the alternative) end to end.
 - [ ] Design it (spec): `/architect core cited query`
 
 ## Slice 2: Reliable multi source retrieval
 
-### 7. Reliable multi source retrieval · needs a decision
+### 10. Reliable multi source retrieval · needs a decision
 Add structured metadata filtering and lexical retrieval alongside semantic retrieval, so a filter can constrain the candidate set before semantic similarity chooses among it, which is what keeps the tool from confidently citing the wrong document. Exact stage ordering and whether scores fuse or run as a pipeline is an `/architect` decision.
 **Done when:** query 2 (what decisions affect resume generation) and query 4 (what was decided about separating server side and browser side database clients, and why) return correctly sourced answers, not merely plausible ones.
 - [ ] Design it (spec): `/architect reliable multi source retrieval`
 
 ## Slice 3: Proven correctness (evaluation harness)
 
-### 8. Proven correctness (evaluation harness)
+### 11. Proven correctness (evaluation harness)
 The five defining queries as fixtures with known correct sources, plus two further assertions: one whose correct answer requires the rationale summary specifically and cannot be answered from the why list alone, and one that edits a `rationale.md`, re ingests, and confirms the record's chunks updated. The questions and assertions are already fully specified; this feature builds the harness, it does not design one.
 **Done when:** query 3 (which decisions are still provisional rather than ratified), query 5 (what changed the original approach to storing uploaded files, expected to return no evidence in v1), and both extra assertions pass or fail legibly against JobPilot's real corpus.
 - [ ] Build it: `/develop proven correctness (evaluation harness)`
 
 ## V2
 
-### 9. Declarative adapters · needs a decision
+### 12. Declarative adapters · needs a decision
 Let common decision formats implement the `SourceAdapter` protocol from a YAML mapping file instead of Python, while keeping stub detection, warn never invent behavior, evidence resolution, and attempted fields as engine owned guarantees.
 **Done when:** after at least two hand written adapters exist, a config driven adapter can map a simple real corpus into valid canonical records, malformed configs fail clearly, and formats needing branching logic are pointed back to a Python adapter rather than guessed.
 - [ ] Design it (spec): `/architect declarative adapters`
@@ -101,6 +119,7 @@ Out of scope for the current build pass, kept so the plan stays honest.
 - **History reconstruction**: recovering decisions from a codebase that never recorded them
 - **Multi project or cross repo querying**
 - **Auto generating records without human review**
+- **Adapter accessibility sequencing**: `doctor`, then real corpus survey using `doctor`, then the importlib part of runtime loading, then `test-adapter`, then built-in adapters, then the `.decision-memory.yml` config and starter template remainder of runtime loading. Core retrieval can proceed in parallel.
 - **Corpus backfill from git history**: padding the JobPilot corpus from commit history if it proves too thin to evaluate hybrid versus semantic only retrieval; a conscious later choice, not assumed now
 - **Flat single file spec support** (from spec 0003): the adapter reads directory specs only; five of the twenty sources, including the four most recent, are flat `NNNN-title.md` files. Adding them makes `DM-0019` a genuine duplicate rather than a reported collision, so the id scheme needs a tiebreak first. Build this by hand before declarative adapters, because the config schema must be designed against at least two real hand written adapters, not only `jsmastery-specs`.
 - **Corpus scoped record ids** (from spec 0003): `DM-<number>` is constant, not derived from the corpus, so a second project collides. Settle this before multi project querying starts, since changing ids later invalidates stored citations and embeddings
