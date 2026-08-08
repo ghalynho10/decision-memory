@@ -15,9 +15,11 @@ _You are in charge. Every box below is a suggestion, not a gate: run any, skip a
 | 2 | Coding standards & tooling | Foundation | done |
 | 3 | Canonical decision record schema & validator | Foundation | done |
 | 4 | jsmastery specs adapter | Foundation | done |
-| 5 | Core cited query | Slice 1 | planned |
-| 6 | Reliable multi source retrieval | Slice 2 | planned |
-| 7 | Proven correctness (evaluation harness) | Slice 3 | planned |
+| 5 | Runtime adapter loading | Foundation | planned |
+| 6 | Core cited query | Slice 1 | planned |
+| 7 | Reliable multi source retrieval | Slice 2 | planned |
+| 8 | Proven correctness (evaluation harness) | Slice 3 | planned |
+| 9 | Declarative adapters | V2 | planned |
 
 ## Foundations
 
@@ -58,26 +60,38 @@ spec [0003](../specs/0003-jsmastery-specs-adapter/index.md) · code in src/decis
 - [x] Verify it: `/check verify jsmastery specs adapter`
 - [x] Test it: `/test jsmastery specs adapter`
 
+### 5. Runtime adapter loading · needs a decision
+Make third party adapters usable without forking: `adapt` and `validate` can load an adapter by Python module path, while `jsmastery-specs` remains the default adapter behind the same protocol.
+**Done when:** a minimal fake adapter loads through the CLI flag, passes protocol checks, runs through ingestion and validation without changing core code, and adapter authors have a conformance suite proving their adapter does not fabricate fields or silently drop warnings.
+- [ ] Design it (spec): `/architect runtime adapter loading`
+
 ## Slice 1: Core cited query
 
-### 5. Core cited query · needs a decision
+### 6. Core cited query · needs a decision
 Ingest real specs (parse, chunk on canonical field boundaries, embed, index, with metadata kept as structured queryable fields), semantic only retrieval, and a CLI `query` command returning an answer plus citations through a clean function boundary, with an explicit "not enough evidence" path when nothing supports an answer. Incremental re ingestion via the adapter's fingerprint is built in here, not deferred, since retrofitting it later means re embedding everything.
 **Done when:** a user runs the CLI against JobPilot's real specs and gets a cited answer, or an honest no evidence response, to query 1 (why was the private beta access gate added, and what was the alternative) end to end.
 - [ ] Design it (spec): `/architect core cited query`
 
 ## Slice 2: Reliable multi source retrieval
 
-### 6. Reliable multi source retrieval · needs a decision
+### 7. Reliable multi source retrieval · needs a decision
 Add structured metadata filtering and lexical retrieval alongside semantic retrieval, so a filter can constrain the candidate set before semantic similarity chooses among it, which is what keeps the tool from confidently citing the wrong document. Exact stage ordering and whether scores fuse or run as a pipeline is an `/architect` decision.
 **Done when:** query 2 (what decisions affect resume generation) and query 4 (what was decided about separating server side and browser side database clients, and why) return correctly sourced answers, not merely plausible ones.
 - [ ] Design it (spec): `/architect reliable multi source retrieval`
 
 ## Slice 3: Proven correctness (evaluation harness)
 
-### 7. Proven correctness (evaluation harness)
+### 8. Proven correctness (evaluation harness)
 The five defining queries as fixtures with known correct sources, plus two further assertions: one whose correct answer requires the rationale summary specifically and cannot be answered from the why list alone, and one that edits a `rationale.md`, re ingests, and confirms the record's chunks updated. The questions and assertions are already fully specified; this feature builds the harness, it does not design one.
 **Done when:** query 3 (which decisions are still provisional rather than ratified), query 5 (what changed the original approach to storing uploaded files, expected to return no evidence in v1), and both extra assertions pass or fail legibly against JobPilot's real corpus.
 - [ ] Build it: `/develop proven correctness (evaluation harness)`
+
+## V2
+
+### 9. Declarative adapters · needs a decision
+Let common decision formats implement the `SourceAdapter` protocol from a YAML mapping file instead of Python, while keeping stub detection, warn never invent behavior, evidence resolution, and attempted fields as engine owned guarantees.
+**Done when:** after at least two hand written adapters exist, a config driven adapter can map a simple real corpus into valid canonical records, malformed configs fail clearly, and formats needing branching logic are pointed back to a Python adapter rather than guessed.
+- [ ] Design it (spec): `/architect declarative adapters`
 
 ## Deferred
 Out of scope for the current build pass, kept so the plan stays honest.
@@ -88,9 +102,10 @@ Out of scope for the current build pass, kept so the plan stays honest.
 - **Multi project or cross repo querying**
 - **Auto generating records without human review**
 - **Corpus backfill from git history**: padding the JobPilot corpus from commit history if it proves too thin to evaluate hybrid versus semantic only retrieval; a conscious later choice, not assumed now
-- **Flat single file spec support** (from spec 0003): the adapter reads directory specs only; five of the twenty sources, including the four most recent, are flat `NNNN-title.md` files. Adding them makes `DM-0019` a genuine duplicate rather than a reported collision, so the id scheme needs a tiebreak first
+- **Flat single file spec support** (from spec 0003): the adapter reads directory specs only; five of the twenty sources, including the four most recent, are flat `NNNN-title.md` files. Adding them makes `DM-0019` a genuine duplicate rather than a reported collision, so the id scheme needs a tiebreak first. Build this by hand before declarative adapters, because the config schema must be designed against at least two real hand written adapters, not only `jsmastery-specs`.
 - **Corpus scoped record ids** (from spec 0003): `DM-<number>` is constant, not derived from the corpus, so a second project collides. Settle this before multi project querying starts, since changing ids later invalidates stored citations and embeddings
 - **Recalibrate the code path shape test** (from spec 0003): the rule deciding which unresolved mentions are worth counting is tuned to one corpus's backtick habits and is already on its third calibration. A corpus that quotes prose containing slashes, or names files with no extension, will read differently. Retune when a second corpus exists, and record what changed
+- **Hooks for declarative adapters**: a later escape hatch where a YAML mapping names a small Python function for one field. Do not scope this until real declarative adapters show which escapes repeat; repeated hook patterns should become config vocabulary instead.
 
 ## Legend
 

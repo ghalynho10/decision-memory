@@ -9,6 +9,8 @@ This decision fixes the shape of a canonical decision record and the rules that 
 
 Two things this spec pins down beyond the field list, because both are load bearing and easy to leave implicit. First, reading a file and validating a record are separate steps with separate failure modes: a file that is not a parseable record produces no record at all, and those failures are reported in the same violation vocabulary as rule failures rather than as a second unrelated error path. Second, every rule carries a stable identifier, so tests and later consumers match on rule ids instead of on prose.
 
+Feature 4 amended this contract without changing the chosen architecture. `ValidationContext` now also carries a count of unresolved path shaped mentions that an adapter dropped, and the validator reports that count as a warning. The application validation path now builds `existing_paths` by checking each cited target directly, including directories, rather than scanning the entire project root. The validator remains pure: callers still supply the resolved path set.
+
 ## Context
 
 The project is a local tool that answers why a project is built the way it is, with cited answers backed by decision records. Its whole value depends on trustworthy records that carry resolvable evidence. A malformed record, a missing decision, or a claim with no backing source would flow straight into the retrieval and answer stages and quietly undermine every citation.
@@ -45,6 +47,7 @@ The cost of not deciding is deferred rework. Every later slice depends on this s
 - **AC-14**: A `commit` target of 7 to 40 hexadecimal characters resolves when it is a unique prefix of exactly one known commit. A prefix matching more than one produces `evidence.commit_ambiguous`.
 - **AC-15**: A record whose `supersedes` equals its own `id` produces a `supersedes.self_reference` error.
 - **AC-16**: A record with warnings but no errors exits `0`. A malformed `id` or `date` produces an error naming the field.
+- **AC-17**: A validation context whose `unresolved_mention_count` is greater than zero produces an `evidence.mentions_unresolved` warning on `evidence`. The warning never changes the exit code by itself.
 
 ## Options considered
 
@@ -132,9 +135,10 @@ Three of the rules here exist specifically to stop a wrong reason from being rep
 `ValidationContext` (passed in, keeps the validator pure):
 - `attempted_fields`: set of str, fields the adapter tried but could not fill
 - `unknown_fields`: set of str, fields the parser saw that are not in the schema
-- `existing_paths`: set of str, normalized project relative paths that exist, used for `spec` and `file` evidence
+- `existing_paths`: set of str, normalized project relative paths that resolved, used for `spec` and `file` evidence. The caller may produce it by scanning the project root or by checking cited targets directly.
 - `known_commits`: set of str, full 40 character commit hashes in git history, used for `commit` evidence
 - `git_available`: bool, false when the project root is not a repository or git could not be run
+- `unresolved_mention_count`: int, the number of path shaped code mentions an adapter saw and dropped because they did not resolve
 
 `Violation`: `field` (str), `severity` (error or warning), `rule` (str, a rule id from the table below), `reason` (str).
 
@@ -153,6 +157,8 @@ A record file is UTF-8 text, with or without a byte order mark, and with either 
 **Evidence target normalization**:
 
 Targets for `spec` and `file` kinds are project root relative POSIX paths. A target is rejected before any resolution attempt when it is empty or whitespace only (`evidence.empty_target`), or when it is absolute, contains a `..` segment, or ends in a slash (`evidence.target_not_normalized`). Otherwise it is normalized by stripping a leading `./` and collapsing repeated slashes, then compared against `existing_paths` by exact, case sensitive string match. The producer of `existing_paths` normalizes the same way. Case sensitivity is deliberate even though macOS filesystems are usually case insensitive: a record whose target casing differs from the file on disk is a record that will break on a case sensitive machine, and this catches it at validation time rather than in CI.
+
+The shipped application path checks each cited target directly and puts only the resolving targets into `existing_paths`, rather than scanning the whole project root. Files and directories both resolve. This preserves the domain contract while keeping path discovery bounded to what the record actually cites.
 
 A `spec` target must additionally resolve under `docs/specs/`; one that resolves elsewhere produces `evidence.spec_outside_specs_dir`. This is the only thing distinguishing `spec` from `file`, and it exists so the kind carries validation weight rather than being decorative metadata.
 
@@ -182,6 +188,7 @@ A `spec` target must additionally resolve under `docs/specs/`; one that resolves
 | `field.attempted_unfilled` | warning | a field is in `attempted_fields` |
 | `alternative.missing_rejection_reason` | warning | an alternative has no `rejection_reason` |
 | `field.unknown` | warning | a field is in `unknown_fields` |
+| `evidence.mentions_unresolved` | warning | `unresolved_mention_count` is greater than zero |
 | `context.git_unavailable` | warning | `git_available` is false and the record has `commit` evidence |
 
 **Parse result**:
@@ -226,10 +233,11 @@ Warnings never affect the exit code in this slice. A `--strict` flag that promot
 | CLI `validate` | printed lines | the parse violations, then the validation violations |
 | CLI `validate` | exit code | the exit code table: `3` when no record, else `1` when any error, else `0` |
 | CLI `validate` | project root | `--project-root`, else nearest `.git` ancestor, else the record file's parent |
-| CLI `validate` | `existing_paths` | application scans the project root, normalized project relative POSIX paths |
+| CLI `validate` | `existing_paths` | each `spec` or `file` target the record cites, normalized and checked directly under the project root |
 | CLI `validate` | `known_commits` | application queries git history for full hashes, empty when git is unavailable |
 | CLI `validate` | `git_available` | whether the project root is a repository and git ran successfully |
 | CLI `validate` | `attempted_fields` | empty in this slice; nothing in the CLI path knows what a source offered, feature 4's adapter fills it |
+| adapter validation | `unresolved_mention_count` | the adapter's count of dropped path shaped mentions, defaulting to zero when no adapter supplied one |
 
 **Key invariants**:
 - The validator is pure: it performs no filesystem or git access, all existence checks use the supplied sets.
@@ -238,6 +246,7 @@ Warnings never affect the exit code in this slice. A `--strict` flag that promot
 - Evidence targets are normalized and rejected for shape before any resolution is attempted.
 - Evidence targets resolve per kind against the supplied sets; commit resolution is skipped entirely when git is unavailable.
 - `attempted_fields` and `unknown_fields` never reject, they only warn.
+- `unresolved_mention_count` never rejects, it only warns.
 - An empty markdown body is allowed.
 - `supersedes` holds at most one record id and never this record's own id.
 - Every violation carries a rule id from the rule table, and each rule id has one fixed severity.
@@ -264,6 +273,8 @@ Warnings never affect the exit code in this slice. A `--strict` flag that promot
 - Edge case: a 7 character commit prefix matching one known commit resolves; a prefix matching two produces `evidence.commit_ambiguous`, verifies **AC-14**
 - Failure case: a record whose `supersedes` equals its own `id` produces `supersedes.self_reference`, verifies **AC-15**
 - Edge case: a record with only warnings exits `0`; `id` of `"-bad id"` and `date` of `2026-02-30` each error naming the field, verifies **AC-16**
+- Edge case: `unresolved_mention_count` of `4` produces `evidence.mentions_unresolved` as a warning and does not change the exit code, verifies **AC-17**
+- Edge case: `validate` on a record citing a directory target resolves it by checking the cited target directly, and completes without scanning the whole project root
 - Edge case: `evidence` given as a string rather than a list produces `field.wrong_type` at parse time with no record, and `status: draft` produces `field.bad_enum`
 - Edge case: a record file with a byte order mark and CRLF line endings parses identically to the plain UTF-8 LF version
 
@@ -273,10 +284,10 @@ Ordered for the Skateboard approach: the thinnest usable whole first, a person v
 
 1. Add `pyyaml` and `types-PyYAML`, then build the file reader: the frontmatter grammar, the Pydantic model over the parsed mapping, `ParseResult`, and the `file.*` and `field.*` rules, satisfies **AC-10**
 2. Build the domain model, the `Violation` and `ValidationContext` types, the missing field rule, the why or rationale pair, the `id` and `date` format rules, self supersession, and the CLI `validate` command that prints violations and sets the exit code, satisfies **AC-1**, **AC-2**, **AC-4**, **AC-8**, **AC-9**, **AC-11**, **AC-15**, **AC-16**
-3. Add the warning rules: attempted fields, alternatives missing a rejection reason, and unknown fields, satisfies **AC-5**, **AC-6**, **AC-7**
+3. Add the warning rules: attempted fields, alternatives missing a rejection reason, unknown fields, and unresolved mention counts, satisfies **AC-5**, **AC-6**, **AC-7**, **AC-17**
 4. Add evidence target normalization and shape rejection, then resolution per kind against the supplied sets, satisfies **AC-3**, **AC-12**, **AC-14**
-5. Add the application glue: project root resolution, the path scan, the git history query, and the git unavailable path, satisfies **AC-13**
-6. Complete the test suite covering every rule id and the happy path, and run ruff and mypy clean, satisfies **AC-1** through **AC-16**
+5. Add the application glue: project root resolution, direct cited path checks, the git history query, and the git unavailable path, satisfies **AC-13**
+6. Complete the test suite covering every rule id and the happy path, and run ruff and mypy clean, satisfies **AC-1** through **AC-17**
 
 Step 1 comes first because nothing else can be exercised end to end until a file can be read, and because it is where the new dependency lands. Steps 2 through 5 each keep the CLI working, so the thin whole is usable from step 2 onward and thickens from there.
 
@@ -291,7 +302,7 @@ Step 1 comes first because nothing else can be exercised end to end until a file
 
 **Negative / tradeoffs**:
 - More hand written code than letting Pydantic own the whole model, and two representations of the shape to keep aligned
-- Callers must gather existing paths, known commits, and git availability before validating, so validation is not a one argument call
+- Callers must gather resolved paths, known commits, and git availability before validating, so validation is not a one argument call
 - The schema and feature 4's adapter must stay in lockstep, since the adapter produces these records
 - Adds a runtime dependency, `pyyaml`, that the stack did not have
 - Case sensitive path comparison will reject targets that resolve fine on a developer's macOS filesystem; that is the intent, but it will read as a false positive the first time it happens
@@ -300,13 +311,13 @@ Step 1 comes first because nothing else can be exercised end to end until a file
 **Neutral**:
 - Introduces the first domain model and establishes the pattern later slices build on
 - The derived `superseded_by` link is deferred to the retrieval slices
-- Scanning the project root for `existing_paths` is fine at this size and will need bounding if it ever runs against a large repository
+- Direct cited path checks keep the application path bounded to what the record cites; a caller may still provide a precomputed path set when it already has one
 
 ## Follow-up
 
 - [ ] Implement `superseded_by` derivation, scanning `supersedes` across records, in the retrieval slices (features 5 and 6), not here
 - [ ] Enforce `id` uniqueness and `supersedes` target existence at ingestion in feature 5, where the whole corpus is in hand; neither is checkable against a single record
-- [ ] Keep feature 4 (jsmastery specs adapter) aligned to this schema when it is designed; its degradation policy already shaped the warning rules, and the adapter is what fills `attempted_fields`
+- [ ] Keep future adapters aligned to this schema; their degradation policy fills `attempted_fields` and may fill `unresolved_mention_count`
 - [ ] Consider whether the `validate` command should accept multiple files or a directory in a later slice
 - [ ] Consider a `--strict` flag that promotes warnings to errors, once there is a real corpus to know whether it would be usable
 - [ ] Duplicate frontmatter keys resolve last wins and go undetected; revisit if real records hit it, which would mean moving to `ruamel.yaml`
@@ -317,6 +328,7 @@ Step 1 comes first because nothing else can be exercised end to end until a file
 **Project sources** (verifiable, in this repo):
 - `AGENTS.md`: Clean Architecture rules, zero external imports in the domain layer
 - `docs/specs/0001-stack-and-architecture.md`: the stack decision, Pydantic as a dependency
+- `docs/specs/0003-jsmastery-specs-adapter/index.md`: the shipped validation path amendment, direct cited path checks, and `evidence.mentions_unresolved`
 - `docs/scope/scope.md`: feature 3 row and feature 4 degradation policy
 
 **Practices & standards**:
