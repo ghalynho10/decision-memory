@@ -344,3 +344,99 @@ def _to_domain(
 
 def _violation(field: str, severity: Severity, rule: str, reason: str) -> Violation:
     return Violation(field=field, severity=severity, rule=rule, reason=reason)
+
+
+def serialize_record(record: CanonicalDecisionRecord) -> str:
+    """Serialize a record to the exact inverse of the read grammar (AC-24).
+
+    A ``---`` fence, the frontmatter written with ``yaml.safe_dump`` at
+    ``sort_keys=False`` so field order follows the schema, a closing ``---``,
+    one blank line, then the body verbatim. A key whose value is ``None`` or an
+    empty list is omitted rather than written as null, so a record never
+    asserts an empty field it simply does not have.
+    """
+    frontmatter = yaml.safe_dump(
+        _record_to_mapping(record),
+        sort_keys=False,
+        allow_unicode=True,
+        default_flow_style=False,
+    )
+    body = record.body or ""
+    return f"{_FENCE}\n{frontmatter}{_FENCE}\n\n{body}"
+
+
+def write_record_file(record: CanonicalDecisionRecord, path: Path) -> None:
+    """Write a serialized record to ``path``, creating parent directories."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(serialize_record(record), encoding="utf-8")
+
+
+def _record_to_mapping(record: CanonicalDecisionRecord) -> dict[str, object]:
+    """The domain record as a plain YAML serializable mapping.
+
+    Empty or absent values are omitted so the written frontmatter is the exact
+    inverse of what the reader produces: a record read back from disk equals
+    the record written.
+    """
+    data: dict[str, object] = {}
+    if record.id is not None:
+        data["id"] = record.id
+    if record.title is not None:
+        data["title"] = record.title
+    if record.status is not None:
+        data["status"] = record.status.value
+    if record.date is not None:
+        data["date"] = record.date
+    if record.context is not None:
+        context: dict[str, object] = {}
+        if record.context.problem is not None:
+            context["problem"] = record.context.problem
+        if record.context.triggering_change is not None:
+            context["triggering_change"] = record.context.triggering_change
+        if context:
+            data["context"] = context
+    if record.decision is not None:
+        decision: dict[str, object] = {}
+        if record.decision.chosen is not None:
+            decision["chosen"] = record.decision.chosen
+        alternatives: list[dict[str, str]] = []
+        for alternative in record.decision.alternatives:
+            item: dict[str, str] = {}
+            if alternative.title is not None:
+                item["title"] = alternative.title
+            if alternative.rejection_reason is not None:
+                item["rejection_reason"] = alternative.rejection_reason
+            alternatives.append(item)
+        if alternatives:
+            decision["alternatives"] = alternatives
+        if decision:
+            data["decision"] = decision
+    if record.why:
+        data["why"] = list(record.why)
+    if record.rationale_summary is not None:
+        data["rationale_summary"] = record.rationale_summary
+    if record.consequences is not None:
+        consequences: dict[str, object] = {}
+        if record.consequences.positive:
+            consequences["positive"] = list(record.consequences.positive)
+        if record.consequences.negative:
+            consequences["negative"] = list(record.consequences.negative)
+        if consequences:
+            data["consequences"] = consequences
+    if record.evidence:
+        evidence: list[dict[str, str]] = []
+        for entry in record.evidence:
+            evidence_item: dict[str, str] = {}
+            if entry.kind is not None:
+                evidence_item["kind"] = entry.kind.value
+            if entry.target is not None:
+                evidence_item["target"] = entry.target
+            if entry.note is not None:
+                evidence_item["note"] = entry.note
+            evidence.append(evidence_item)
+        data["evidence"] = evidence
+    if record.tags:
+        data["tags"] = list(record.tags)
+    if record.supersedes is not None:
+        data["supersedes"] = record.supersedes
+    return data

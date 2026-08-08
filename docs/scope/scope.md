@@ -48,12 +48,12 @@ Reads `docs/specs/<n> <name>/index.md` (plus `rationale.md` where present) and i
 **Validation corpus:** `github.com/ghalynho10/job_pilot`, specs under its `docs/specs/`. Spec 0019 (resume generation quality) has already been checked against the adapter's two file `index.md` plus `rationale.md` mapping.
 spec [0003](../specs/0003-jsmastery-specs-adapter/index.md) · code in src/decision_memory/
 - [x] Design it (spec): `/architect jsmastery specs adapter`
-- [ ] Build it: `/develop jsmastery specs adapter`
-  - [ ] Discovery, id derivation, skip reporting, and the `adapt` command shell with `--dry-run` (AC-1, AC-2, AC-17, AC-20)
-  - [ ] Required field mapping, record serialization, and writing only records that validate (AC-3, AC-7, AC-16, AC-18, AC-21, AC-24)
-  - [ ] Change the shipped validation path: direct target checks, directory resolution, exported normalization, the new rule id (AC-22, AC-23)
-  - [ ] Full field mapping: code path evidence, section precedence and stubs, residue body, attempted fields, and alternatives across both option shapes (AC-4, AC-5, AC-6, AC-8, AC-9, AC-10, AC-11, AC-12)
-  - [ ] Fingerprint, manifest, incremental rewriting, and collision reporting (AC-13, AC-14, AC-15, AC-19, AC-25)
+- [x] Build it: `/develop jsmastery specs adapter`
+  - [x] Discovery, id derivation, skip reporting, and the `adapt` command shell with `--dry-run` (AC-1, AC-2, AC-17, AC-20)
+  - [x] Required field mapping, record serialization, and writing only records that validate (AC-3, AC-7, AC-16, AC-18, AC-21, AC-24)
+  - [x] Change the shipped validation path: direct target checks, directory resolution, exported normalization, the new rule id (AC-22, AC-23)
+  - [x] Full field mapping: code path evidence, section precedence and stubs, residue body, attempted fields, and alternatives across both option shapes (AC-4, AC-5, AC-6, AC-8, AC-9, AC-10, AC-11, AC-12)
+  - [x] Fingerprint, manifest, incremental rewriting, and collision reporting (AC-13, AC-14, AC-15, AC-19, AC-25)
 - [ ] Verify it: `/check verify jsmastery specs adapter`
 - [ ] Test it: `/test jsmastery specs adapter`
 

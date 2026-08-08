@@ -12,7 +12,12 @@ from typing import Annotated
 
 import typer
 
+from decision_memory.application.adapter import AdaptOutcome, adapt_corpus
 from decision_memory.application.validation_service import validate_file
+from decision_memory.infrastructure.jsmastery_adapter import (
+    ADAPTER_VERSION,
+    JsmasteryAdapter,
+)
 
 app = typer.Typer(
     name="decision-memory",
@@ -61,6 +66,63 @@ def validate_command(
     if not outcome.violations:
         typer.echo("valid record, no violations")
     raise typer.Exit(outcome.exit_code)
+
+
+@app.command("adapt")
+def adapt_command(
+    corpus_path: Annotated[
+        Path, typer.Argument(help="Path to the corpus, a project holding docs/specs/")
+    ],
+    output: Annotated[
+        Path | None,
+        typer.Option(help="Output directory for records and the manifest"),
+    ] = None,
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", help="Run and report without writing anything"),
+    ] = False,
+) -> None:
+    """Adapt a project's jsmastery specs into canonical decision records."""
+    outcome = adapt_corpus(
+        corpus_path,
+        JsmasteryAdapter(),
+        ADAPTER_VERSION,
+        output=output,
+        dry_run=dry_run,
+    )
+    _print_adapt_report(outcome)
+    raise typer.Exit(outcome.exit_code)
+
+
+def _print_adapt_report(outcome: AdaptOutcome) -> None:
+    """Print the adapt run's report: discovery, per record, and summary."""
+    discovery = outcome.discovered
+    typer.echo(
+        f"discovered {len(discovery.specs)} specs, skipped {len(discovery.skipped)}"
+    )
+    for skipped in discovery.skipped:
+        typer.echo(f"  skipped {skipped.path}: {skipped.reason}")
+    for collision in discovery.collisions:
+        typer.echo(
+            f"  collision {collision.id}: "
+            f"{', '.join(str(path) for path in collision.paths)} "
+            f"(using {collision.used})"
+        )
+    for record in outcome.records:
+        if record.state == "failed":
+            reasons = "; ".join(v.reason for v in record.violations)
+            typer.echo(f"  failed {record.id}: {reasons}")
+        else:
+            typer.echo(f"  {record.state} {record.id}")
+    counts: dict[str, int] = {}
+    for record in outcome.records:
+        counts[record.state] = counts.get(record.state, 0) + 1
+    summary = ", ".join(f"{state} {count}" for state, count in counts.items())
+    typer.echo(f"result: {summary}")
+    if outcome.exit_code == 3:
+        typer.echo("corpus path does not exist or holds no docs/specs/ directory")
+    suffix = " (dry run, nothing written)" if outcome.dry_run else ""
+    typer.echo(f"output: {outcome.output_dir}{suffix}")
 
 
 if __name__ == "__main__":

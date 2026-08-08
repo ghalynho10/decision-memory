@@ -1,7 +1,7 @@
 # 0003. jsmastery specs adapter
 
 **Date**: 2026-08-08
-**Status**: Proposed
+**Status**: In Progress
 
 ## Summary
 

@@ -15,6 +15,7 @@ from pathlib import Path
 from decision_memory.domain.records import Severity, ValidationContext, Violation
 from decision_memory.domain.validation import validate
 from decision_memory.infrastructure.file_reader import parse_record_file
+from decision_memory.infrastructure.path_resolution import resolve_cited_paths
 
 # Exit codes fixed by spec 0002.
 EXIT_OK = 0
@@ -44,7 +45,7 @@ def validate_file(
     context = ValidationContext(
         attempted_fields=frozenset(),
         unknown_fields=parse_result.unknown_fields,
-        existing_paths=_scan_existing_paths(root),
+        existing_paths=resolve_cited_paths(parse_result.record, root),
         known_commits=known_commits,
         git_available=git_available,
     )
@@ -70,17 +71,6 @@ def _resolve_project_root(file_path: Path, override: Path | None) -> Path:
         if (parent / ".git").exists():
             return parent
     return candidate.parent
-
-
-def _scan_existing_paths(root: Path) -> frozenset[str]:
-    """Normalized project root relative POSIX paths of every file under the root."""
-    paths: set[str] = set()
-    for path in root.rglob("*"):
-        if path.name == ".git" or ".git" in path.parts:
-            continue
-        if path.is_file():
-            paths.add(path.relative_to(root).as_posix())
-    return frozenset(paths)
 
 
 def _query_known_commits(root: Path) -> tuple[frozenset[str], bool]:

@@ -41,6 +41,7 @@ def validate(
     _check_evidence(record, context, violations)
     _check_attempted_fields(context, violations)
     _check_unknown_fields(context, violations)
+    _check_mentions_unresolved(context, violations)
     _check_git_unavailable(record, context, violations)
     return violations
 
@@ -223,8 +224,14 @@ def _target_is_not_normalized(target: str) -> bool:
     )
 
 
-def _normalize_target(target: str) -> str:
-    """Strip a leading ./ and collapse repeated slashes to match scanned paths."""
+def normalize_target(target: str) -> str:
+    """Strip a leading ./ and collapse repeated slashes to match scanned paths.
+
+    Public because both the jsmastery adapter and the application validation
+    path need one shared normalization (spec 0003): the adapter builds
+    evidence targets from code path tokens, and validation checks each cited
+    target directly against that same normalized form.
+    """
     stripped = target.strip()
     if stripped.startswith("./"):
         stripped = stripped[2:]
@@ -295,7 +302,7 @@ def _check_evidence(
                 )
             )
             continue
-        normalized = _normalize_target(target)
+        normalized = normalize_target(target)
         if evidence.kind == EvidenceKind.SPEC and not _under_specs_dir(normalized):
             violations.append(
                 _violation(
@@ -341,6 +348,22 @@ def _check_unknown_fields(
                 Severity.WARNING,
                 "field.unknown",
                 f"unknown field {field}",
+            )
+        )
+
+
+def _check_mentions_unresolved(
+    context: ValidationContext, violations: list[Violation]
+) -> None:
+    """Warn when the adapter dropped code path mentions that did not resolve."""
+    if context.unresolved_mention_count > 0:
+        violations.append(
+            _violation(
+                "evidence",
+                Severity.WARNING,
+                "evidence.mentions_unresolved",
+                f"{context.unresolved_mention_count} code path mentions "
+                "did not resolve",
             )
         )
 
