@@ -1,7 +1,7 @@
 # 0004. Doctor diagnostic
 
 **Date**: 2026-08-08
-**Status**: In Progress
+**Status**: Accepted
 
 _Decision history (context, options considered, rationale, references): [rationale.md](rationale.md)._
 
