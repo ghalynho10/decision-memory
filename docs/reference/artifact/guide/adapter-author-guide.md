@@ -194,9 +194,100 @@ decision-memory adapt
 decision-memory validate
 ```
 
+## The conformance suite and `test-adapter`
+
+Feature 7 gives you one command that proves protocol compliance and anti
+fabrication behavior:
+
+```bash
+decision-memory test-adapter SELECTOR --cases PATH
+```
+
+`SELECTOR` is the built in `jsmastery-specs` or a `package.module:attribute`
+value. `PATH` is a strict manifest file. The suite checks the real protocol,
+compares complete records with declared expectations, and exercises deliberate
+malformed input. Run it when you want a proof stronger than "the adapter ran".
+
+### The manifest
+
+The manifest is a strict versioned YAML file. The schema version must be
+exactly 1. Unknown keys, wrong types, duplicate case ids, missing paths, path
+escape, and symlinks are all rejected before the adapter loads. Every failure
+names the failing field or path and exits 1. All paths resolve from the
+manifest directory and may not escape it. A case names a corpus directory, and
+each case declares a complete expected discovery result.
+
+### The five categories
+
+Every suite must include at least one case in each category:
+
+- `valid`: at least one expected source with a nonnull record and no error
+  violations. Declared warnings are allowed.
+- `skip`: a subject that must appear exactly once in the expected skips.
+- `wrong_heading`: a malformed grammar subject plus target fields, which print
+  as coverage labels.
+- `missing_required_field`: a malformed subject that must not produce confident
+  output.
+- `collision`: an exact id collision with two or more paths.
+
+A malformed subject may be absent from discovery, explicitly skipped, produce
+no record, or produce a record with at least one error violation. A valid
+record or a warning only record for a malformed subject is confident output and
+fails.
+
+### Exact record comparison
+
+Each expected source names a canonical record file. The suite parses it and
+compares every field against what your adapter produced, including absent
+fields. An invented field fails even when the record otherwise validates.
+Attempted fields compare as a set, and violations compare by severity, rule,
+and field in order.
+
+### Corruption behavior
+
+For each required file you declare, the suite makes separate copies, empties
+the file, and writes a fixed invalid UTF-8 payload. Every source that lists the
+file as a contributing file must become absent or non confident. All other
+sources must keep their exact expected results.
+
+### The report and exit codes
+
+The report shows each executed check as PASS or FAIL with a stable rule id,
+fixed coordinates, concise failure detail, totals, and a final result. Order
+is fixed by phase, then manifest case order, then declared source and path
+order. Exit 0 means every executed check passed. Exit 1 covers loading,
+manifest, fixture, execution, and conformance failures. Exit 2 is reserved for
+malformed text on the command line, including a bad selector.
+
+### The trusted execution boundary
+
+The suite is not a sandbox. Your adapter runs in process with the caller's
+permissions, and the suite can detect only writes inside the copied corpus. It
+cannot prove your adapter avoided reads or writes elsewhere. The manifest is
+data, never executable assertion code.
+
+### Reproducing a failed case
+
+When a workspace fails before cleanup, the suite preserves a copy and prints
+an artifact line with its absolute path after the first failed check for that
+workspace. Open that path to inspect the exact corpus that failed and
+reproduce the failure against it.
+
+### The starter expansion
+
+This feature expands the two flat fixtures the starter first shipped with into
+a recursive teaching corpus with all five categories. The starter now
+discovers `decisions/**/*.md`, derives ids from filename stems, orders
+candidates by corpus relative path, and reports collisions. Its strict
+manifest lives at `examples/starter-adapter/adapter-conformance.yml`, and the
+built in adapter's manifest lives at
+`tests/fixtures/adapter_conformance/jsmastery_specs/adapter-conformance.yml`.
+Read both to see every category in action.
+
 ## Where to go next
 
 Read the starter package end to end, then write your own adapter and run it
-against a real corpus. When you want a stronger proof, feature 7 provides the
-conformance suite and the `test-adapter` command, which check signatures,
-protocol behavior, anti fabrication behavior, and format drift fixtures.
+against a real corpus. When you want a stronger proof, run the conformance
+suite described above against your own manifest. The strict manifests shipped
+with the built in and starter adapters are working examples of every category,
+exact expected records, and required file corruption.

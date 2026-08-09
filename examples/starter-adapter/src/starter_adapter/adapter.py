@@ -41,6 +41,7 @@ from pathlib import Path
 
 from decision_memory.application.adapter import (
     AdaptationResult,
+    Collision,
     DiscoveredSpec,
     DiscoveryResult,
     SkippedSource,
@@ -86,7 +87,15 @@ class StarterAdapter:
         return ADAPTER_VERSION
 
     def discover(self, corpus_root: Path) -> DiscoveryResult:
-        """Find decision files under ``decisions/``, skipping non decisions."""
+        """Find decision files under ``decisions/``, skipping non decisions.
+
+        Discovery walks every Markdown file recursively (``decisions/**/*.md``,
+        which includes the original flat ``decisions/*.md`` shape), derives ids
+        from filename stems, orders candidate files by corpus relative POSIX
+        path in ascending lexical order, and for a duplicated id selects the
+        first path and reports every colliding path in that same order (spec
+        0006 AC-19).
+        """
         decisions_dir = corpus_root / "decisions"
         if not decisions_dir.is_dir():
             return DiscoveryResult(
@@ -95,9 +104,9 @@ class StarterAdapter:
                 collisions=[],
                 corpus_error="no decisions/ directory",
             )
-        specs: list[DiscoveredSpec] = []
+        candidates: list[Path] = []
         skipped: list[SkippedSource] = []
-        for path in sorted(decisions_dir.glob("*.md")):
+        for path in sorted(decisions_dir.glob("**/*.md")):
             text = _read_text(path)
             if text is None:
                 skipped.append(SkippedSource(path=path, reason="cannot read file"))
@@ -107,15 +116,26 @@ class StarterAdapter:
                     SkippedSource(path=path, reason="no ## Decision section")
                 )
                 continue
+            candidates.append(path)
+        candidates.sort(key=lambda path: path.relative_to(corpus_root).as_posix())
+        by_id: dict[str, list[Path]] = {}
+        for path in candidates:
+            by_id.setdefault(path.stem, []).append(path)
+        specs: list[DiscoveredSpec] = []
+        collisions: list[Collision] = []
+        for spec_id, paths in by_id.items():
+            used = paths[0]
             specs.append(
                 DiscoveredSpec(
-                    id=path.stem,
-                    root=path,
+                    id=spec_id,
+                    root=used,
                     corpus_root=corpus_root,
-                    contributing_files=[path],
+                    contributing_files=[used],
                 )
             )
-        return DiscoveryResult(specs, skipped, [])
+            if len(paths) > 1:
+                collisions.append(Collision(id=spec_id, paths=paths, used=used))
+        return DiscoveryResult(specs, skipped, collisions)
 
     def parse(self, spec: DiscoveredSpec) -> AdaptationResult:
         """Turn one decision file into a validated canonical record."""
@@ -151,6 +171,7 @@ class StarterAdapter:
             title=_title(text),
             status=status,
             date=_date(text),
+            body="",
             context=Context(problem=context_text) if context_text else None,
             decision=Decision(chosen=decision_text) if decision_text else None,
             why=why,
@@ -205,9 +226,15 @@ def _fingerprint_or_empty(spec: DiscoveredSpec) -> str:
 
 
 def _read_text(path: Path) -> str | None:
+    """Read a file as UTF-8 text, or None when unreadable or not UTF-8.
+
+    Degrades rather than raises: a file that cannot be read or does not decode
+    as UTF-8 is reported as a skip, never a crash (spec 0005 AC-7, spec 0006
+    AC-8 corruption behavior).
+    """
     try:
         return path.read_text(encoding="utf-8")
-    except OSError:
+    except (OSError, UnicodeDecodeError):
         return None
 
 

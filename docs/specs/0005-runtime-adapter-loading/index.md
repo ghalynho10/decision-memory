@@ -186,9 +186,13 @@ The Skateboard approach starts with one complete third party path through the ex
 2. Python entry point discovery remains a possible later convenience. It is not required for explicit selectors.
 3. `test-adapter` remains responsible for signatures, protocol behavior, anti fabrication checks, and format drift fixtures.
 
+## Later evolution
+
+Spec [0006](../0006-adapter-conformance-test-adapter/index.md) expands the teaching starter from two flat fixtures under `decisions/` to a recursive `decisions/**/*.md` corpus with all five conformance categories. It also gives duplicate filename stems an explicit selection rule: use the first corpus relative POSIX path in lexical order and report every collision path in that order. This later teaching expansion does not change the acceptance evidence for AC-16 through AC-19 as originally shipped.
+
 ## Follow-up
 
-1. Feature 7 should reuse `load_adapter` and add signature plus behavioral conformance checks without creating a second loading path.
+1. Spec 0006 defines signature and behavioral conformance checks and a shared `select_adapter` entry point that delegates third party selectors to `load_adapter` rather than creating a second loading path.
 2. Consider Python package entry point discovery only after real adapter authors show that explicit selectors are a usability problem.
 
 ## Rationale
