@@ -6,11 +6,8 @@ In session residue that has not earned a place in scope, a spec, or AGENTS.md ye
 
 - mypy is the installed strict type checker (tooling milestone); `AGENTS.md` records "mypy or pyright", so pyright stays a permitted alternative if a later session wants to swap.
 - Date handling gap: `/develop` added a Pydantic field validator to coerce an unquoted YAML date scalar (for example `date: 2026-08-07`) to its ISO string, because PyYAML parses it as a date object. Spec 0002 still does not mention this; a candidate for a follow up line in the spec.
-- The application layer imports infrastructure directly (`write_record_file` at `application/adapter.py:23`, same pattern at `validation_service.py:17`). This breaks the dependency rule in `AGENTS.md`, was flagged in every review round, and has been deliberately deferred three times. It is not enrolled in scope or any spec, so it currently lives only in `docs/reviews/`.
-- The minors and nits from all three review rounds have never been read. They are in `docs/reviews/2026-08-08-feature-jsmastery-specs-adapter.md`, the `-recheck.md`, and the `-final.md` beside them.
 - The `evidence.mentions_unresolved` warning and its AC-6 count never appear in CLI output: the adapt report prints violations only for failed records, and `validate` rebuilds its own context with the count defaulting to zero. The calibration is only visible through the adapter's parse API and the unit tests. A candidate for a later decision on surfacing the warning in the adapt report.
 - Commit `abe5f86` is labelled `fix(adapter):` but contains only docs. It is already pushed with PR #1 open, so correcting the subject line needs a force push. Left undecided: leave it, or amend with `--force-with-lease`.
-- Main is clean and synced. The next scoped work is `/architect doctor diagnostic`; feature 5 is now `doctor`, not core cited query.
 
 ## Ruled out
 
