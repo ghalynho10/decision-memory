@@ -1,0 +1,98 @@
+# Adapter conformance manifest for the starter teaching adapter.
+#
+# Strict schema_version 1 with all five fixed categories. This expands the two
+# flat fixtures shipped with spec 0005 AC-16 into a recursive teaching corpus:
+# the starter discovers `decisions/**/*.md`, so the collision case places two
+# valid files with the same filename stem in nested directories and proves the
+# lexical selection rule (spec 0006 AC-19). Case corpus and expected record
+# paths resolve from this file and may not escape it.
+schema_version: 1
+cases:
+  - id: valid-one
+    category: valid
+    corpus: adapter-conformance/cases/valid-one
+    expect:
+      sources:
+        - id: valid
+          root: decisions/valid.md
+          contributing_files:
+            - decisions/valid.md
+          required_files:
+            - decisions/valid.md
+          result:
+            record: adapter-conformance/expected/valid.md
+            attempted_fields: []
+            unresolved_mention_count: 0
+            violations: []
+      skips: []
+      collisions: []
+  - id: skip-one
+    category: skip
+    corpus: adapter-conformance/cases/skip-one
+    subject_path: decisions/skipped.md
+    expect:
+      sources: []
+      skips:
+        - path: decisions/skipped.md
+      collisions: []
+  - id: wrong-heading
+    category: wrong_heading
+    corpus: adapter-conformance/cases/wrong-heading
+    subject_path: decisions/draft.md
+    target_fields:
+      - decision.chosen
+    expect:
+      sources: []
+      skips:
+        - path: decisions/draft.md
+      collisions: []
+  - id: missing-required-field
+    category: missing_required_field
+    corpus: adapter-conformance/cases/missing-required-field
+    subject_path: decisions/partial.md
+    target_fields:
+      - why
+    expect:
+      sources:
+        - id: partial
+          root: decisions/partial.md
+          contributing_files:
+            - decisions/partial.md
+          required_files:
+            - decisions/partial.md
+          result:
+            record: adapter-conformance/expected/partial.md
+            attempted_fields:
+              - why
+            unresolved_mention_count: 0
+            violations:
+              - severity: error
+                rule: rationale.missing
+                field: null
+              - severity: warning
+                rule: field.attempted_unfilled
+                field: why
+      skips: []
+      collisions: []
+  - id: collision
+    category: collision
+    corpus: adapter-conformance/cases/collision
+    expect:
+      sources:
+        - id: repeat
+          root: decisions/a/repeat.md
+          contributing_files:
+            - decisions/a/repeat.md
+          required_files: []
+          result:
+            record: adapter-conformance/expected/repeat.md
+            attempted_fields: []
+            unresolved_mention_count: 0
+            violations: []
+      skips: []
+      collisions:
+        - id: repeat
+          paths:
+            - decisions/a/repeat.md
+            - decisions/b/repeat.md
+          used: decisions/a/repeat.md

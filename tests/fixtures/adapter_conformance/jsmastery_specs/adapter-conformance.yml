@@ -1,0 +1,122 @@
+# Adapter conformance manifest for the built in jsmastery-specs adapter.
+#
+# Strict schema_version 1. Every case declares complete discovery, every
+# expected record is a canonical record file that parses to exactly what the
+# adapter produces, and the suite supplies all five fixed categories. Case
+# corpus and expected record paths resolve from this file and may not escape
+# it. Corruption runs only for declared required files, so required_files is
+# set on the cases that should exercise the closed empty and invalid UTF8
+# mutations (spec 0006 AC-2, AC-3, AC-6, AC-8).
+schema_version: 1
+cases:
+  - id: valid-one
+    category: valid
+    corpus: cases/valid-one
+    expect:
+      sources:
+        - id: DM-0001
+          root: docs/specs/0001-choose-postgres
+          contributing_files:
+            - docs/specs/0001-choose-postgres/index.md
+            - docs/specs/0001-choose-postgres/rationale.md
+          required_files:
+            - docs/specs/0001-choose-postgres/index.md
+            - docs/specs/0001-choose-postgres/rationale.md
+          result:
+            record: expected/DM-0001.md
+            attempted_fields: []
+            unresolved_mention_count: 0
+            violations: []
+      skips: []
+      collisions: []
+  - id: skip-notes
+    category: skip
+    corpus: cases/skip-notes
+    subject_path: docs/specs/0002-notes
+    expect:
+      sources: []
+      skips:
+        - path: docs/specs/0002-notes
+      collisions: []
+  - id: wrong-heading
+    category: wrong_heading
+    corpus: cases/wrong-heading
+    subject_path: docs/specs/0003-wrong-heading
+    target_fields:
+      - decision.chosen
+    expect:
+      sources: []
+      skips:
+        - path: docs/specs/0003-wrong-heading
+      collisions: []
+  - id: missing-required-field
+    category: missing_required_field
+    corpus: cases/missing-required-field
+    subject_path: docs/specs/0004-no-rationale
+    target_fields:
+      - rationale_summary
+      - why
+    expect:
+      sources:
+        - id: DM-0004
+          root: docs/specs/0004-no-rationale
+          contributing_files:
+            - docs/specs/0004-no-rationale/index.md
+          required_files:
+            - docs/specs/0004-no-rationale/index.md
+          result:
+            record: expected/DM-0004.md
+            attempted_fields:
+              - decision.alternatives
+              - rationale_summary
+              - why
+            unresolved_mention_count: 0
+            violations:
+              - severity: error
+                rule: rationale.missing
+                field: null
+              - severity: warning
+                rule: field.attempted_unfilled
+                field: decision.alternatives
+              - severity: warning
+                rule: field.attempted_unfilled
+                field: rationale_summary
+              - severity: warning
+                rule: field.attempted_unfilled
+                field: why
+      skips: []
+      collisions: []
+  - id: collision
+    category: collision
+    corpus: cases/collision
+    expect:
+      sources:
+        - id: DM-0005
+          root: docs/specs/0005-alpha
+          contributing_files:
+            - docs/specs/0005-alpha/index.md
+          required_files: []
+          result:
+            record: expected/DM-0005.md
+            attempted_fields:
+              - consequences.negative
+              - consequences.positive
+              - decision.alternatives
+            unresolved_mention_count: 0
+            violations:
+              - severity: warning
+                rule: field.attempted_unfilled
+                field: consequences.negative
+              - severity: warning
+                rule: field.attempted_unfilled
+                field: consequences.positive
+              - severity: warning
+                rule: field.attempted_unfilled
+                field: decision.alternatives
+      skips: []
+      collisions:
+        - id: DM-0005
+          paths:
+            - docs/specs/0005-alpha
+            - docs/specs/0005-beta
+          used: docs/specs/0005-alpha

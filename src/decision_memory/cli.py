@@ -19,6 +19,13 @@ from decision_memory.application.adapter import (
     SourceAdapter,
     adapt_corpus,
 )
+from decision_memory.application.conformance import (
+    CheckResult,
+    ConformanceCase,
+    ConformanceManifest,
+    ConformanceOutcome,
+    run_adapter_conformance,
+)
 from decision_memory.application.corpus_validation import (
     CorpusValidationOutcome,
     validate_corpus,
@@ -31,19 +38,23 @@ from decision_memory.application.doctor_service import (
 )
 from decision_memory.application.settings import SettingsError, resolve_runtime_settings
 from decision_memory.application.validation_service import validate_file
+from decision_memory.infrastructure.conformance_fixtures import conformance_fixture_port
+from decision_memory.infrastructure.conformance_manifest import (
+    ConformanceManifestError,
+    load_conformance_manifest,
+)
 from decision_memory.infrastructure.doctor_scanner import scan_corpus
 from decision_memory.infrastructure.file_reader import (
     parse_record_file,
     write_record_file,
 )
-from decision_memory.infrastructure.jsmastery_adapter import JsmasteryAdapter
 from decision_memory.infrastructure.path_resolution import resolve_cited_paths
 from decision_memory.infrastructure.project_config import (
     ProjectConfig,
     ProjectConfigError,
     load_project_config,
 )
-from decision_memory.infrastructure.runtime_loader import LoadFailure, load_adapter
+from decision_memory.infrastructure.runtime_loader import LoadFailure, select_adapter
 
 app = typer.Typer(
     name="decision-memory",
@@ -311,9 +322,7 @@ def _load_adapter(
     message, without a traceback (AC-9).
     """
     name = selector or BUILTIN_ADAPTER_ID
-    if name == BUILTIN_ADAPTER_ID:
-        return JsmasteryAdapter(), None, None
-    loaded = load_adapter(name)
+    loaded = select_adapter(name)
     if isinstance(loaded, LoadFailure):
         if loaded.exception_type:
             detail = f"{loaded.phase} {loaded.exception_type}: {loaded.message}"
@@ -416,6 +425,111 @@ def _print_adapt_report(outcome: AdaptOutcome) -> None:
     typer.echo(f"result: {summary}")
     suffix = " (dry run, nothing written)" if outcome.dry_run else ""
     typer.echo(f"output: {outcome.output_dir}{suffix}")
+
+
+@app.command("test-adapter")
+def test_adapter_command(
+    selector: Annotated[
+        str,
+        typer.Argument(
+            help="Adapter to test: the built in jsmastery-specs or "
+            "package.module:attribute for an installed third party adapter"
+        ),
+    ],
+    cases: Annotated[
+        Path,
+        typer.Option(
+            "--cases",
+            help="Path to the adapter conformance manifest (a strict YAML file)",
+        ),
+    ],
+) -> None:
+    """Run the conformance suite against one adapter and its manifest.
+
+    Every reachable independent protocol, behavior, and anti fabrication check
+    runs and reports one line each. Exit 0 means every executed check passed;
+    exit 1 covers loading, manifest, fixture, execution, and conformance
+    failures; exit 2 is reserved for a malformed selector on the command line
+    (spec 0006 AC-16).
+    """
+    try:
+        manifest = load_conformance_manifest(cases)
+    except ConformanceManifestError as exc:
+        typer.echo(f"manifest: {cases.name}")
+        typer.echo(f"FAIL {exc.rule}: {exc.detail}")
+        typer.echo("result: 0 passed, 1 failed")
+        typer.echo("final: failed")
+        raise typer.Exit(1) from None
+    loaded = select_adapter(selector)
+    if isinstance(loaded, LoadFailure):
+        if loaded.exception_type:
+            detail = f"{loaded.phase} {loaded.exception_type}: {loaded.message}"
+        else:
+            detail = f"{loaded.phase}: {loaded.message}"
+        typer.echo(f"FAIL adapter.load: {detail}")
+        typer.echo("result: 0 passed, 1 failed")
+        typer.echo("final: failed")
+        raise typer.Exit(2 if loaded.phase == "selector" else 1)
+    outcome = run_adapter_conformance(loaded, manifest, conformance_fixture_port())
+    _print_conformance_report(outcome, manifest, cases.name)
+    raise typer.Exit(outcome.exit_code)
+
+
+def _print_conformance_report(
+    outcome: ConformanceOutcome, manifest: ConformanceManifest, manifest_name: str
+) -> None:
+    """Print the deterministic conformance report (spec 0006 AC-15).
+
+    Order is fixed by phase, manifest case order, then declared source and
+    path order. Case headers print before the first check of each case.
+    """
+    typer.echo(f"adapter: {outcome.adapter_id} {outcome.adapter_version}")
+    typer.echo(f"manifest: {manifest_name}")
+    case_index = 0
+    for check in outcome.checks:
+        if (
+            check.case_id is not None
+            and case_index < len(manifest.cases)
+            and manifest.cases[case_index].id == check.case_id
+        ):
+            _print_conformance_case_header(manifest.cases[case_index])
+            case_index += 1
+        _print_conformance_check(check)
+    typer.echo(f"result: {outcome.passed} passed, {outcome.failed} failed")
+    final = "passed" if outcome.failed == 0 else "failed"
+    typer.echo(f"final: {final}")
+
+
+def _print_conformance_case_header(case: ConformanceCase) -> None:
+    line = f"case: {case.id} category={case.category.value}"
+    if case.subject_path is not None:
+        line += f" subject={case.subject_path.as_posix()}"
+    if case.target_fields:
+        line += f" target_fields={_json(sorted(case.target_fields))}"
+    typer.echo(line)
+
+
+def _print_conformance_check(check: CheckResult) -> None:
+    status = "PASS" if check.status else "FAIL"
+    line = f"{status} {check.rule}"
+    coordinates: list[str] = []
+    if check.case_id is not None:
+        coordinates.append(f"case={check.case_id}")
+    if check.source_id is not None:
+        coordinates.append(f"source={check.source_id}")
+    if check.path is not None:
+        coordinates.append(f"path={check.path.as_posix()}")
+    if check.operation is not None:
+        coordinates.append(f"operation={check.operation}")
+    if check.variant is not None:
+        coordinates.append(f"variant={check.variant.value}")
+    if coordinates:
+        line += " " + " ".join(coordinates)
+    if check.detail:
+        line += f": {check.detail}"
+    typer.echo(line)
+    if check.artifact_path is not None:
+        typer.echo(f"artifact: {check.artifact_path}")
 
 
 if __name__ == "__main__":
