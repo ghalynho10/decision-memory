@@ -9,11 +9,13 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+from fake_adapter import FakeAdapter, fake_source
 from spec_factory import RATIONALE, make_corpus, write_spec
 from typer.testing import CliRunner
 
 from decision_memory.application.adapter import adapt_corpus
-from decision_memory.cli import app
+from decision_memory.cli import _print_adapt_report, app
 from decision_memory.infrastructure.file_reader import write_record_file
 from decision_memory.infrastructure.jsmastery_adapter import (
     ADAPTER_VERSION,
@@ -24,9 +26,7 @@ runner = CliRunner()
 
 
 def _run(corpus: Path, **kwargs: object) -> object:
-    return adapt_corpus(
-        corpus, JsmasteryAdapter(), ADAPTER_VERSION, write_record_file, **kwargs
-    )
+    return adapt_corpus(corpus, JsmasteryAdapter(), write_record_file, **kwargs)
 
 
 def _records_dir(corpus: Path) -> Path:
@@ -191,7 +191,7 @@ def test_adapt_corpus_writes_through_the_injected_writer(tmp_path) -> None:
     def fake_writer(record: object, path: Path) -> None:
         written.append((record, path))
 
-    outcome = adapt_corpus(corpus, JsmasteryAdapter(), ADAPTER_VERSION, fake_writer)
+    outcome = adapt_corpus(corpus, JsmasteryAdapter(), fake_writer)
     assert outcome.exit_code == 0
     assert len(written) == 1
     assert written[0][1].name == "DM-0001.md"
@@ -221,4 +221,157 @@ def test_adapt_dry_run_flag_reports_and_writes_nothing(tmp_path) -> None:
 def test_adapt_missing_corpus_exits_three(tmp_path) -> None:
     result = runner.invoke(app, ["adapt", str(tmp_path / "nope")])
     assert result.exit_code == 3
-    assert "no docs/specs" in result.stdout
+    assert "corpus path does not exist or is not a directory" in result.stdout
+
+
+def test_adapt_corpus_without_docs_specs_reports_the_missing_structure(
+    tmp_path,
+) -> None:
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    result = runner.invoke(app, ["adapt", str(corpus)])
+    assert result.exit_code == 3
+    assert "no docs/specs/ directory" in result.stdout
+
+
+# --- Spec 0005 third party adapter behavior (AC-1, AC-4, AC-15, AC-20) ---
+
+
+def _valid_corpus(tmp_path) -> dict[str, dict[str, object]]:
+    """Corpus data whose records are valid: title, chosen, why, resolving evidence."""
+    return {
+        "DM-0001": {
+            "title": "First decision",
+            "chosen": "Option one",
+            "why": ["It is better"],
+            "evidence": "docs/dm-0001.md",
+        }
+    }
+
+
+def test_jsmastery_adapter_exposes_identity_and_version() -> None:
+    adapter = JsmasteryAdapter()
+    assert adapter.adapter_id == "jsmastery-specs"
+    assert adapter.adapter_version == ADAPTER_VERSION
+
+
+def test_third_party_adapter_runs_through_adapt_corpus(tmp_path) -> None:
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    fake_source(tmp_path, "DM-0001", "docs/dm-0001.md")
+    adapter = FakeAdapter(
+        adapter_id="vendor", adapter_version="2", corpus=_valid_corpus(tmp_path)
+    )
+    outcome = adapt_corpus(corpus, adapter, write_record_file)
+    assert outcome.exit_code == 0
+    assert [record.state for record in outcome.records] == ["written"]
+    assert outcome.adapter_id == "vendor"
+    assert outcome.adapter_version == "2"
+    manifest = json.loads(
+        (_records_dir(corpus) / "manifest.json").read_text(encoding="utf-8")
+    )
+    assert manifest["adapter_version"] == "2"
+
+
+def test_adapt_report_prints_adapter_identity_near_the_start(tmp_path, capsys) -> None:
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    adapter = FakeAdapter(corpus=_valid_corpus(tmp_path))
+    outcome = adapt_corpus(corpus, adapter, write_record_file)
+    _print_adapt_report(outcome)
+    first_line = capsys.readouterr().out.splitlines()[0]
+    assert first_line.startswith("adapter: fake 1")
+
+
+def test_manifest_version_is_the_loaded_adapter_version(tmp_path) -> None:
+    # AC-15: the manifest carries the adapter's own version, not a hard coded one.
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    adapter = FakeAdapter(
+        adapter_id="vendor", adapter_version="42", corpus=_valid_corpus(tmp_path)
+    )
+    adapt_corpus(corpus, adapter, write_record_file)
+    manifest = json.loads(
+        (_records_dir(corpus) / "manifest.json").read_text(encoding="utf-8")
+    )
+    assert manifest["adapter_version"] == "42"
+
+
+def test_corpus_error_exits_three_and_names_the_missing_structure(tmp_path) -> None:
+    # AC-20: the adapter names its own missing layout and the run maps it to 3.
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    adapter = FakeAdapter(corpus_error="no decisions/ directory")
+    outcome = adapt_corpus(corpus, adapter, write_record_file)
+    assert outcome.exit_code == 3
+    assert outcome.corpus_error == "no decisions/ directory"
+
+
+def test_discover_exception_exits_one_and_names_the_phase(tmp_path) -> None:
+    # AC-9: an adapter execution failure exits 1 with the failed phase named.
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    adapter = FakeAdapter(discover_error=RuntimeError("bad layout walk"))
+    outcome = adapt_corpus(corpus, adapter, write_record_file)
+    assert outcome.exit_code == 1
+    assert outcome.failure is not None
+    assert outcome.failure.operation == "discover"
+    assert outcome.failure.exception_type == "RuntimeError"
+    assert "bad layout walk" in outcome.failure.message
+
+
+def test_parse_exception_marks_that_source_failed_and_continues(tmp_path) -> None:
+    # AC-8: a parse exception stops that source, later sources still run.
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    fake_source(tmp_path, "DM-0001", "docs/dm-0001.md")
+    fake_source(tmp_path, "DM-0002", "docs/dm-0002.md")
+    adapter = FakeAdapter(
+        corpus={
+            **_valid_corpus(tmp_path),
+            "DM-0002": {
+                "title": "Second",
+                "chosen": "Option two",
+                "why": ["Also better"],
+                "evidence": "docs/dm-0002.md",
+            },
+        },
+        parse_errors={"DM-0001": ValueError("unexpected body")},
+    )
+    outcome = adapt_corpus(corpus, adapter, write_record_file)
+    assert outcome.exit_code == 1
+    states = {record.id: record for record in outcome.records}
+    assert states["DM-0001"].state == "failed"
+    assert states["DM-0001"].failure is not None
+    assert states["DM-0001"].failure.operation == "parse"
+    assert states["DM-0002"].state == "written"
+    assert (_records_dir(corpus) / "DM-0002.md").is_file()
+
+
+def test_fingerprint_exception_skips_parse_for_that_source(tmp_path) -> None:
+    # AC-8: when fingerprint raises, parse does not run for that source.
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    adapter = FakeAdapter(
+        corpus=_valid_corpus(tmp_path),
+        fingerprint_errors={"DM-0001": OSError("fingerprint read failed")},
+    )
+    outcome = adapt_corpus(corpus, adapter, write_record_file)
+    assert outcome.exit_code == 1
+    record = outcome.records[0]
+    assert record.state == "failed"
+    assert record.failure is not None
+    assert record.failure.operation == "fingerprint"
+
+
+def test_keyboard_interrupt_from_parse_propagates_unchanged(tmp_path) -> None:
+    # AC-8: KeyboardInterrupt and other BaseException subclasses keep normal
+    # process behavior; they are never converted into an adapter failure.
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    adapter = FakeAdapter(
+        corpus=_valid_corpus(tmp_path),
+        parse_errors={"DM-0001": KeyboardInterrupt()},
+    )
+    with pytest.raises(KeyboardInterrupt):
+        adapt_corpus(corpus, adapter, write_record_file)
