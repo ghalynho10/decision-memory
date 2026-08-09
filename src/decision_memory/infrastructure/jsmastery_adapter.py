@@ -116,6 +116,16 @@ class _Option:
 class JsmasteryAdapter:
     """Adapts jsmastery style spec folders into canonical decision records."""
 
+    @property
+    def adapter_id(self) -> str:
+        """The built in adapter's selector name (spec 0005 AC-1)."""
+        return "jsmastery-specs"
+
+    @property
+    def adapter_version(self) -> str:
+        """The adapter version, read live so a bump invalidates fingerprints."""
+        return ADAPTER_VERSION
+
     def discover(self, corpus_root: Path) -> DiscoveryResult:
         """Walk docs/specs/, derive ids, collect contributing files, report skips."""
         specs_dir = corpus_root / "docs" / "specs"
@@ -124,7 +134,14 @@ class JsmasteryAdapter:
         seen: dict[str, Path] = {}
         colliding: dict[str, list[Path]] = {}
         if not specs_dir.is_dir():
-            return DiscoveryResult(specs=[], skipped=[], collisions=[])
+            # The corpus root is a directory but lacks this adapter's required
+            # layout; name the missing structure (spec 0005 AC-20).
+            return DiscoveryResult(
+                specs=[],
+                skipped=[],
+                collisions=[],
+                corpus_error="no docs/specs/ directory",
+            )
         for child in sorted(specs_dir.iterdir()):
             if not child.is_dir():
                 continue

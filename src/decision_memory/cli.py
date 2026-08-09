@@ -13,24 +13,37 @@ from typing import Annotated
 
 import typer
 
-from decision_memory.application.adapter import AdaptOutcome, adapt_corpus
+from decision_memory.application.adapter import (
+    BUILTIN_ADAPTER_ID,
+    AdaptOutcome,
+    SourceAdapter,
+    adapt_corpus,
+)
+from decision_memory.application.corpus_validation import (
+    CorpusValidationOutcome,
+    validate_corpus,
+)
 from decision_memory.application.doctor_service import (
     EXIT_ERROR,
     DoctorOutcome,
     DoctorRequest,
     run_doctor,
 )
+from decision_memory.application.settings import SettingsError, resolve_runtime_settings
 from decision_memory.application.validation_service import validate_file
 from decision_memory.infrastructure.doctor_scanner import scan_corpus
 from decision_memory.infrastructure.file_reader import (
     parse_record_file,
     write_record_file,
 )
-from decision_memory.infrastructure.jsmastery_adapter import (
-    ADAPTER_VERSION,
-    JsmasteryAdapter,
-)
+from decision_memory.infrastructure.jsmastery_adapter import JsmasteryAdapter
 from decision_memory.infrastructure.path_resolution import resolve_cited_paths
+from decision_memory.infrastructure.project_config import (
+    ProjectConfig,
+    ProjectConfigError,
+    load_project_config,
+)
+from decision_memory.infrastructure.runtime_loader import LoadFailure, load_adapter
 
 app = typer.Typer(
     name="decision-memory",
@@ -62,25 +75,128 @@ def version_command() -> None:
 @app.command("validate")
 def validate_command(
     file: Annotated[
-        Path, typer.Argument(help="Path to a canonical decision record file")
-    ],
+        Path | None,
+        typer.Argument(
+            help="A canonical record file, or a corpus directory for write free "
+            "corpus validation; omit it to use the configured corpus root"
+        ),
+    ] = None,
     project_root: Annotated[
         Path | None,
         typer.Option(help="Project root anchoring path and git checks"),
     ] = None,
+    adapter: Annotated[
+        str | None,
+        typer.Option(
+            "--adapter",
+            help="Adapter for corpus validation: the built in jsmastery-specs "
+            "or package.module:attribute for an installed third party adapter",
+        ),
+    ] = None,
 ) -> None:
-    """Validate a canonical decision record file and print violations."""
-    outcome = validate_file(
-        file, project_root, reader=parse_record_file, resolver=resolve_cited_paths
-    )
-    for violation in outcome.violations:
-        field = violation.field if violation.field else "(record)"
-        typer.echo(
-            f"{violation.severity.value} {violation.rule} {field}: {violation.reason}"
+    """Validate a canonical record file, or run write free corpus validation.
+
+    A file argument validates one canonical record (unchanged from spec 0002).
+    A directory argument runs corpus validation: it checks whether the selected
+    adapter can turn the corpus into valid records, writing nothing.
+    """
+    if file is not None:
+        # A directory, or a path that does not exist, is a corpus argument; a
+        # path that exists and is not a directory is a record file argument.
+        if file.is_dir() or not file.exists():
+            _validate_corpus_cli(file, adapter)
+            return
+        if adapter is not None:
+            # AC-5: passing --adapter with a record file is a usage error.
+            typer.echo("--adapter requires a corpus directory, not a record file")
+            raise typer.Exit(2)
+        outcome = validate_file(
+            file, project_root, reader=parse_record_file, resolver=resolve_cited_paths
         )
-    if not outcome.violations:
-        typer.echo("valid record, no violations")
+        for violation in outcome.violations:
+            field = violation.field if violation.field else "(record)"
+            typer.echo(
+                f"{violation.severity.value} {violation.rule} {field}: "
+                f"{violation.reason}"
+            )
+        if not outcome.violations:
+            typer.echo("valid record, no violations")
+        raise typer.Exit(outcome.exit_code)
+    # No argument: corpus validation from the configured corpus root (AC-5).
+    _validate_corpus_cli(None, adapter)
+
+
+def _validate_corpus_cli(corpus_root: Path | None, adapter: str | None) -> None:
+    """Run write free corpus validation and print its report."""
+    settings = resolve_runtime_settings(
+        cli_corpus=corpus_root,
+        cli_adapter=adapter,
+        cli_output=None,
+        config=_project_config(),
+    )
+    if isinstance(settings, SettingsError):
+        typer.echo(settings.message)
+        raise typer.Exit(2)
+    loaded, exit_code, error = _load_adapter(settings.adapter)
+    if loaded is None:
+        typer.echo(error)
+        raise typer.Exit(exit_code or 1)
+    outcome = validate_corpus(settings.corpus_root, loaded)
+    _print_corpus_validation_report(outcome)
     raise typer.Exit(outcome.exit_code)
+
+
+def _print_corpus_validation_report(outcome: CorpusValidationOutcome) -> None:
+    """Print the write free corpus validation report (spec 0005 AC-6).
+
+    The report includes adapter identity, discovery totals, every skip and
+    collision, every source result, violations with stable rule ids, and a
+    final summary. It never prints a projected write state or output path.
+    """
+    typer.echo(f"adapter: {outcome.adapter_id} {outcome.adapter_version}")
+    if outcome.exit_code == 3:
+        typer.echo(
+            outcome.corpus_error or "corpus path does not exist or is not a directory"
+        )
+        return
+    if outcome.discovery_failure is not None:
+        failure = outcome.discovery_failure
+        typer.echo(
+            f"adapter failed during {failure.operation}: "
+            f"{failure.exception_type}: {failure.message}"
+        )
+        return
+    discovery = outcome.discovered
+    typer.echo(
+        f"discovered {len(discovery.specs)} specs, skipped {len(discovery.skipped)}"
+    )
+    for skipped in discovery.skipped:
+        typer.echo(f"  skipped {skipped.path}: {skipped.reason}")
+    for collision in discovery.collisions:
+        typer.echo(
+            f"  collision {collision.id}: "
+            f"{', '.join(str(path) for path in collision.paths)} "
+            f"(using {collision.used})"
+        )
+    for result in outcome.results:
+        if result.kind == "ok":
+            typer.echo(f"  ok {result.id}")
+        elif result.kind == "violation":
+            for violation in result.violations:
+                field = violation.field if violation.field else "(record)"
+                typer.echo(
+                    f"  violation {result.id}: {violation.rule} {field}: "
+                    f"{violation.reason}"
+                )
+        else:
+            source_failure = result.failure
+            if source_failure is not None:
+                typer.echo(
+                    f"  exception {result.id}: {source_failure.operation} "
+                    f"{source_failure.exception_type}: {source_failure.message}"
+                )
+    failed = sum(1 for result in outcome.results if result.kind != "ok")
+    typer.echo(f"result: {len(outcome.results) - failed} ok, {failed} failed")
 
 
 def _validate_samples(value: int) -> int:
@@ -171,11 +287,60 @@ def _json(value: object) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
+def _project_config() -> ProjectConfig | None:
+    """Load project config, exiting 1 on a config file error (AC-13)."""
+    try:
+        found = load_project_config(Path.cwd())
+    except ProjectConfigError as exc:
+        typer.echo(f"config error: {exc}")
+        raise typer.Exit(1) from None
+    if found is None:
+        return None
+    return found[1]
+
+
+def _load_adapter(
+    selector: str | None,
+) -> tuple[SourceAdapter | None, int | None, str | None]:
+    """Resolve and load an adapter, returning (adapter, exit_code, error).
+
+    A ``None`` selector or the built in name selects ``jsmastery-specs``. A
+    malformed selector is a usage error (exit 2); import, attribute, and
+    contract failures are runtime errors (exit 1). The returned error message
+    names the selector, the failed phase, and the original exception type and
+    message, without a traceback (AC-9).
+    """
+    name = selector or BUILTIN_ADAPTER_ID
+    if name == BUILTIN_ADAPTER_ID:
+        return JsmasteryAdapter(), None, None
+    loaded = load_adapter(name)
+    if isinstance(loaded, LoadFailure):
+        if loaded.exception_type:
+            detail = f"{loaded.phase} {loaded.exception_type}: {loaded.message}"
+        else:
+            detail = f"{loaded.phase}: {loaded.message}"
+        message = f"failed to load adapter {name!r}: {detail}"
+        exit_code = 2 if loaded.phase == "selector" else 1
+        return None, exit_code, message
+    return loaded, None, None
+
+
 @app.command("adapt")
 def adapt_command(
     corpus_path: Annotated[
-        Path, typer.Argument(help="Path to the corpus, a project holding docs/specs/")
-    ],
+        Path | None,
+        typer.Argument(
+            help="Path to the corpus; defaults to the configured corpus_root"
+        ),
+    ] = None,
+    adapter: Annotated[
+        str | None,
+        typer.Option(
+            "--adapter",
+            help="Adapter to use: the built in jsmastery-specs or "
+            "package.module:attribute for an installed third party adapter",
+        ),
+    ] = None,
     output: Annotated[
         Path | None,
         typer.Option(help="Output directory for records and the manifest"),
@@ -185,13 +350,25 @@ def adapt_command(
         typer.Option("--dry-run", help="Run and report without writing anything"),
     ] = False,
 ) -> None:
-    """Adapt a project's jsmastery specs into canonical decision records."""
+    """Adapt a project's specs into canonical decision records."""
+    settings = resolve_runtime_settings(
+        cli_corpus=corpus_path,
+        cli_adapter=adapter,
+        cli_output=output,
+        config=_project_config(),
+    )
+    if isinstance(settings, SettingsError):
+        typer.echo(settings.message)
+        raise typer.Exit(2)
+    loaded, exit_code, error = _load_adapter(settings.adapter)
+    if loaded is None:
+        typer.echo(error)
+        raise typer.Exit(exit_code or 1)
     outcome = adapt_corpus(
-        corpus_path,
-        JsmasteryAdapter(),
-        ADAPTER_VERSION,
+        settings.corpus_root,
+        loaded,
         write_record_file,
-        output=output,
+        output=settings.output,
         dry_run=dry_run,
     )
     _print_adapt_report(outcome)
@@ -199,11 +376,21 @@ def adapt_command(
 
 
 def _print_adapt_report(outcome: AdaptOutcome) -> None:
-    """Print the adapt run's report: discovery, per record, and summary."""
+    """Print the adapt run's report: identity, discovery, per record, summary."""
+    typer.echo(f"adapter: {outcome.adapter_id} {outcome.adapter_version}")
     if outcome.exit_code == 3:
         # Lead with the most important message, so an invalid corpus is the
-        # first thing an operator sees rather than the last.
-        typer.echo("corpus path does not exist or holds no docs/specs/ directory")
+        # first thing an operator sees rather than the last. The message
+        # comes from the adapter's corpus error, so each adapter names its
+        # own missing structure (AC-20).
+        typer.echo(
+            outcome.corpus_error or "corpus path does not exist or is not a directory"
+        )
+    if outcome.failure is not None:
+        typer.echo(
+            f"adapter failed during {outcome.failure.operation}: "
+            f"{outcome.failure.exception_type}: {outcome.failure.message}"
+        )
     discovery = outcome.discovered
     typer.echo(
         f"discovered {len(discovery.specs)} specs, skipped {len(discovery.skipped)}"

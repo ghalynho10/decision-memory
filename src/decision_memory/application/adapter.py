@@ -32,13 +32,27 @@ EXIT_OK = 0
 EXIT_ERROR = 1
 EXIT_CORPUS_INVALID = 3
 
+# The built in adapter's selector name (spec 0005 AC-4): the default when no
+# adapter option or config value is given. It contains a hyphen, so it cannot
+# collide with a valid Python module name (AC-2).
+BUILTIN_ADAPTER_ID = "jsmastery-specs"
+
 
 class SourceAdapter(Protocol):
-    """A source format adapter: discover, parse, and fingerprint.
+    """A source format adapter: identity, version, discover, parse, fingerprint.
 
-    Methods never raise for unadaptable sources; they return structured
-    results that name what could not be adapted and why.
+    ``adapter_id`` and ``adapter_version`` are read only nonempty strings
+    naming the implementation and its version; the version participates in the
+    manifest and the adapter's fingerprints (spec 0005 AC-1, AC-15). Methods
+    never raise for unadaptable sources; they return structured results that
+    name what could not be adapted and why.
     """
+
+    @property
+    def adapter_id(self) -> str: ...
+
+    @property
+    def adapter_version(self) -> str: ...
 
     def discover(self, corpus_root: Path) -> DiscoveryResult: ...
     def parse(self, spec: DiscoveredSpec) -> AdaptationResult: ...
@@ -82,11 +96,18 @@ class Collision:
 
 @dataclass(frozen=True)
 class DiscoveryResult:
-    """Everything discovery found: adaptable specs, skips, and collisions."""
+    """Everything discovery found: adaptable specs, skips, and collisions.
+
+    ``corpus_error`` is set when the corpus root itself does not match the
+    adapter's required internal layout (for example ``docs/specs/`` is absent),
+    naming the missing structure (spec 0005 AC-20). When it is set, ``specs``
+    is empty and the run maps the error to exit code 3.
+    """
 
     specs: list[DiscoveredSpec]
     skipped: list[SkippedSource]
     collisions: list[Collision]
+    corpus_error: str | None = None
 
 
 @dataclass(frozen=True)
@@ -128,18 +149,45 @@ class Manifest:
 
 
 @dataclass(frozen=True)
+class AdapterFailure:
+    """An adapter operation raised while running, stopping that operation.
+
+    Distinct from a source violation: a violation means the adapter completed
+    and found bad source data, an exception means the adapter implementation
+    itself failed (spec 0005 AC-7). ``operation`` is one of ``discover``,
+    ``fingerprint``, or ``parse``.
+    """
+
+    operation: str
+    exception_type: str
+    message: str
+
+
+@dataclass(frozen=True)
 class RecordOutcome:
-    """What one adapt run did with a spec's record."""
+    """What one adapt run did with a spec's record.
+
+    ``failure`` is set when the adapter raised instead of returning a result;
+    a failed source carries either violations (adapter completed, record
+    invalid) or a failure (adapter raised), never both.
+    """
 
     id: str
     state: str
     fingerprint: str
     violations: list[Violation] = field(default_factory=list)
+    failure: AdapterFailure | None = None
 
 
 @dataclass(frozen=True)
 class AdaptOutcome:
-    """The full result of an adapt run, plus the exit code."""
+    """The full result of an adapt run, plus the exit code.
+
+    ``adapter_id`` and ``adapter_version`` are the loaded adapter's identity
+    for the report. ``corpus_error`` carries the adapter's message when the
+    corpus root lacks its required layout (exit code 3). ``failure`` carries a
+    fatal adapter failure such as a ``discover`` exception (exit code 1).
+    """
 
     exit_code: int
     output_dir: Path
@@ -147,12 +195,15 @@ class AdaptOutcome:
     discovered: DiscoveryResult
     records: list[RecordOutcome]
     generated_at: str
+    adapter_id: str = ""
+    adapter_version: str = ""
+    corpus_error: str | None = None
+    failure: AdapterFailure | None = None
 
 
 def adapt_corpus(
     corpus_root: Path,
     adapter: SourceAdapter,
-    adapter_version: str,
     writer: RecordWriter,
     output: Path | None = None,
     dry_run: bool = False,
@@ -160,25 +211,57 @@ def adapt_corpus(
     """Run the full adapt pipeline for a corpus and return the outcome.
 
     Exits 0 when every discovered spec produced a valid record or was
-    unchanged, 1 when at least one failed to produce a valid record, and 3
-    when the corpus path does not exist or holds no ``docs/specs/`` directory.
-    In a dry run the whole run and its report happen but nothing is written.
-    The concrete writer is injected from the composition root, so this use
-    case never touches infrastructure or the filesystem itself.
+    unchanged, 1 when at least one failed to produce a valid record or an
+    adapter operation raised, and 3 when the corpus path is not a directory or
+    the adapter reports its required layout is missing via a discovery corpus
+    error. The adapter identity and version come from the adapter itself; the
+    manifest version is ``adapter.adapter_version`` (AC-1, AC-15). In a dry
+    run the whole run and its report happen but nothing is written. The
+    concrete writer is injected from the composition root, so this use case
+    never touches infrastructure or the filesystem itself.
     """
-    specs_dir = corpus_root / "docs" / "specs"
-    if not corpus_root.is_dir() or not specs_dir.is_dir():
+    output_dir = (output or corpus_root / DEFAULT_RECORDS_DIR).resolve()
+    if not corpus_root.is_dir():
         return AdaptOutcome(
             exit_code=EXIT_CORPUS_INVALID,
-            output_dir=(output or corpus_root / DEFAULT_RECORDS_DIR).resolve(),
+            output_dir=output_dir,
             dry_run=dry_run,
             discovered=DiscoveryResult([], [], []),
             records=[],
             generated_at="",
+            adapter_id=adapter.adapter_id,
+            adapter_version=adapter.adapter_version,
+            corpus_error="corpus path does not exist or is not a directory",
         )
-    output_dir = (output or corpus_root / DEFAULT_RECORDS_DIR).resolve()
+    try:
+        discovery = adapter.discover(corpus_root)
+    except Exception as exc:  # noqa: BLE001 - adapter execution failure, AC-9
+        return AdaptOutcome(
+            exit_code=EXIT_ERROR,
+            output_dir=output_dir,
+            dry_run=dry_run,
+            discovered=DiscoveryResult([], [], []),
+            records=[],
+            generated_at="",
+            adapter_id=adapter.adapter_id,
+            adapter_version=adapter.adapter_version,
+            failure=AdapterFailure(
+                "discover", type(exc).__name__, exception_message(exc)
+            ),
+        )
+    if discovery.corpus_error is not None:
+        return AdaptOutcome(
+            exit_code=EXIT_CORPUS_INVALID,
+            output_dir=output_dir,
+            dry_run=dry_run,
+            discovered=discovery,
+            records=[],
+            generated_at="",
+            adapter_id=adapter.adapter_id,
+            adapter_version=adapter.adapter_version,
+            corpus_error=discovery.corpus_error,
+        )
     generated_at = datetime.now(UTC).isoformat()
-    discovery = adapter.discover(corpus_root)
     manifest_path = output_dir / "manifest.json"
     previous = _load_previous_fingerprints(manifest_path)
 
@@ -186,8 +269,34 @@ def adapt_corpus(
     entries: list[ManifestEntry] = []
     writes: list[tuple[DiscoveredSpec, AdaptationResult]] = []
     for spec in discovery.specs:
-        fingerprint = adapter.fingerprint(spec)
-        result = adapter.parse(spec)
+        try:
+            fingerprint = adapter.fingerprint(spec)
+        except Exception as exc:  # noqa: BLE001 - parse is skipped (AC-8)
+            records.append(
+                RecordOutcome(
+                    id=spec.id,
+                    state="failed",
+                    fingerprint="",
+                    failure=AdapterFailure(
+                        "fingerprint", type(exc).__name__, exception_message(exc)
+                    ),
+                )
+            )
+            continue
+        try:
+            result = adapter.parse(spec)
+        except Exception as exc:  # noqa: BLE001 - the source stops here (AC-8)
+            records.append(
+                RecordOutcome(
+                    id=spec.id,
+                    state="failed",
+                    fingerprint=fingerprint,
+                    failure=AdapterFailure(
+                        "parse", type(exc).__name__, exception_message(exc)
+                    ),
+                )
+            )
+            continue
         if result.record is None or _has_errors(result.violations):
             records.append(
                 RecordOutcome(
@@ -236,7 +345,7 @@ def adapt_corpus(
             if result.record is not None:
                 writer(result.record, output_dir / f"{spec.id}.md")
         manifest = Manifest(
-            adapter_version=adapter_version,
+            adapter_version=adapter.adapter_version,
             generated_at=generated_at,
             entries=entries,
             skipped=discovery.skipped,
@@ -252,7 +361,15 @@ def adapt_corpus(
         discovered=discovery,
         records=records,
         generated_at=generated_at,
+        adapter_id=adapter.adapter_id,
+        adapter_version=adapter.adapter_version,
     )
+
+
+def exception_message(exc: Exception) -> str:
+    """A short message for reporting; empty when the exception carries none."""
+    message = str(exc)
+    return message if message else type(exc).__name__
 
 
 def _has_errors(violations: list[Violation]) -> bool:

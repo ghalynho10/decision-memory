@@ -16,7 +16,7 @@ _You are in charge. Every box below is a suggestion, not a gate: run any, skip a
 | 3 | Canonical decision record schema & validator | Foundation | done |
 | 4 | jsmastery specs adapter | Foundation | done |
 | 5 | `doctor` diagnostic | Foundation | done |
-| 6 | Runtime adapter loading | Foundation | planned |
+| 6 | Runtime adapter loading | Foundation | done |
 | 7 | Adapter conformance suite and `test-adapter` | Foundation | planned |
 | 8 | Built-in ADR adapters | Foundation | planned |
 | 9 | Core cited query | Slice 1 | planned |
@@ -78,10 +78,18 @@ spec [0004](../specs/0004-doctor-diagnostic/index.md) · code in src/decision_me
 - [x] Verify it: `/check verify doctor diagnostic`
 - [x] Test it: `/test doctor diagnostic`
 
-### 6. Runtime adapter loading · needs a decision
+### 6. Runtime adapter loading · done
 Make third party adapters usable without forking: `adapt` and `validate` can load an adapter by Python module path, while `jsmastery-specs` remains the default adapter behind the same protocol. Persist adapter, corpus root, and output directory in `.decision-memory.yml`, and ship a minimal starter adapter template plus a short writing guide.
 **Done when:** a minimal fake adapter loads through the CLI flag, the importlib loading mechanism is available for `test-adapter`, project config can persist the common adapter settings, and an adapter author has a small teaching template plus documentation separate from spec 0003.
-- [ ] Design it (spec): `/architect runtime adapter loading`
+spec [0005](../specs/0005-runtime-adapter-loading/index.md) · code in src/decision_memory/
+- [x] Design it (spec): `/architect runtime adapter loading`
+- [x] Build it: `/develop runtime adapter loading`
+  - [x] Extend the protocol and add the explicit runtime loader while preserving the built in path (AC-1 to AC-4, AC-9, AC-14, AC-15, AC-20)
+  - [x] Add write free corpus validation and failure containment (AC-5 to AC-9, AC-20)
+  - [x] Add strict project config discovery and precedence (AC-10 to AC-13)
+  - [x] Ship the starter package, author guide, and full quality gates (AC-16 to AC-19)
+- [x] Verify it: `/check verify runtime adapter loading`
+- [x] Test it: `/test runtime adapter loading`
 
 ### 7. Adapter conformance suite and `test-adapter` · needs a decision
 A battery of checks any adapter author can run against their adapter to prove protocol compliance and anti fabrication behavior, including format drift fixtures with wrong headings and missing fields.
