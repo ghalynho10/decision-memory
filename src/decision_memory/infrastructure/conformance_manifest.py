@@ -30,6 +30,7 @@ from decision_memory.application.conformance import (
     ConformanceCategory,
     ConformanceManifest,
     DiscoveryExpectation,
+    FieldSourceExpectation,
     ResultExpectation,
     SkipExpectation,
     SourceExpectation,
@@ -77,6 +78,13 @@ class ViolationExpectationModel(BaseModel):
     field: str | None = None
 
 
+class FieldSourceExpectationModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    path: str
+    section: str
+
+
 class ResultExpectationModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -84,6 +92,7 @@ class ResultExpectationModel(BaseModel):
     attempted_fields: list[str]
     unresolved_mention_count: int = Field(ge=0)
     violations: list[ViolationExpectationModel]
+    field_sources: dict[str, list[FieldSourceExpectationModel]] | None = None
 
 
 class SourceExpectationModel(BaseModel):
@@ -180,6 +189,31 @@ _INDEXED_FIELDS = frozenset(
     }
 )
 
+# The valid field_sources value paths from spec 0007 (the adapter output
+# provenance contract, AC-2). Distinct from the canonical record vocabulary
+# above: these are the populated chunkable leaves plus title and supersedes.
+_SOURCE_FIELD_LEAVES = frozenset(
+    {
+        "title",
+        "context.problem",
+        "context.triggering_change",
+        "decision.chosen",
+        "rationale_summary",
+        "supersedes",
+    }
+)
+
+_SOURCE_FIELD_INDEXED = frozenset(
+    {
+        "why[i]",
+        "consequences.positive[i]",
+        "consequences.negative[i]",
+        "decision.alternatives[i].title",
+        "decision.alternatives[i].rejection_reason",
+        "body[i]",
+    }
+)
+
 _INDEX_RE = re.compile(r"^\[(\d+)\]$")
 
 
@@ -193,6 +227,13 @@ def is_canonical_field_path(field: str) -> bool:
     if field in _LEAF_FIELDS:
         return True
     return _normalize_indexed(field) in _INDEXED_FIELDS
+
+
+def is_source_field_path(field: str) -> bool:
+    """Whether a manifest declared field_sources key is a valid value path."""
+    if field in _SOURCE_FIELD_LEAVES:
+        return True
+    return _normalize_indexed(field) in _SOURCE_FIELD_INDEXED
 
 
 # ---------------------------------------------------------------------------
@@ -367,6 +408,30 @@ def _check_result(result: ResultExpectationModel, source_id: str) -> None:
                 "manifest.schema",
                 f"source {source_id!r} attempted field {field!r} is not canonical",
             )
+    if result.field_sources is not None:
+        for path, refs in result.field_sources.items():
+            if not is_source_field_path(path):
+                raise ConformanceManifestError(
+                    "manifest.schema",
+                    f"source {source_id!r} field source path {path!r} is not valid",
+                )
+            if not refs:
+                raise ConformanceManifestError(
+                    "manifest.schema",
+                    f"source {source_id!r} field source {path!r} has no references",
+                )
+            for ref in refs:
+                if not ref.path.strip():
+                    raise ConformanceManifestError(
+                        "manifest.schema",
+                        f"source {source_id!r} field source {path!r} has an empty path",
+                    )
+                if not ref.section.strip():
+                    raise ConformanceManifestError(
+                        "manifest.schema",
+                        f"source {source_id!r} field source {path!r} "
+                        "has an empty section",
+                    )
     for violation in result.violations:
         if not violation.rule.strip():
             raise ConformanceManifestError(
@@ -601,6 +666,15 @@ def _resolve_result(
         )
         for violation in result_model.violations
     )
+    field_sources: dict[str, tuple[FieldSourceExpectation, ...]] | None = None
+    if result_model.field_sources is not None:
+        field_sources = {
+            path: tuple(
+                FieldSourceExpectation(path=ref.path, section=ref.section)
+                for ref in refs
+            )
+            for path, refs in result_model.field_sources.items()
+        }
     context = ValidationContext(
         attempted_fields=attempted,
         existing_paths=existing_paths,
@@ -624,6 +698,7 @@ def _resolve_result(
         attempted_fields=attempted,
         unresolved_mention_count=result_model.unresolved_mention_count,
         violations=violations,
+        field_sources=field_sources,
     )
 
 

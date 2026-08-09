@@ -113,6 +113,14 @@ adapter = StarterAdapter()
 - `unresolved_mention_count`: a count of code path mentions that did not
   resolve, for the `evidence.mentions_unresolved` warning.
 - `fingerprint`: the same value `fingerprint(spec)` returns.
+- `field_sources`: a map from each populated canonical value path (for
+  example `decision.chosen`, `why[0]`, `body[1]`) to the exact original
+  source locations that produced it. Each location is a relative path plus a
+  section name; the reserved section `preamble` names metadata before the
+  first H2. Every populated chunkable value, the title, and a populated
+  `supersedes` value must carry at least one source. The adapter output
+  manifest records this provenance, so a cited answer can point back to the
+  exact source.
 
 ## The no fabrication rule
 
@@ -184,8 +192,12 @@ Adapt a corpus into records:
 decision-memory adapt ./project --adapter starter_adapter.adapter:adapter
 ```
 
-Records land under the resolved output directory, and the manifest records the
-adapter version you reported. Use `--dry-run` to preview without writing.
+Records land under the resolved output directory, and the output manifest
+(schema version 2) records the adapter version, the absolute source root
+hint, and per record the contributing files, the record and entry digests,
+and the `field_sources` provenance map. A previous manifest that is not
+schema version 2 forces a full rewrite so the new schema never mixes with the
+old. Use `--dry-run` to preview without writing.
 
 With config in place, the `--adapter` and corpus arguments can be omitted:
 
@@ -241,7 +253,9 @@ Each expected source names a canonical record file. The suite parses it and
 compares every field against what your adapter produced, including absent
 fields. An invented field fails even when the record otherwise validates.
 Attempted fields compare as a set, and violations compare by severity, rule,
-and field in order.
+and field in order. When an expected source declares `field_sources`, the
+suite compares your adapter's provenance map exactly against it, so a case
+can lock the original source of every canonical value.
 
 ### Corruption behavior
 

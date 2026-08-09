@@ -16,6 +16,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Protocol
 
+from decision_memory.application.canonical import (
+    SourceReference,
+    entry_digest,
+    normalize_field_sources,
+    record_digest,
+)
 from decision_memory.domain.records import (
     CanonicalDecisionRecord,
     Severity,
@@ -118,6 +124,10 @@ class AdaptationResult:
     ``violations`` holds every rule the adapter emitted plus what ``validate``
     returns for the built record. ``attempted_fields`` names fields with a
     defined source section that turned out absent or empty.
+    ``field_sources`` maps each populated canonical value path to the exact
+    original source locations that produced it, per the grammar and path list
+    in spec 0007 (AC-2). Every populated chunkable leaf, the title, and a
+    populated supersedes value must name at least one source.
     """
 
     record: CanonicalDecisionRecord | None
@@ -125,6 +135,7 @@ class AdaptationResult:
     attempted_fields: frozenset[str]
     unresolved_mention_count: int
     fingerprint: str
+    field_sources: dict[str, list[SourceReference]]
 
 
 @dataclass(frozen=True)
@@ -135,17 +146,28 @@ class ManifestEntry:
     fingerprint: str
     contributing_files: list[str]
     record_path: str
+    record_digest: str
+    entry_digest: str
+    field_sources: dict[str, list[SourceReference]]
 
 
 @dataclass(frozen=True)
 class Manifest:
-    """The manifest written to the output directory each non dry run."""
+    """The manifest written to the output directory each non dry run.
 
-    adapter_version: str
-    generated_at: str
-    entries: list[ManifestEntry]
-    skipped: list[SkippedSource]
-    collisions: list[Collision]
+    ``schema_version`` is the adapter output manifest grammar version, fixed
+    at 2 by spec 0007 AC-2. ``source_root_hint`` is the absolute resolved
+    corpus root at adapt time, informative and allowed not to resolve later
+    (AC-19).
+    """
+
+    schema_version: int = 2
+    adapter_version: str = ""
+    generated_at: str = ""
+    source_root_hint: str = ""
+    entries: list[ManifestEntry] = field(default_factory=list)
+    skipped: list[SkippedSource] = field(default_factory=list)
+    collisions: list[Collision] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -187,6 +209,8 @@ class AdaptOutcome:
     for the report. ``corpus_error`` carries the adapter's message when the
     corpus root lacks its required layout (exit code 3). ``failure`` carries a
     fatal adapter failure such as a ``discover`` exception (exit code 1).
+    ``manifest_warning`` carries a note when the previous manifest could not
+    support incremental skip decisions, so every record was rewritten.
     """
 
     exit_code: int
@@ -199,6 +223,7 @@ class AdaptOutcome:
     adapter_version: str = ""
     corpus_error: str | None = None
     failure: AdapterFailure | None = None
+    manifest_warning: str | None = None
 
 
 def adapt_corpus(
@@ -263,7 +288,7 @@ def adapt_corpus(
         )
     generated_at = datetime.now(UTC).isoformat()
     manifest_path = output_dir / "manifest.json"
-    previous = _load_previous_fingerprints(manifest_path)
+    previous, manifest_warning = _load_previous_manifest(manifest_path)
 
     records: list[RecordOutcome] = []
     entries: list[ManifestEntry] = []
@@ -318,15 +343,29 @@ def adapt_corpus(
             state = "rewritten"
         else:
             state = "written"
+        assert result.record is not None
+        contributing_files = [
+            path.relative_to(spec.corpus_root).as_posix()
+            for path in spec.contributing_files
+        ]
+        record_path = f"{spec.id}.md"
+        digest = record_digest(result.record)
         entries.append(
             ManifestEntry(
                 id=spec.id,
                 fingerprint=fingerprint,
-                contributing_files=[
-                    path.relative_to(spec.corpus_root).as_posix()
-                    for path in spec.contributing_files
-                ],
-                record_path=f"{spec.id}.md",
+                contributing_files=contributing_files,
+                record_path=record_path,
+                record_digest=digest,
+                entry_digest=entry_digest(
+                    record_id=spec.id,
+                    fingerprint=fingerprint,
+                    contributing_files=contributing_files,
+                    record_path=record_path,
+                    record_digest_value=digest,
+                    field_sources=result.field_sources,
+                ),
+                field_sources=result.field_sources,
             )
         )
         records.append(
@@ -347,6 +386,7 @@ def adapt_corpus(
         manifest = Manifest(
             adapter_version=adapter.adapter_version,
             generated_at=generated_at,
+            source_root_hint=corpus_root.resolve().as_posix(),
             entries=entries,
             skipped=discovery.skipped,
             collisions=discovery.collisions,
@@ -363,6 +403,7 @@ def adapt_corpus(
         generated_at=generated_at,
         adapter_id=adapter.adapter_id,
         adapter_version=adapter.adapter_version,
+        manifest_warning=manifest_warning,
     )
 
 
@@ -376,33 +417,58 @@ def _has_errors(violations: list[Violation]) -> bool:
     return any(v.severity == Severity.ERROR for v in violations)
 
 
-def _load_previous_fingerprints(manifest_path: Path) -> dict[str, str]:
-    """Map of record id to fingerprint from a prior manifest, if any."""
+def _load_previous_manifest(manifest_path: Path) -> tuple[dict[str, str], str | None]:
+    """Map of record id to fingerprint from a prior manifest, plus a warning.
+
+    The output manifest schema version must be exactly 2. An older version 1
+    manifest (or one with no version) cannot support incremental skip
+    decisions, so the run treats it as having no previous fingerprints, every
+    record is rewritten into the new schema, and a warning explains why
+    (spec 0007 AC-2, the one breaking change).
+    """
     if not manifest_path.is_file():
-        return {}
+        return {}, None
     try:
         data = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        return {}
-    entries = data.get("entries", []) if isinstance(data, dict) else []
-    return {
-        str(entry.get("id", "")): str(entry.get("fingerprint", ""))
-        for entry in entries
-        if isinstance(entry, dict)
-    }
+        return {}, None
+    if not isinstance(data, dict) or data.get("schema_version") != 2:
+        return {}, (
+            "previous manifest is not schema version 2; "
+            "every record is being rewritten (run adapt again to rebuild it)"
+        )
+    entries = data.get("entries", [])
+    return (
+        {
+            str(entry.get("id", "")): str(entry.get("fingerprint", ""))
+            for entry in entries
+            if isinstance(entry, dict)
+        },
+        None,
+    )
 
 
 def _write_manifest(path: Path, manifest: Manifest) -> None:
     """Write the manifest as JSON with two space indent, entries by id."""
     data = {
+        "schema_version": manifest.schema_version,
         "adapter_version": manifest.adapter_version,
         "generated_at": manifest.generated_at,
+        "source_root_hint": manifest.source_root_hint,
         "entries": [
             {
                 "id": entry.id,
                 "fingerprint": entry.fingerprint,
                 "contributing_files": entry.contributing_files,
                 "record_path": entry.record_path,
+                "record_digest": entry.record_digest,
+                "entry_digest": entry.entry_digest,
+                "field_sources": {
+                    path: [{"path": ref.path, "section": ref.section} for ref in refs]
+                    for path, refs in normalize_field_sources(
+                        entry.field_sources
+                    ).items()
+                },
             }
             for entry in sorted(manifest.entries, key=lambda entry: entry.id)
         ],

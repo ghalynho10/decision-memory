@@ -53,6 +53,83 @@ def test_first_run_writes_records_and_manifest(tmp_path) -> None:
     assert sorted(record.state for record in outcome.records) == ["written", "written"]
 
 
+def test_manifest_is_schema_version_two_with_provenance_and_hint(tmp_path) -> None:
+    # spec 0007 AC-2 and AC-19: the output manifest is schema version 2, every
+    # entry carries record and entry digests plus field_sources, and the
+    # source_root_hint is the absolute resolved corpus root.
+    corpus = make_corpus(tmp_path)
+    write_spec(corpus, "0001-first")
+    outcome = _run(corpus)
+    assert outcome.exit_code == 0
+    manifest = json.loads(
+        (_records_dir(corpus) / "manifest.json").read_text(encoding="utf-8")
+    )
+    assert manifest["schema_version"] == 2
+    assert manifest["source_root_hint"] == corpus.resolve().as_posix()
+    entry = manifest["entries"][0]
+    assert entry["record_digest"]
+    assert entry["entry_digest"]
+    assert entry["field_sources"]["title"]
+
+
+def test_manifest_field_sources_match_the_adapter_output(tmp_path) -> None:
+    corpus = make_corpus(tmp_path)
+    write_spec(corpus, "0001-first")
+    _run(corpus)
+    manifest = json.loads(
+        (_records_dir(corpus) / "manifest.json").read_text(encoding="utf-8")
+    )
+    entry = manifest["entries"][0]
+    assert entry["field_sources"]["decision.chosen"] == [
+        {"path": "docs/specs/0001-first/index.md", "section": "Decision"}
+    ]
+    assert entry["field_sources"]["context.problem"] == [
+        {"path": "docs/specs/0001-first/rationale.md", "section": "Context"}
+    ]
+
+
+def test_record_and_entry_digests_are_stable_and_detect_change(tmp_path) -> None:
+    corpus = make_corpus(tmp_path)
+    spec_dir = write_spec(corpus, "0001-first")
+    _run(corpus)
+    manifest_path = _records_dir(corpus) / "manifest.json"
+    first = json.loads(manifest_path.read_text(encoding="utf-8"))
+    first_entry = first["entries"][0]
+    index_path = spec_dir / "index.md"
+    index_path.write_text(
+        index_path.read_text(encoding="utf-8").replace(
+            "Build an internal state machine",
+            "Build an internal state machine v2",
+        ),
+        encoding="utf-8",
+    )
+    _run(corpus)
+    second = json.loads(manifest_path.read_text(encoding="utf-8"))
+    second_entry = second["entries"][0]
+    assert second_entry["record_digest"] != first_entry["record_digest"]
+    assert second_entry["entry_digest"] != first_entry["entry_digest"]
+
+
+def test_previous_v1_manifest_rewrites_everything_with_warning(tmp_path) -> None:
+    # spec 0007 AC-2: an older schema version 1 manifest (no schema_version)
+    # cannot support incremental skip decisions, so adapt rewrites every record
+    # into the new schema and reports the warning.
+    corpus = make_corpus(tmp_path)
+    write_spec(corpus, "0001-first")
+    records_dir = _records_dir(corpus)
+    records_dir.mkdir(parents=True)
+    (records_dir / "manifest.json").write_text(
+        json.dumps({"entries": []}), encoding="utf-8"
+    )
+    outcome = _run(corpus)
+    assert outcome.exit_code == 0
+    assert outcome.manifest_warning is not None
+    assert "schema version 2" in outcome.manifest_warning
+    manifest = json.loads((records_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["schema_version"] == 2
+    assert [record.state for record in outcome.records] == ["written"]
+
+
 def test_second_run_rewrites_only_changed(tmp_path) -> None:
     corpus = make_corpus(tmp_path)
     spec_dir = write_spec(corpus, "0001-first")

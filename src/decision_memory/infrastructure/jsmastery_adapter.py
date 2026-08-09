@@ -21,6 +21,7 @@ from decision_memory.application.adapter import (
     DiscoveryResult,
     SkippedSource,
 )
+from decision_memory.application.canonical import SourceReference
 from decision_memory.domain.records import (
     Alternative,
     CanonicalDecisionRecord,
@@ -218,6 +219,7 @@ class JsmasteryAdapter:
                 attempted_fields=frozenset(),
                 unresolved_mention_count=0,
                 fingerprint=self.fingerprint(spec),
+                field_sources={},
             )
         rationale_path = spec.root / "rationale.md"
         rationale_text = (
@@ -226,6 +228,15 @@ class JsmasteryAdapter:
         index_sections = _h2_sections(index_text)
         rationale_sections = _h2_sections(rationale_text) if rationale_text else {}
         sibling_names = {path.name for path in spec.contributing_files}
+
+        index_rel = (
+            spec.root.joinpath("index.md").relative_to(spec.corpus_root).as_posix()
+        )
+        rationale_rel = (
+            spec.root.joinpath("rationale.md").relative_to(spec.corpus_root).as_posix()
+            if rationale_text is not None
+            else ""
+        )
 
         status_raw = _bold_field(_preamble(index_text), "Status")
         if status_raw is None or status_raw not in _STATUS_MAP:
@@ -242,14 +253,25 @@ class JsmasteryAdapter:
                 attempted_fields=frozenset(),
                 unresolved_mention_count=0,
                 fingerprint=self.fingerprint(spec),
+                field_sources={},
             )
 
         attempted: set[str] = set()
+        field_sources: dict[str, list[SourceReference]] = {}
 
-        context_problem = _section_text(
-            rationale_sections, index_sections, "Context", sibling_names
+        context_source = _section_with_source(
+            rationale_sections,
+            index_sections,
+            "Context",
+            sibling_names,
+            rationale_rel,
+            index_rel,
         )
-        if context_problem is None:
+        if context_source is not None:
+            context_problem, context_rel = context_source
+            field_sources["context.problem"] = [SourceReference(context_rel, "Context")]
+        else:
+            context_problem = None
             attempted.add("context.problem")
 
         decision_body = index_sections.get("Decision")
@@ -260,32 +282,72 @@ class JsmasteryAdapter:
         )
         if chosen is None:
             attempted.add("decision.chosen")
+        elif decision_body is not None:
+            field_sources["decision.chosen"] = [SourceReference(index_rel, "Decision")]
 
-        options_body = _section_text(
-            rationale_sections, index_sections, "Options considered", sibling_names
+        options_source = _section_with_source(
+            rationale_sections,
+            index_sections,
+            "Options considered",
+            sibling_names,
+            rationale_rel,
+            index_rel,
         )
-        alternatives, alternatives_attempted = _build_alternatives(
-            options_body, chosen or ""
-        )
-        if alternatives_attempted:
-            attempted.add("decision.alternatives")
+        if options_source is not None:
+            options_body, options_rel = options_source
+            alternatives, alternatives_attempted = _build_alternatives(
+                options_body, chosen or ""
+            )
+            if alternatives_attempted:
+                attempted.add("decision.alternatives")
+            for alternative_index, alternative in enumerate(alternatives):
+                if alternative.title is not None:
+                    field_sources[
+                        f"decision.alternatives[{alternative_index}].title"
+                    ] = [SourceReference(options_rel, "Options considered")]
+                if alternative.rejection_reason is not None:
+                    field_sources[
+                        f"decision.alternatives[{alternative_index}].rejection_reason"
+                    ] = [SourceReference(options_rel, "Options considered")]
+        else:
+            alternatives, alternatives_attempted = _build_alternatives(
+                None, chosen or ""
+            )
+            if alternatives_attempted:
+                attempted.add("decision.alternatives")
 
-        rationale_body = _section_text(
-            rationale_sections, index_sections, "Rationale", sibling_names
+        rationale_source = _section_with_source(
+            rationale_sections,
+            index_sections,
+            "Rationale",
+            sibling_names,
+            rationale_rel,
+            index_rel,
         )
         why: list[str] = []
         rationale_summary: str | None = None
-        if rationale_body is None:
+        if rationale_source is None:
             attempted.add("why")
             attempted.add("rationale_summary")
         else:
+            rationale_body, rationale_src_rel = rationale_source
             why = _bullets(rationale_body)
             summary = _paragraphs(rationale_body)
             rationale_summary = summary if summary else None
+            for why_index, _item in enumerate(why):
+                field_sources[f"why[{why_index}]"] = [
+                    SourceReference(rationale_src_rel, "Rationale")
+                ]
+            if rationale_summary is not None:
+                field_sources["rationale_summary"] = [
+                    SourceReference(rationale_src_rel, "Rationale")
+                ]
 
         title = _title_from_h1(_h1_title(index_text))
         if title is None:
             attempted.add("title")
+        else:
+            field_sources["title"] = [SourceReference(index_rel, "preamble")]
         date = _bold_field(_preamble(index_text), "Date")
 
         consequences_body = index_sections.get("Consequences")
@@ -315,16 +377,50 @@ class JsmasteryAdapter:
                 # else in the section (for example **Neutral**) is residue and
                 # must survive in the body rather than vanish (AC-11).
                 consequences_remainder = _unconsumed_remainder(consequences_body)
+                for positive_index, _item in enumerate(positive):
+                    field_sources[f"consequences.positive[{positive_index}]"] = [
+                        SourceReference(index_rel, "Consequences")
+                    ]
+                for negative_index, _item in enumerate(negative):
+                    field_sources[f"consequences.negative[{negative_index}]"] = [
+                        SourceReference(index_rel, "Consequences")
+                    ]
 
-        body = _residue_body(
-            index_sections, rationale_sections, sibling_names, consumed
+        body, body_sections = _residue_body_sections(
+            index_sections,
+            rationale_sections,
+            sibling_names,
+            consumed,
+            index_rel,
+            rationale_rel,
         )
+        extra_body_sources: list[tuple[str, str]] = []
         if consequences_remainder:
             body = (
                 f"{body}\n\n{consequences_remainder}"
                 if body
                 else consequences_remainder
             )
+            # The residue trails the last retained H2 section (or stands alone
+            # when no section was retained), so it becomes part of that body
+            # unit's text. Its provenance points at the Consequences section
+            # from which it came, matching how the chunker splits body[n].
+            if body_sections:
+                extra_body_sources.append(("Consequences", index_rel))
+            else:
+                body_sections.append(("Consequences", index_rel))
+        for body_index, (heading, section_rel) in enumerate(body_sections):
+            sources = [SourceReference(section_rel, heading)]
+            if body_index == len(body_sections) - 1:
+                sources.extend(
+                    SourceReference(rel, name) for name, rel in extra_body_sources
+                )
+            field_sources[f"body[{body_index}]"] = sources
+
+        supersedes = _bold_field(_preamble(index_text), "Supersedes")
+        if supersedes is not None:
+            field_sources["supersedes"] = [SourceReference(index_rel, "preamble")]
+
         evidence, unresolved = _evidence_and_unresolved(spec)
 
         record = CanonicalDecisionRecord(
@@ -344,7 +440,7 @@ class JsmasteryAdapter:
             else None,
             evidence=evidence,
             tags=[f"{_STATUS_TAG_PREFIX}{status_raw}"],
-            supersedes=_bold_field(_preamble(index_text), "Supersedes"),
+            supersedes=supersedes,
         )
 
         context = ValidationContext(
@@ -359,6 +455,7 @@ class JsmasteryAdapter:
             attempted_fields=frozenset(attempted),
             unresolved_mention_count=unresolved,
             fingerprint=self.fingerprint(spec),
+            field_sources=field_sources,
         )
 
     def fingerprint(self, spec: DiscoveredSpec) -> str:
@@ -505,14 +602,22 @@ def _blocks(text: str, split_levels: tuple[int, ...] = (1, 2)) -> list[_Block]:
     return blocks
 
 
-def _section_text(
+def _section_with_source(
     preferred: dict[str, str],
     fallback: dict[str, str],
     name: str,
     sibling_names: set[str],
-) -> str | None:
-    """A section's body under precedence and stub rules, else None."""
-    for sections in (preferred, fallback):
+    preferred_rel: str,
+    fallback_rel: str,
+) -> tuple[str, str] | None:
+    """A section's body and its source relative path, else None.
+
+    The preferred file wins (``rationale.md``), the fallback follows
+    (``index.md``), both under the precedence and stub rules. The returned
+    relative path names the file that supplied the body, for field_sources
+    provenance (spec 0007 AC-2).
+    """
+    for sections, rel in ((preferred, preferred_rel), (fallback, fallback_rel)):
         body = sections.get(name)
         if body is None:
             continue
@@ -520,7 +625,7 @@ def _section_text(
             continue
         if _is_stub(body, sibling_names):
             continue
-        return body
+        return body, rel
     return None
 
 
@@ -558,33 +663,41 @@ def _is_pointer(collapsed: str, name: str) -> bool:
     return remainder.startswith(("see", "read", "refer", "point to", "look at"))
 
 
-def _residue_body(
+def _residue_body_sections(
     index_sections: dict[str, str],
     rationale_sections: dict[str, str],
     sibling_names: set[str],
     consumed: frozenset[str] = _CONSUMED_SECTIONS,
-) -> str:
-    """Every unconsumed section from both files, headings kept intact.
+    index_rel: str = "index.md",
+    rationale_rel: str = "rationale.md",
+) -> tuple[str, list[tuple[str, str]]]:
+    """Every unconsumed section from both files with its source, headings kept.
 
+    Returns (body, [(heading, relative source path), ...]) in source order.
     ``consumed`` lets the caller narrow the default set when a section the
     mapping normally claims turned out to yield nothing, so its content falls
     through to the body instead of being dropped. A heading present in both
-    files is emitted once with the ``rationale.md`` body, the same precedence
-    every other section rule applies (AC-8), so nothing is duplicated.
+    files is emitted once with the ``rationale.md`` body and source, the same
+    precedence every other section rule applies (AC-8), so nothing is
+    duplicated.
     """
     parts: list[str] = []
+    sources: list[tuple[str, str]] = []
     seen: set[str] = set()
     for heading in (*index_sections.keys(), *rationale_sections.keys()):
         if heading in consumed or heading in seen:
             continue
         body = rationale_sections.get(heading)
+        used_rel = rationale_rel
         if body is None or not body.strip() or _is_stub(body, sibling_names):
             body = index_sections.get(heading)
+            used_rel = index_rel
         if body is None or not body.strip() or _is_stub(body, sibling_names):
             continue
         parts.append(f"## {heading}\n\n{body}")
+        sources.append((heading, used_rel))
         seen.add(heading)
-    return "\n\n".join(parts)
+    return "\n\n".join(parts), sources
 
 
 def _bold_field(text: str, label: str) -> str | None:

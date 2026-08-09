@@ -400,6 +400,8 @@ def _print_adapt_report(outcome: AdaptOutcome) -> None:
             f"adapter failed during {outcome.failure.operation}: "
             f"{outcome.failure.exception_type}: {outcome.failure.message}"
         )
+    if outcome.manifest_warning is not None:
+        typer.echo(f"warning: {outcome.manifest_warning}")
     discovery = outcome.discovered
     typer.echo(
         f"discovered {len(discovery.specs)} specs, skipped {len(discovery.skipped)}"

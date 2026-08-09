@@ -230,6 +230,7 @@ class ConfAdapter:
                 attempted_fields=frozenset(),
                 unresolved_mention_count=0,
                 fingerprint=self.fingerprint(spec),
+                field_sources={},
             ),
         )
         if not result.fingerprint:
@@ -251,6 +252,7 @@ def _result(record: CanonicalDecisionRecord) -> AdaptationResult:
         attempted_fields=frozenset(),
         unresolved_mention_count=0,
         fingerprint="",
+        field_sources={},
     )
 
 
@@ -627,6 +629,7 @@ class TestConfidence:
             attempted_fields=frozenset(),
             unresolved_mention_count=0,
             fingerprint="",
+            field_sources={},
         )
         adapter = ConfAdapter(results={"subject": actual})
         outcome = run_adapter_conformance(adapter, _manifest(case), WorkspaceFixture())
@@ -928,6 +931,7 @@ class SharedFileAdapter:
                 attempted_fields=frozenset(),
                 unresolved_mention_count=0,
                 fingerprint=self.fingerprint(spec),
+                field_sources={},
             )
         record = CanonicalDecisionRecord(
             id=spec.id,
@@ -946,6 +950,7 @@ class SharedFileAdapter:
             attempted_fields=frozenset(),
             unresolved_mention_count=0,
             fingerprint=self.fingerprint(spec),
+            field_sources={},
         )
 
 

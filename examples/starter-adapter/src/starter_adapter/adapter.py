@@ -46,6 +46,7 @@ from decision_memory.application.adapter import (
     DiscoveryResult,
     SkippedSource,
 )
+from decision_memory.application.canonical import SourceReference
 from decision_memory.domain.records import (
     CanonicalDecisionRecord,
     Context,
@@ -155,20 +156,37 @@ class StarterAdapter:
             )
 
         attempted: set[str] = set()
+        field_sources: dict[str, list[SourceReference]] = {}
         context_text = _paragraph(text, "Context")
         if context_text is None:
             attempted.add("context.problem")
+        else:
+            field_sources["context.problem"] = [
+                SourceReference(_relative_path(spec), "Context")
+            ]
         decision_text = _paragraph(text, "Decision")
         if decision_text is None:
             attempted.add("decision.chosen")
+        else:
+            field_sources["decision.chosen"] = [
+                SourceReference(_relative_path(spec), "Decision")
+            ]
         why = _bullets(text, "Why")
         if not why:
             attempted.add("why")
+        else:
+            for why_index, _item in enumerate(why):
+                field_sources[f"why[{why_index}]"] = [
+                    SourceReference(_relative_path(spec), "Why")
+                ]
 
-        relative_path = spec.root.relative_to(spec.corpus_root).as_posix()
+        relative_path = _relative_path(spec)
+        title = _title(text)
+        if title is not None:
+            field_sources["title"] = [SourceReference(relative_path, "preamble")]
         record = CanonicalDecisionRecord(
             id=spec.id,
-            title=_title(text),
+            title=title,
             status=status,
             date=_date(text),
             body="",
@@ -187,6 +205,7 @@ class StarterAdapter:
             attempted_fields=frozenset(attempted),
             unresolved_mention_count=0,
             fingerprint=self.fingerprint(spec),
+            field_sources=field_sources,
         )
 
     def fingerprint(self, spec: DiscoveredSpec) -> str:
@@ -205,6 +224,11 @@ class StarterAdapter:
         return digest.hexdigest()
 
 
+def _relative_path(spec: DiscoveredSpec) -> str:
+    """The spec's root as a corpus relative POSIX path."""
+    return spec.root.relative_to(spec.corpus_root).as_posix()
+
+
 def _failure(spec: DiscoveredSpec, rule: str, reason: str) -> AdaptationResult:
     """An unadaptable source: no record, one clear violation."""
     violation = Violation("", Severity.ERROR, rule, reason)
@@ -214,6 +238,7 @@ def _failure(spec: DiscoveredSpec, rule: str, reason: str) -> AdaptationResult:
         attempted_fields=frozenset(),
         unresolved_mention_count=0,
         fingerprint=_fingerprint_or_empty(spec),
+        field_sources={},
     )
 
 

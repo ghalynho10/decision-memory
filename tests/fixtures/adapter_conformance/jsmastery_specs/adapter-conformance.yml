@@ -27,6 +27,31 @@ cases:
             attempted_fields: []
             unresolved_mention_count: 0
             violations: []
+            field_sources:
+              consequences.negative[0]:
+                - path: docs/specs/0001-choose-postgres/index.md
+                  section: Consequences
+              consequences.positive[0]:
+                - path: docs/specs/0001-choose-postgres/index.md
+                  section: Consequences
+              context.problem:
+                - path: docs/specs/0001-choose-postgres/rationale.md
+                  section: Context
+              decision.alternatives[0].rejection_reason:
+                - path: docs/specs/0001-choose-postgres/rationale.md
+                  section: Options considered
+              decision.alternatives[0].title:
+                - path: docs/specs/0001-choose-postgres/rationale.md
+                  section: Options considered
+              decision.chosen:
+                - path: docs/specs/0001-choose-postgres/index.md
+                  section: Decision
+              rationale_summary:
+                - path: docs/specs/0001-choose-postgres/rationale.md
+                  section: Rationale
+              title:
+                - path: docs/specs/0001-choose-postgres/index.md
+                  section: preamble
       skips: []
       collisions: []
   - id: skip-notes
@@ -84,6 +109,19 @@ cases:
               - severity: warning
                 rule: field.attempted_unfilled
                 field: why
+            field_sources:
+              consequences.positive[0]:
+                - path: docs/specs/0004-no-rationale/index.md
+                  section: Consequences
+              context.problem:
+                - path: docs/specs/0004-no-rationale/index.md
+                  section: Context
+              decision.chosen:
+                - path: docs/specs/0004-no-rationale/index.md
+                  section: Decision
+              title:
+                - path: docs/specs/0004-no-rationale/index.md
+                  section: preamble
       skips: []
       collisions: []
   - id: collision
@@ -113,6 +151,19 @@ cases:
               - severity: warning
                 rule: field.attempted_unfilled
                 field: decision.alternatives
+            field_sources:
+              context.problem:
+                - path: docs/specs/0005-alpha/index.md
+                  section: Context
+              decision.chosen:
+                - path: docs/specs/0005-alpha/index.md
+                  section: Decision
+              rationale_summary:
+                - path: docs/specs/0005-alpha/index.md
+                  section: Rationale
+              title:
+                - path: docs/specs/0005-alpha/index.md
+                  section: preamble
       skips: []
       collisions:
         - id: DM-0005

@@ -24,6 +24,22 @@ cases:
             attempted_fields: []
             unresolved_mention_count: 0
             violations: []
+            field_sources:
+              context.problem:
+                - path: decisions/valid.md
+                  section: Context
+              decision.chosen:
+                - path: decisions/valid.md
+                  section: Decision
+              title:
+                - path: decisions/valid.md
+                  section: preamble
+              why[0]:
+                - path: decisions/valid.md
+                  section: Why
+              why[1]:
+                - path: decisions/valid.md
+                  section: Why
       skips: []
       collisions: []
   - id: skip-one
@@ -72,6 +88,16 @@ cases:
               - severity: warning
                 rule: field.attempted_unfilled
                 field: why
+            field_sources:
+              context.problem:
+                - path: decisions/partial.md
+                  section: Context
+              decision.chosen:
+                - path: decisions/partial.md
+                  section: Decision
+              title:
+                - path: decisions/partial.md
+                  section: preamble
       skips: []
       collisions: []
   - id: collision
@@ -89,6 +115,19 @@ cases:
             attempted_fields: []
             unresolved_mention_count: 0
             violations: []
+            field_sources:
+              context.problem:
+                - path: decisions/a/repeat.md
+                  section: Context
+              decision.chosen:
+                - path: decisions/a/repeat.md
+                  section: Decision
+              title:
+                - path: decisions/a/repeat.md
+                  section: preamble
+              why[0]:
+                - path: decisions/a/repeat.md
+                  section: Why
       skips: []
       collisions:
         - id: repeat
