@@ -21,7 +21,8 @@ import inspect
 from dataclasses import dataclass
 from typing import cast
 
-from decision_memory.application.adapter import SourceAdapter
+from decision_memory.application.adapter import BUILTIN_ADAPTER_ID, SourceAdapter
+from decision_memory.infrastructure.jsmastery_adapter import JsmasteryAdapter
 
 
 @dataclass(frozen=True)
@@ -93,6 +94,27 @@ def parse_selector(selector: str) -> Selector | LoadFailure:
     return Selector(module=module, attribute=attribute)
 
 
+def select_adapter(selector: str) -> SourceAdapter | LoadFailure:
+    """Resolve one adapter by built in id or third party selector (spec 0006 AC-1).
+
+    The exact built in id returns a fresh ``JsmasteryAdapter``; every other
+    value delegates unchanged to ``load_adapter``. Metadata access inside
+    loading catches ``Exception`` and returns a contract ``LoadFailure``, so
+    a broken property never escapes the load boundary.
+    """
+    if selector == BUILTIN_ADAPTER_ID:
+        try:
+            candidate = JsmasteryAdapter()
+        except Exception as exc:  # noqa: BLE001 - built in construction failure
+            message = str(exc) if str(exc) else type(exc).__name__
+            return LoadFailure("contract", type(exc).__name__, message)
+        error = _contract_error(candidate)
+        if error is not None:
+            return LoadFailure("contract", "", error)
+        return cast(SourceAdapter, candidate)
+    return load_adapter(selector)
+
+
 def load_adapter(selector: str) -> SourceAdapter | LoadFailure:
     """Load one adapter instance from an absolute selector (AC-3).
 
@@ -130,13 +152,24 @@ def load_adapter(selector: str) -> SourceAdapter | LoadFailure:
 
 
 def _contract_error(candidate: object) -> str | None:
-    """A message naming the first contract violation, else None."""
+    """A message naming the first contract violation, else None.
+
+    Metadata and method access is wrapped so a raising property or descriptor
+    is treated as a contract violation, not a crash inside loading (spec 0006
+    AC-1 metadata access).
+    """
     for field in ("adapter_id", "adapter_version"):
-        value = getattr(candidate, field, None)
+        try:
+            value = getattr(candidate, field, None)
+        except Exception:  # noqa: BLE001 - property access failure
+            return f"adapter.{field} must be a nonempty string (access raised)"
         if not isinstance(value, str) or not value:
             return f"adapter.{field} must be a nonempty string"
     for method in ("discover", "parse", "fingerprint"):
-        value = getattr(candidate, method, None)
+        try:
+            value = getattr(candidate, method, None)
+        except Exception:  # noqa: BLE001 - descriptor access failure
+            return f"adapter.{method} must be callable (access raised)"
         if not callable(value):
             return f"adapter.{method} must be callable"
     return None

@@ -32,7 +32,8 @@ Discovery skips any file with no `## Decision` heading, so a file that is not
 a decision produces no record and does not fail the run.
 
 The full how to write your own adapter guide lives at
-`docs/adapter-author-guide.md` in the decision-memory repository.
+`docs/reference/artifact/guide/adapter-author-guide.md` in the decision-memory
+repository.
 
 ## Install
 

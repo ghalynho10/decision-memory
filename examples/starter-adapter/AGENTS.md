@@ -35,8 +35,10 @@ uv run decision-memory adapt <corpus> --adapter starter_adapter.adapter:adapter
 
 ## Guidance
 
-The full author guide lives at `docs/adapter-author-guide.md`. Spec 0005
+The full author guide lives at
+`docs/reference/artifact/guide/adapter-author-guide.md`. Spec 0005
 (`docs/specs/0005-runtime-adapter-loading/`) governs the adapter contract;
-feature 7 reuses the same `load_adapter` boundary.
+feature 7 (spec 0006) adds the conformance suite and the `test-adapter`
+command that prove protocol and anti fabrication behavior.
 
 _Drafted by /sync from the introducing change, worth a quick human pass._

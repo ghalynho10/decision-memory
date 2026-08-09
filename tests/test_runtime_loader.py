@@ -10,15 +10,18 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from decision_memory.application.adapter import BUILTIN_ADAPTER_ID
 from decision_memory.cli import app
+from decision_memory.infrastructure.jsmastery_adapter import JsmasteryAdapter
 from decision_memory.infrastructure.runtime_loader import (
     LoadFailure,
     Selector,
     load_adapter,
     parse_selector,
+    select_adapter,
 )
 
 runner = CliRunner()
@@ -267,3 +270,29 @@ class TestCliAdapterFlag:
         assert result.exit_code == 1
         assert "import" in result.stdout
         assert "ModuleNotFoundError" in result.stdout
+
+
+class TestSelectAdapter:
+    """Spec 0006 AC-1: the public selector owns the built in name."""
+
+    def test_builtin_selector_returns_the_jsmastery_adapter(self) -> None:
+        adapter = select_adapter(BUILTIN_ADAPTER_ID)
+        assert isinstance(adapter, JsmasteryAdapter)
+        assert adapter.adapter_id == BUILTIN_ADAPTER_ID
+
+    def test_third_party_selector_delegates_to_load_adapter(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install(monkeypatch, tmp_path, VALID_MODULE)
+        adapter = select_adapter("vendor.runtime:adapter")
+        assert not isinstance(adapter, LoadFailure)
+        assert adapter.adapter_id == "vendor"
+        assert adapter.adapter_version == "2"
+
+    def test_a_value_other_than_the_builtin_delegates_to_load_adapter(self) -> None:
+        # Only the exact built in id maps to the built in; anything else
+        # delegates to load_adapter, so a value without a colon is reported as
+        # a selector syntax failure, never silently a built in.
+        result = select_adapter("jsmastery-spec")
+        assert isinstance(result, LoadFailure)
+        assert result.phase == "selector"

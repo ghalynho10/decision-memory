@@ -67,6 +67,43 @@ class TestDiscover:
         assert spec.contributing_files == [spec.root]
 
 
+class TestRecursiveDiscovery:
+    """Spec 0006 AC-19: recursive discovery and the lexical collision rule."""
+
+    def _write_decision(self, root: Path, relative: str) -> None:
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            "# A decision\n\n**Status**: Accepted\n\n## Context\n\nC.\n\n"
+            "## Decision\n\nChosen.\n\n## Why\n\n- Because\n",
+            encoding="utf-8",
+        )
+
+    def test_discovers_nested_and_flat_decision_files(self, tmp_path: Path) -> None:
+        corpus = tmp_path / "corpus"
+        self._write_decision(corpus, "decisions/flat.md")
+        self._write_decision(corpus, "decisions/nested/deep.md")
+        result = _adapter().discover(corpus)
+        assert sorted(spec.id for spec in result.specs) == ["deep", "flat"]
+
+    def test_a_collision_selects_the_lower_lexical_path(self, tmp_path: Path) -> None:
+        corpus = tmp_path / "corpus"
+        self._write_decision(corpus, "decisions/a/repeat.md")
+        self._write_decision(corpus, "decisions/b/repeat.md")
+        result = _adapter().discover(corpus)
+        assert [spec.id for spec in result.specs] == ["repeat"]
+        used = result.specs[0].root
+        assert used == corpus / "decisions" / "a" / "repeat.md"
+        assert len(result.collisions) == 1
+        collision = result.collisions[0]
+        assert collision.id == "repeat"
+        assert [path.relative_to(corpus).as_posix() for path in collision.paths] == [
+            "decisions/a/repeat.md",
+            "decisions/b/repeat.md",
+        ]
+        assert collision.used == corpus / "decisions" / "a" / "repeat.md"
+
+
 class TestParse:
     def test_valid_fixture_produces_a_valid_record(self) -> None:
         spec = _discovered()

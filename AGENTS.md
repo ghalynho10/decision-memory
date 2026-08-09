@@ -38,7 +38,7 @@ Additional standards:
 - Conventional commits; documented public APIs; consistent naming.
 - Ruff for lint and format, wired into the verify and test step, not a manual optional step.
 - Unit plus integration tests via pytest (integration marked, run separate from the fast unit suite); CI on push runs pre commit checks plus the unit suite only.
-- Third party adapters load by an absolute selector `package.module:attribute`; the built in `jsmastery-specs` stays the default. The teaching package and author guide live at `examples/starter-adapter/` and `docs/adapter-author-guide.md`.
+- Third party adapters load by an absolute selector `package.module:attribute`; the built in `jsmastery-specs` stays the default. The teaching package and author guide live at `examples/starter-adapter/` and `docs/reference/artifact/guide/adapter-author-guide.md`. Adapters prove protocol compliance with `test-adapter SELECTOR --cases PATH`; the built in adapter must pass it.
 - `.decision-memory.yml` persists `adapter`, `corpus_root`, and `output`; `adapt` and directory `validate` read the nearest file upward, stopping at the Git root, with CLI input winning over config.
 
 ## Git

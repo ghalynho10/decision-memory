@@ -17,7 +17,7 @@ _You are in charge. Every box below is a suggestion, not a gate: run any, skip a
 | 4 | jsmastery specs adapter | Foundation | done |
 | 5 | `doctor` diagnostic | Foundation | done |
 | 6 | Runtime adapter loading | Foundation | done |
-| 7 | Adapter conformance suite and `test-adapter` | Foundation | planned |
+| 7 | Adapter conformance suite and `test-adapter` | Foundation | done |
 | 8 | Built-in ADR adapters | Foundation | planned |
 | 9 | Core cited query | Slice 1 | planned |
 | 10 | Reliable multi source retrieval | Slice 2 | planned |
@@ -91,10 +91,20 @@ spec [0005](../specs/0005-runtime-adapter-loading/index.md) · code in src/decis
 - [x] Verify it: `/check verify runtime adapter loading`
 - [x] Test it: `/test runtime adapter loading`
 
-### 7. Adapter conformance suite and `test-adapter` · needs a decision
+### 7. Adapter conformance suite and `test-adapter` · done
 A battery of checks any adapter author can run against their adapter to prove protocol compliance and anti fabrication behavior, including format drift fixtures with wrong headings and missing fields.
-**Done when:** `decision-memory test-adapter my_module` gives a clear pass or fail report, malformed inputs produce no confident records, and every built-in adapter passes the same suite.
-- [ ] Design it (spec): `/architect adapter conformance suite and test-adapter`
+**Done when:** `decision-memory test-adapter SELECTOR --cases PATH` gives a clear pass or fail report, malformed inputs produce no confident records, and every built-in adapter passes the same suite.
+spec [0006](../specs/0006-adapter-conformance-test-adapter/index.md) · code in src/decision_memory/
+- [x] Design it (spec): `/architect adapter conformance suite and test-adapter`
+- [x] Build it: `/develop adapter conformance suite and test-adapter`
+  - [x] Strict manifest, shared selector, public engine, and first valid CLI path (AC-1 to AC-5, AC-15, AC-16, AC-18)
+  - [x] Runtime contract, deterministic operation, and fingerprint checks (AC-9 to AC-13)
+  - [x] Grammar drift, corruption, copied workspace, and failure artifact handling (AC-6 to AC-9, AC-14, AC-17)
+  - [x] Starter recursion and collision rule, both adapter manifests, guide, and quality gates (AC-19 to AC-22)
+- [x] Verify it: `/check verify adapter conformance suite and test-adapter`
+- [x] Test it: `/test adapter conformance suite and test-adapter`
+- [x] Review it: `/check review adapter conformance suite and test-adapter`
+- [x] Document it: `/document pr adapter conformance suite and test-adapter`
 
 ### 8. Built-in ADR adapters · needs a decision
 Ship built-in adapters for common ADR formats such as MADR and plain ADR, versioned as adapter ids like `madr@1`, calibrated against real corpora rather than synthetic examples.

@@ -85,3 +85,25 @@ class TestStarterThroughTheLoader:
         )
         assert result.exit_code == 3
         assert "no decisions/ directory" in result.stdout
+
+    def test_adapter_conformance_suite_passes_for_the_starter(self) -> None:
+        # Spec 0006 AC-20: the installed starter package runs through the real
+        # CLI and passes the same conformance engine as the built in adapter.
+        manifest = (
+            Path(__file__).resolve().parent.parent
+            / "examples"
+            / "starter-adapter"
+            / "adapter-conformance.yml"
+        )
+        result = runner.invoke(
+            app,
+            [
+                "test-adapter",
+                "starter_adapter.adapter:adapter",
+                "--cases",
+                str(manifest),
+            ],
+        )
+        assert result.exit_code == 0
+        assert "final: passed" in result.stdout
+        assert "0 failed" in result.stdout
