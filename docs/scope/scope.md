@@ -15,7 +15,7 @@ _You are in charge. Every box below is a suggestion, not a gate: run any, skip a
 | 2 | Coding standards & tooling | Foundation | done |
 | 3 | Canonical decision record schema & validator | Foundation | done |
 | 4 | jsmastery specs adapter | Foundation | done |
-| 5 | `doctor` diagnostic | Foundation | planned |
+| 5 | `doctor` diagnostic | Foundation | in-progress |
 | 6 | Runtime adapter loading | Foundation | planned |
 | 7 | Adapter conformance suite and `test-adapter` | Foundation | planned |
 | 8 | Built-in ADR adapters | Foundation | planned |
@@ -65,10 +65,18 @@ spec [0003](../specs/0003-jsmastery-specs-adapter/index.md) · code in src/decis
 - [x] Verify it: `/check verify jsmastery specs adapter`
 - [x] Test it: `/test jsmastery specs adapter`
 
-### 5. `doctor` diagnostic · needs a decision
+### 5. `doctor` diagnostic · in-progress
 A reading aid for unfamiliar decision corpora. Point it at a directory and it reports markdown file count, common H2 headings, and exact H2 heading set groups with samples, using deterministic parsing and no fuzzy matching.
 **Done when:** a user can run `decision-memory doctor <path>` on an ADR corpus and see whether a built-in adapter is likely to fit, without producing records or inferring meaning.
-- [ ] Design it (spec): `/architect doctor diagnostic`
+spec [0004](../specs/0004-doctor-diagnostic/index.md) · code in src/decision_memory/
+- [x] Design it (spec): `/architect doctor diagnostic`
+- [x] Build it: `/develop doctor diagnostic`
+  - [x] Basic survey and report through every architecture layer (AC-1, AC-5, AC-6, AC-8)
+  - [x] Exact Markdown grammar and shared unmatched fence fixture (AC-4)
+  - [x] Honest deterministic path accounting (AC-2, AC-3, AC-7, AC-9, AC-11)
+  - [x] CLI validation and exit contract (AC-1, AC-9, AC-10)
+- [ ] Verify it: `/check verify doctor diagnostic`
+- [ ] Test it: `/test doctor diagnostic`
 
 ### 6. Runtime adapter loading · needs a decision
 Make third party adapters usable without forking: `adapt` and `validate` can load an adapter by Python module path, while `jsmastery-specs` remains the default adapter behind the same protocol. Persist adapter, corpus root, and output directory in `.decision-memory.yml`, and ship a minimal starter adapter template plus a short writing guide.

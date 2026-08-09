@@ -6,6 +6,7 @@ The scaffold ships a bare command shell plus a ``version`` command so the
 package boots and builds.
 """
 
+import json
 from importlib.metadata import version
 from pathlib import Path
 from typing import Annotated
@@ -13,7 +14,14 @@ from typing import Annotated
 import typer
 
 from decision_memory.application.adapter import AdaptOutcome, adapt_corpus
+from decision_memory.application.doctor_service import (
+    EXIT_ERROR,
+    DoctorOutcome,
+    DoctorRequest,
+    run_doctor,
+)
 from decision_memory.application.validation_service import validate_file
+from decision_memory.infrastructure.doctor_scanner import scan_corpus
 from decision_memory.infrastructure.file_reader import (
     parse_record_file,
     write_record_file,
@@ -73,6 +81,85 @@ def validate_command(
     if not outcome.violations:
         typer.echo("valid record, no violations")
     raise typer.Exit(outcome.exit_code)
+
+
+def _validate_samples(value: int) -> int:
+    """A nonnegative sample count; a negative one is a Typer bad parameter."""
+    if value < 0:
+        raise typer.BadParameter("samples must be a nonnegative integer")
+    return value
+
+
+@app.command("doctor")
+def doctor_command(
+    directory: Annotated[Path, typer.Argument(help="Path to the corpus to survey")],
+    samples: Annotated[
+        int,
+        typer.Option(
+            help="Number of sample paths per heading set group and skip reason",
+            callback=_validate_samples,
+        ),
+    ] = 3,
+) -> None:
+    """Survey a corpus of Markdown files and report its H2 structure."""
+    try:
+        outcome = run_doctor(
+            DoctorRequest(root=directory, samples=samples), scan_corpus
+        )
+    except Exception:
+        typer.echo("doctor failed unexpectedly")
+        raise typer.Exit(EXIT_ERROR) from None
+    if outcome.exit_code != 0:
+        typer.echo("corpus path does not exist or is not a directory")
+        raise typer.Exit(outcome.exit_code)
+    _print_doctor_report(outcome)
+    raise typer.Exit(outcome.exit_code)
+
+
+def _print_doctor_report(outcome: DoctorOutcome) -> None:
+    """Print the normative report contract from spec 0004 (AC-8)."""
+    skipped_total = sum(summary.count for summary in outcome.skips)
+    typer.echo("coverage")
+    typer.echo(f"  markdown analyzed: {outcome.markdown_analyzed}")
+    typer.echo(f"  non markdown ignored: {outcome.non_markdown_ignored}")
+    typer.echo(f"  skipped: {skipped_total}")
+
+    typer.echo("common H2 headings")
+    if outcome.markdown_analyzed == 0:
+        typer.echo("  no heading evidence found")
+    else:
+        for frequency in outcome.headings:
+            heading = _json(frequency.heading)
+            percentage = f"{frequency.percentage:f}"
+            typer.echo(
+                f"  {heading} | files: {frequency.file_count} | percent: {percentage}%"
+            )
+
+    typer.echo("exact H2 heading sets")
+    if outcome.markdown_analyzed == 0:
+        typer.echo("  no heading sets found")
+    else:
+        for group in outcome.heading_groups:
+            typer.echo(f"  {_json(list(group.headings))} | files: {group.file_count}")
+            if group.sample_paths:
+                typer.echo(f"    samples: {_json(list(group.sample_paths))}")
+
+    typer.echo("skipped")
+    if not outcome.skips:
+        typer.echo("  none")
+    else:
+        for summary in outcome.skips:
+            typer.echo(
+                f"  {summary.reason} | count: {summary.count} | "
+                f"unseen subtrees: {summary.unseen_subtrees}"
+            )
+            if summary.sample_paths:
+                typer.echo(f"    samples: {_json(list(summary.sample_paths))}")
+
+
+def _json(value: object) -> str:
+    """JSON serialization that preserves Unicode while escaping quotes."""
+    return json.dumps(value, ensure_ascii=False)
 
 
 @app.command("adapt")
