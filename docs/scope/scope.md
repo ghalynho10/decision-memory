@@ -75,8 +75,8 @@ spec [0004](../specs/0004-doctor-diagnostic/index.md) · code in src/decision_me
   - [x] Exact Markdown grammar and shared unmatched fence fixture (AC-4)
   - [x] Honest deterministic path accounting (AC-2, AC-3, AC-7, AC-9, AC-11)
   - [x] CLI validation and exit contract (AC-1, AC-9, AC-10)
-- [ ] Verify it: `/check verify doctor diagnostic`
-- [ ] Test it: `/test doctor diagnostic`
+- [x] Verify it: `/check verify doctor diagnostic`
+- [x] Test it: `/test doctor diagnostic`
 
 ### 6. Runtime adapter loading · needs a decision
 Make third party adapters usable without forking: `adapt` and `validate` can load an adapter by Python module path, while `jsmastery-specs` remains the default adapter behind the same protocol. Persist adapter, corpus root, and output directory in `.decision-memory.yml`, and ship a minimal starter adapter template plus a short writing guide.

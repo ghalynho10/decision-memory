@@ -184,3 +184,19 @@ def test_doctor_help_lists_the_command() -> None:
     result = runner.invoke(app, ["doctor", "--help"])
     assert result.exit_code == 0
     assert "--samples" in result.stdout
+
+
+def test_unexpected_failure_exits_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # an unexpected failure in the use case exits 1 with a short message,
+    # rather than surfacing a traceback or a wrong code (AC-10).
+    import decision_memory.cli as cli_module
+
+    def boom(_request: object, _scanner: object) -> object:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(cli_module, "run_doctor", boom)
+    result = runner.invoke(app, ["doctor", str(tmp_path)])
+    assert result.exit_code == 1
+    assert "doctor failed unexpectedly" in result.stdout
