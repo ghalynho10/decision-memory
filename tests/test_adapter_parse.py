@@ -358,6 +358,31 @@ def test_neutral_consequences_survive_in_the_body(tmp_path) -> None:
     assert "The version string is bumped by hand." in result.record.body
 
 
+def test_inter_label_prose_in_consequences_survives_in_the_body(tmp_path) -> None:
+    # prose between two labeled blocks is not a bullet any field consumes, so
+    # it must fall through to the body rather than be attributed to the
+    # preceding (consumed) Positive block.
+    corpus = make_corpus(tmp_path)
+    index = (
+        "# 0009. Consequences prose\n\n"
+        "**Date**: 2026-08-07\n"
+        "**Status**: Accepted\n\n"
+        "## Decision\n\n"
+        "**Chosen option**: Option 1: Do it\n\n"
+        "## Consequences\n\n"
+        "**Positive**:\n"
+        "- It is fast.\n\n"
+        "A transition sentence between the lists.\n\n"
+        "**Negative**:\n"
+        "- It is slower.\n"
+    )
+    write_spec(corpus, "0009-consequences", index=index, rationale=RATIONALE)
+    result = _adapt(corpus)
+    assert result.record.consequences.positive == ["It is fast."]
+    assert result.record.consequences.negative == ["It is slower."]
+    assert "A transition sentence between the lists." in result.record.body
+
+
 def test_duplicate_h2_heading_bodies_are_not_lost(tmp_path) -> None:
     # a later duplicate H2 must concatenate, not silently overwrite the first.
     corpus = make_corpus(tmp_path)
@@ -397,6 +422,25 @@ def test_section_that_merely_mentions_a_sibling_is_not_a_stub(tmp_path) -> None:
         result.record.rationale_summary
         == "Note that rationale.md holds the full reasoning."
     )
+
+
+def test_section_starting_with_check_is_not_a_stub(tmp_path) -> None:
+    # "check" reads as a command to inspect rather than a pure pointer, so a
+    # body such as "Check rationale.md for details." has substance and must
+    # not be discarded as a stub.
+    corpus = make_corpus(tmp_path)
+    index = (
+        "# 0011. Check mention\n\n"
+        "**Date**: 2026-08-07\n"
+        "**Status**: Accepted\n\n"
+        "## Decision\n\n"
+        "**Chosen option**: Option 1: Do it\n\n"
+        "## Rationale\n\n"
+        "Check rationale.md for details.\n"
+    )
+    write_spec(corpus, "0011-check", index=index, rationale=None)
+    result = _adapt(corpus)
+    assert result.record.rationale_summary == "Check rationale.md for details."
 
 
 def test_metadata_field_mentions_in_the_body_do_not_populate_the_field(

@@ -41,7 +41,7 @@ from decision_memory.infrastructure.path_resolution import (
 )
 
 # Bumped by hand when the mapping changes; part of every record's fingerprint.
-ADAPTER_VERSION = "4"
+ADAPTER_VERSION = "5"
 
 # Known file extensions that make a non resolving inline token count toward
 # the unresolved mention total (AC-6 step 7). Corpus calibration, not a
@@ -535,9 +535,10 @@ def _is_pointer(collapsed: str, name: str) -> bool:
     if lowered.strip(" .,;:!?") == name_lower:
         return True
     remainder = lowered.replace(name_lower, "", 1).strip(" .,;:!?")
-    return remainder.startswith(
-        ("see", "read", "refer", "check", "point to", "look at")
-    )
+    # "check" is deliberately absent: it reads more like a command to inspect
+    # than a pure pointer, and a body such as "Check `rationale.md` for
+    # details." has substance of its own.
+    return remainder.startswith(("see", "read", "refer", "point to", "look at"))
 
 
 def _residue_body(
@@ -644,26 +645,40 @@ def _list_under_label(body: str, label: str) -> list[str]:
 def _unconsumed_remainder(body: str) -> str:
     """The parts of a Consequences body no canonical field consumes.
 
-    Positive and Negative become canonical fields; any other bold labeled
-    block (for example **Neutral**) plus any leading or trailing prose is
-    content the mapping did not consume, so it must survive in the record
-    body (AC-11) instead of vanishing.
+    Positive and Negative become canonical fields through their bullet items;
+    everything else in the section survives in the record body (AC-11) so
+    content is never silently lost. That includes any other bold labeled
+    block (for example **Neutral**), and any non bullet prose anywhere in the
+    section, including a sentence that sits between two labeled blocks: such
+    a sentence is not attributed to the block that precedes it, so it is not
+    dropped when that block is a consumed Positive or Negative list.
     """
     parts: list[str] = []
     current: list[str] = []
     current_label: str | None = None
 
     def flush() -> None:
-        text = "\n".join(current).strip()
-        current.clear()
-        if not text:
+        if not current:
             return
+        lines = list(current)
+        current.clear()
         if current_label is not None and (
             _matches_label(current_label, "Positive")
             or _matches_label(current_label, "Negative")
         ):
-            return
-        parts.append(text)
+            # The label and its bullets are consumed by the fields; keep any
+            # non bullet prose so it falls through to the body.
+            kept = [
+                line
+                for line in lines
+                if re.match(r"^\s*[-*]\s+", line) is None
+                and _BOLD_LABEL_RE.match(line.strip()) is None
+            ]
+        else:
+            kept = lines
+        text = "\n".join(kept).strip()
+        if text:
+            parts.append(text)
 
     for line in body.split("\n"):
         stripped = line.strip()

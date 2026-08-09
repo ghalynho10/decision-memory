@@ -44,3 +44,5 @@ A `/develop` run worked through the open items from the feature 4 review rounds.
 - A fence test's first assertion passes pre fix: an informational test note, not a behavior to change.
 
 **Confirmed shipped (the amended AC-6):** `_KNOWN_PATH_EXTENSIONS` holds the spec's 15 extensions beside `ADAPTER_VERSION`; the unresolved mention count is shape gated through `_looks_like_path` on the pre slash strip token, counts occurrences not distinct tokens, and never blocks extraction. Measured 107 unresolved for DM-0003, matching the documented calibration.
+
+**Follow up from `/check review` (2026-08-08, DeepSeek V4 Pro):** verdict Approve with nits, two dormant minors both fixed. `_unconsumed_remainder` no longer attributes inter label prose to the preceding block, so a sentence between Positive and Negative survives in the body; `_is_pointer` dropped `check` from its pointer words so a body like "Check rationale.md for details." is content, not a stub. `ADAPTER_VERSION` bumped to 5. Findings: `docs/reviews/2026-08-08-main-adapter-review-triage.md`.
