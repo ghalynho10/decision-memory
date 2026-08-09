@@ -103,6 +103,8 @@ spec [0006](../specs/0006-adapter-conformance-test-adapter/index.md) · code in 
   - [x] Starter recursion and collision rule, both adapter manifests, guide, and quality gates (AC-19 to AC-22)
 - [x] Verify it: `/check verify adapter conformance suite and test-adapter`
 - [x] Test it: `/test adapter conformance suite and test-adapter`
+- [x] Review it: `/check review adapter conformance suite and test-adapter`
+- [x] Document it: `/document pr adapter conformance suite and test-adapter`
 
 ### 8. Built-in ADR adapters · needs a decision
 Ship built-in adapters for common ADR formats such as MADR and plain ADR, versioned as adapter ids like `madr@1`, calibrated against real corpora rather than synthetic examples.
