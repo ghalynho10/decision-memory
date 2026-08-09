@@ -92,7 +92,16 @@ def _validate_samples(value: int) -> int:
 
 @app.command("doctor")
 def doctor_command(
-    directory: Annotated[Path, typer.Argument(help="Path to the corpus to survey")],
+    directory: Annotated[
+        Path,
+        typer.Argument(
+            help="Path to the corpus to survey",
+            # readable=False: an unreadable root must reach the survey, which
+            # reports it as one '.' unreadable directory skip (AC-9), rather
+            # than being rejected as a bad argument.
+            readable=False,
+        ),
+    ],
     samples: Annotated[
         int,
         typer.Option(

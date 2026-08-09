@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from decision_memory.cli import app
@@ -157,6 +158,26 @@ def test_unreadable_markdown_is_reported_without_stopping(tmp_path: Path) -> Non
     assert result.exit_code == 0
     assert "markdown analyzed: 1" in result.stdout
     assert "unreadable Markdown file | count: 1 | unseen subtrees: 0" in result.stdout
+
+
+def test_unreadable_root_is_surveyed_as_a_dot_skip(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # an unreadable root is not an argument error: the survey reports one
+    # 'unreadable directory' skip for '.' and completes with exit 0 (AC-9).
+    import decision_memory.infrastructure.doctor_scanner as scanner_module
+
+    root = tmp_path / "corpus"
+    root.mkdir()
+
+    def fake_scandir(path: str) -> object:
+        raise PermissionError(13, "Permission denied")
+
+    monkeypatch.setattr(scanner_module.os, "scandir", fake_scandir)
+    result = runner.invoke(app, ["doctor", str(root)])
+    assert result.exit_code == 0
+    assert "unreadable directory | count: 1 | unseen subtrees: 1" in result.stdout
+    assert '    samples: ["."]' in result.stdout
 
 
 def test_doctor_help_lists_the_command() -> None:

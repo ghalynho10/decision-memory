@@ -23,6 +23,7 @@ Run from the decision-memory repo. A fixture corpus is three Markdown files with
 - [ ] files named `.MD`, `.Markdown`, and `.mdown` → all analyzed; a `.txt` and `.json` file are ignored and counted under non markdown ignored → AC-2, AC-7
 - [ ] a symbolic link to a directory inside the corpus → `descendant symbolic link` with `unseen subtrees: 1` and its contents never counted; a broken or cyclic link reports the same reason with `unseen subtrees: 0` → AC-2, AC-7, AC-11
 - [ ] a Markdown file with invalid UTF 8 bytes → `unreadable Markdown file` skip, the rest of the survey continues, exit 0 → AC-9
+- [ ] a root directory that cannot be read → the survey still completes with exit 0 and reports one `unreadable directory` skip for `.` with `unseen subtrees: 1` → AC-9
 - [ ] a Markdown file with `## X` twice → X counts once in the common headings section → AC-5
 - [ ] an `##` line inside a closed fence → not counted; an unmatched fence opener followed by an `##` → the heading counts, matching the shipped adapter → AC-4
 - [ ] a Markdown file with a leading UTF 8 BOM and CRLF or CR line endings → headings counted correctly → AC-4
