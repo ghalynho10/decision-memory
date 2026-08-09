@@ -104,3 +104,26 @@ def test_collision_reports_every_path_and_uses_first(tmp_path) -> None:
     assert collision.id == "DM-0001"
     assert [path.name for path in collision.paths] == ["0001-alpha", "0001-beta"]
     assert collision.used.name == "0001-alpha"
+
+
+def test_three_colliding_directories_yield_one_collision_naming_all(
+    tmp_path,
+) -> None:
+    # AC-19 asks for one collision naming every path and the one used; three
+    # colliders must not produce pairwise entries.
+    corpus = make_corpus(tmp_path)
+    write_spec(corpus, "0001-alpha")
+    write_spec(corpus, "0001-beta")
+    write_spec(corpus, "0001-gamma")
+    result = _adapter().discover(corpus)
+    assert [spec.id for spec in result.specs] == ["DM-0001"]
+    assert result.specs[0].root.name == "0001-alpha"
+    assert len(result.collisions) == 1
+    collision = result.collisions[0]
+    assert collision.id == "DM-0001"
+    assert [path.name for path in collision.paths] == [
+        "0001-alpha",
+        "0001-beta",
+        "0001-gamma",
+    ]
+    assert collision.used.name == "0001-alpha"

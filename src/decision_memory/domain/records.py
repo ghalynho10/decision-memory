@@ -133,3 +133,20 @@ class ValidationContext:
     known_commits: frozenset[str] = frozenset()
     git_available: bool = False
     unresolved_mention_count: int = 0
+
+
+@dataclass(frozen=True)
+class ParseResult:
+    """The outcome of reading a record file.
+
+    ``record`` is None when the file is not a parseable record; in that case
+    ``violations`` holds only `file.*` or `field.*` errors and no rule
+    validation runs. ``unknown_fields`` is collected from the frontmatter and
+    carried into the validation context when a record exists. Pure value type,
+    owned by the domain so the application can name it without depending on
+    the infrastructure that reads files.
+    """
+
+    record: CanonicalDecisionRecord | None
+    violations: list[Violation]
+    unknown_fields: frozenset[str]

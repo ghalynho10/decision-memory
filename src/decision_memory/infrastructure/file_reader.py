@@ -11,7 +11,6 @@ only `file.*` or `field.*` violations, which the CLI reports and stops on.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import date as calendar_date
 from pathlib import Path
 
@@ -26,27 +25,13 @@ from decision_memory.domain.records import (
     Decision,
     Evidence,
     EvidenceKind,
+    ParseResult,
     Severity,
     Status,
     Violation,
 )
 
 _FENCE = "---"
-
-
-@dataclass(frozen=True)
-class ParseResult:
-    """The outcome of reading a record file.
-
-    ``record`` is None when the file is not a parseable record; in that case
-    ``violations`` holds only `file.*` or `field.*` errors and no rule
-    validation runs. ``unknown_fields`` is collected from the frontmatter and
-    carried into the validation context when a record exists.
-    """
-
-    record: CanonicalDecisionRecord | None
-    violations: list[Violation]
-    unknown_fields: frozenset[str]
 
 
 class AlternativeModel(BaseModel):

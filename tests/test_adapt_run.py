@@ -14,6 +14,7 @@ from typer.testing import CliRunner
 
 from decision_memory.application.adapter import adapt_corpus
 from decision_memory.cli import app
+from decision_memory.infrastructure.file_reader import write_record_file
 from decision_memory.infrastructure.jsmastery_adapter import (
     ADAPTER_VERSION,
     JsmasteryAdapter,
@@ -23,7 +24,9 @@ runner = CliRunner()
 
 
 def _run(corpus: Path, **kwargs: object) -> object:
-    return adapt_corpus(corpus, JsmasteryAdapter(), ADAPTER_VERSION, **kwargs)
+    return adapt_corpus(
+        corpus, JsmasteryAdapter(), ADAPTER_VERSION, write_record_file, **kwargs
+    )
 
 
 def _records_dir(corpus: Path) -> Path:
@@ -158,6 +161,42 @@ def test_failing_spec_exits_one_and_writes_nothing_for_it(tmp_path) -> None:
     outcome = _run(corpus)
     assert outcome.exit_code == 1
     assert [record.state for record in outcome.records] == ["failed"]
+    assert not (_records_dir(corpus) / "DM-0001.md").exists()
+
+
+def test_fingerprint_changes_when_adapter_version_changes(
+    tmp_path, monkeypatch
+) -> None:
+    # covers AC-13's adapter version half: same files, different digest, so a
+    # mapping change invalidates every prior fingerprint.
+    import decision_memory.infrastructure.jsmastery_adapter as adapter_module
+
+    corpus = make_corpus(tmp_path)
+    write_spec(corpus, "0001-first")
+    adapter = JsmasteryAdapter()
+    spec = adapter.discover(corpus).specs[0]
+    before = adapter.fingerprint(spec)
+    monkeypatch.setattr(adapter_module, "ADAPTER_VERSION", "9")
+    after = adapter.fingerprint(spec)
+    assert before != after
+
+
+def test_adapt_corpus_writes_through_the_injected_writer(tmp_path) -> None:
+    # proves the layering fix: the use case writes via the injected writer
+    # port and never touches the filesystem itself.
+    corpus = make_corpus(tmp_path)
+    write_spec(corpus, "0001-first")
+    written: list[tuple[object, Path]] = []
+
+    def fake_writer(record: object, path: Path) -> None:
+        written.append((record, path))
+
+    outcome = adapt_corpus(corpus, JsmasteryAdapter(), ADAPTER_VERSION, fake_writer)
+    assert outcome.exit_code == 0
+    assert len(written) == 1
+    assert written[0][1].name == "DM-0001.md"
+    # The directory exists (the manifest write creates it), but no record file
+    # reached the disk through the real writer.
     assert not (_records_dir(corpus) / "DM-0001.md").exists()
 
 

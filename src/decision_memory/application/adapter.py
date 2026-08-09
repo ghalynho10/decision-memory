@@ -10,6 +10,7 @@ only the standard library; YAML record writing lives in infrastructure.
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -20,7 +21,6 @@ from decision_memory.domain.records import (
     Severity,
     Violation,
 )
-from decision_memory.infrastructure.file_reader import write_record_file
 
 # The default output directory lives inside the corpus, a dot directory so it
 # is unlikely to collide with real content (spec 0003).
@@ -43,6 +43,14 @@ class SourceAdapter(Protocol):
     def discover(self, corpus_root: Path) -> DiscoveryResult: ...
     def parse(self, spec: DiscoveredSpec) -> AdaptationResult: ...
     def fingerprint(self, spec: DiscoveredSpec) -> str: ...
+
+
+# The narrow writer port: a callable that writes one canonical record to a
+# path. Infrastructure implements it; the use case takes it as a parameter so
+# the application never imports infrastructure and a run can be tested without
+# touching the filesystem (AGENTS.md: outer layers depend inward). cli.py, the
+# composition root, wires the concrete YAML writer.
+RecordWriter = Callable[[CanonicalDecisionRecord, Path], None]
 
 
 @dataclass(frozen=True)
@@ -145,6 +153,7 @@ def adapt_corpus(
     corpus_root: Path,
     adapter: SourceAdapter,
     adapter_version: str,
+    writer: RecordWriter,
     output: Path | None = None,
     dry_run: bool = False,
 ) -> AdaptOutcome:
@@ -154,6 +163,8 @@ def adapt_corpus(
     unchanged, 1 when at least one failed to produce a valid record, and 3
     when the corpus path does not exist or holds no ``docs/specs/`` directory.
     In a dry run the whole run and its report happen but nothing is written.
+    The concrete writer is injected from the composition root, so this use
+    case never touches infrastructure or the filesystem itself.
     """
     specs_dir = corpus_root / "docs" / "specs"
     if not corpus_root.is_dir() or not specs_dir.is_dir():
@@ -223,7 +234,7 @@ def adapt_corpus(
     if not dry_run:
         for spec, result in writes:
             if result.record is not None:
-                write_record_file(result.record, output_dir / f"{spec.id}.md")
+                writer(result.record, output_dir / f"{spec.id}.md")
         manifest = Manifest(
             adapter_version=adapter_version,
             generated_at=generated_at,

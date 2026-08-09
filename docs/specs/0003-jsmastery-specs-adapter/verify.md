@@ -8,7 +8,7 @@ Run from the decision-memory repo, with a corpus holding real specs. The real va
 
 - [x] `uv run decision-memory adapt <corpus> --dry-run` → prints the full report, writes no record file and no manifest, and the output directory is not created on a first run → AC-1, AC-17
 - [x] `uv run decision-memory adapt <corpus>` → writes one record per adaptable spec directory plus `manifest.json`, and exits 0 → AC-1, AC-14, AC-21, AC-25
-- [x] run `adapt` again with no source changes → every record reports `unchanged` and nothing is rewritten → AC-15
+- [x] run `adapt` again with no source changes → every record reports `unchanged` and the record file's mtime is unchanged → AC-15
 - [x] edit one spec's `rationale.md`, run `adapt` again → exactly that record reports `rewritten`, the rest stay `unchanged` → AC-13, AC-15
 - [x] `uv run decision-memory adapt /tmp/job_pilot` against the real corpus → 15 records written, every record validates, exit 0 → AC-1 through AC-25 on real data
 - [x] `uv run decision-memory validate <record> --project-root <corpus>` → prints `valid record, no violations` and exits 0 → AC-22

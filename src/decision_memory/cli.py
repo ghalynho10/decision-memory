@@ -14,10 +14,15 @@ import typer
 
 from decision_memory.application.adapter import AdaptOutcome, adapt_corpus
 from decision_memory.application.validation_service import validate_file
+from decision_memory.infrastructure.file_reader import (
+    parse_record_file,
+    write_record_file,
+)
 from decision_memory.infrastructure.jsmastery_adapter import (
     ADAPTER_VERSION,
     JsmasteryAdapter,
 )
+from decision_memory.infrastructure.path_resolution import resolve_cited_paths
 
 app = typer.Typer(
     name="decision-memory",
@@ -57,7 +62,9 @@ def validate_command(
     ] = None,
 ) -> None:
     """Validate a canonical decision record file and print violations."""
-    outcome = validate_file(file, project_root)
+    outcome = validate_file(
+        file, project_root, reader=parse_record_file, resolver=resolve_cited_paths
+    )
     for violation in outcome.violations:
         field = violation.field if violation.field else "(record)"
         typer.echo(
@@ -87,6 +94,7 @@ def adapt_command(
         corpus_path,
         JsmasteryAdapter(),
         ADAPTER_VERSION,
+        write_record_file,
         output=output,
         dry_run=dry_run,
     )
@@ -96,6 +104,10 @@ def adapt_command(
 
 def _print_adapt_report(outcome: AdaptOutcome) -> None:
     """Print the adapt run's report: discovery, per record, and summary."""
+    if outcome.exit_code == 3:
+        # Lead with the most important message, so an invalid corpus is the
+        # first thing an operator sees rather than the last.
+        typer.echo("corpus path does not exist or holds no docs/specs/ directory")
     discovery = outcome.discovered
     typer.echo(
         f"discovered {len(discovery.specs)} specs, skipped {len(discovery.skipped)}"
@@ -119,8 +131,6 @@ def _print_adapt_report(outcome: AdaptOutcome) -> None:
         counts[record.state] = counts.get(record.state, 0) + 1
     summary = ", ".join(f"{state} {count}" for state, count in counts.items())
     typer.echo(f"result: {summary}")
-    if outcome.exit_code == 3:
-        typer.echo("corpus path does not exist or holds no docs/specs/ directory")
     suffix = " (dry run, nothing written)" if outcome.dry_run else ""
     typer.echo(f"output: {outcome.output_dir}{suffix}")
 

@@ -336,6 +336,120 @@ def test_body_holds_unconsumed_sections_only(tmp_path) -> None:
     assert "## Context" not in body
 
 
+def test_neutral_consequences_survive_in_the_body(tmp_path) -> None:
+    # covers AC-11: a Consequences block the mapping partially consumes, such
+    # as **Neutral**, must survive in the body rather than vanish.
+    corpus = make_corpus(tmp_path)
+    index = (
+        "# 0009. Consequences\n\n"
+        "**Date**: 2026-08-07\n"
+        "**Status**: Accepted\n\n"
+        "## Decision\n\n"
+        "**Chosen option**: Option 1: Do it\n\n"
+        "## Consequences\n\n"
+        "**Positive**:\n"
+        "- It is fast.\n\n"
+        "**Neutral**:\n"
+        "- The version string is bumped by hand.\n"
+    )
+    write_spec(corpus, "0009-consequences", index=index, rationale=RATIONALE)
+    result = _adapt(corpus)
+    assert result.record.consequences.positive == ["It is fast."]
+    assert "The version string is bumped by hand." in result.record.body
+
+
+def test_duplicate_h2_heading_bodies_are_not_lost(tmp_path) -> None:
+    # a later duplicate H2 must concatenate, not silently overwrite the first.
+    corpus = make_corpus(tmp_path)
+    index = (
+        "# 0010. Duplicate notes\n\n"
+        "**Date**: 2026-08-07\n"
+        "**Status**: Accepted\n\n"
+        "## Decision\n\n"
+        "**Chosen option**: Option 1: Do it\n\n"
+        "## Notes\n\n"
+        "First notes body.\n\n"
+        "## Notes\n\n"
+        "Second notes body.\n"
+    )
+    write_spec(corpus, "0010-notes", index=index, rationale=None)
+    result = _adapt(corpus)
+    assert "First notes body." in result.record.body
+    assert "Second notes body." in result.record.body
+
+
+def test_section_that_merely_mentions_a_sibling_is_not_a_stub(tmp_path) -> None:
+    # a short body that only mentions a sibling file is content, not a pointer
+    # stub, so it must not be discarded.
+    corpus = make_corpus(tmp_path)
+    index = (
+        "# 0011. Stub mention\n\n"
+        "**Date**: 2026-08-07\n"
+        "**Status**: Accepted\n\n"
+        "## Decision\n\n"
+        "**Chosen option**: Option 1: Do it\n\n"
+        "## Rationale\n\n"
+        "Note that rationale.md holds the full reasoning.\n"
+    )
+    write_spec(corpus, "0011-stub", index=index, rationale=None)
+    result = _adapt(corpus)
+    assert (
+        result.record.rationale_summary
+        == "Note that rationale.md holds the full reasoning."
+    )
+
+
+def test_metadata_field_mentions_in_the_body_do_not_populate_the_field(
+    tmp_path,
+) -> None:
+    # **Date** and **Supersedes** live in the preamble; a mention inside a
+    # section body must not leak into the metadata fields.
+    corpus = make_corpus(tmp_path)
+    index = (
+        "# 0012. Metadata scope\n\n"
+        "**Date**: 2026-08-07\n"
+        "**Status**: Accepted\n\n"
+        "## Decision\n\n"
+        "**Chosen option**: Option 1: Do it\n\n"
+        "## Notes\n\n"
+        "**Date**: 1999-01-01 is a mention, not the record date.\n"
+        "**Supersedes**: DM-0001 is a mention too.\n"
+    )
+    write_spec(corpus, "0012-meta", index=index, rationale=RATIONALE)
+    result = _adapt(corpus)
+    assert result.record.date == "2026-08-07"
+    assert result.record.supersedes is None
+
+
+def test_fenced_snippet_inside_an_option_does_not_truncate_it(tmp_path) -> None:
+    # a `#` line inside a fenced snippet inside a losing option's Cons must
+    # not truncate the Cons collection.
+    corpus = make_corpus(tmp_path)
+    index = (
+        "# 0015. Fenced options\n\n"
+        "**Date**: 2026-08-07\n"
+        "**Status**: Accepted\n\n"
+        "## Decision\n\n"
+        "**Chosen option**: Option 2: B\n\n"
+        "## Options considered\n\n"
+        "**Option 1:** A\n"
+        "**Pros**: fast\n"
+        "**Cons**: needs the run below\n"
+        "```sh\n"
+        "# configure first\n"
+        "make install\n"
+        "```\n\n"
+        "**Option 2:** B\n"
+        "**Pros**: cheap\n"
+        "**Cons**: slow\n"
+    )
+    write_spec(corpus, "0015-fenced", index=index, rationale=None)
+    result = _adapt(corpus)
+    alternatives = result.record.decision.alternatives
+    assert [alternative.title for alternative in alternatives] == ["A"]
+    assert "make install" in alternatives[0].rejection_reason
+
+
 def test_panel_units_resolve_by_decision_letter(tmp_path) -> None:
     corpus = make_corpus(tmp_path)
     write_spec(corpus, "0012-portfolio", index=PANEL_INDEX, rationale=PANEL_RATIONALE)
@@ -422,8 +536,11 @@ def test_wrong_case_token_does_not_resolve(tmp_path) -> None:
 
 
 def test_non_path_tokens_do_not_count_as_unresolved(tmp_path) -> None:
-    # covers AC-6
+    # covers AC-6, including the paired scenario: quoted prose and dotted
+    # identifiers add nothing to the count, while a bare directory reference
+    # still resolves as evidence (the shape gate never moves upstream).
     corpus = make_corpus(tmp_path)
+    (corpus / "tests").mkdir()
     index = (
         "# 0013. Code paths\n\n"
         "**Date**: 2026-08-07\n"
@@ -435,10 +552,17 @@ def test_non_path_tokens_do_not_count_as_unresolved(tmp_path) -> None:
         "## Build plan\n\n"
         "- A quoted span such as `read only` adds nothing.\n"
         "- A dotted field name `decision.chosen` is not a path.\n"
+        "- A bare directory `tests` still resolves as evidence.\n"
     )
     write_spec(corpus, "0013-code-paths", index=index, rationale=CODE_RATIONALE)
     result = _adapt(corpus)
     assert result.unresolved_mention_count == 0
+    file_targets = {
+        entry.target
+        for entry in result.record.evidence
+        if entry.kind == EvidenceKind.FILE
+    }
+    assert "tests" in file_targets
 
 
 def test_double_backtick_literal_does_not_hide_later_code_span(tmp_path) -> None:

@@ -41,7 +41,7 @@ from decision_memory.infrastructure.path_resolution import (
 )
 
 # Bumped by hand when the mapping changes; part of every record's fingerprint.
-ADAPTER_VERSION = "3"
+ADAPTER_VERSION = "4"
 
 # Known file extensions that make a non resolving inline token count toward
 # the unresolved mention total (AC-6 step 7). Corpus calibration, not a
@@ -121,8 +121,8 @@ class JsmasteryAdapter:
         specs_dir = corpus_root / "docs" / "specs"
         specs: list[DiscoveredSpec] = []
         skipped: list[SkippedSource] = []
-        collisions: list[Collision] = []
         seen: dict[str, Path] = {}
+        colliding: dict[str, list[Path]] = {}
         if not specs_dir.is_dir():
             return DiscoveryResult(specs=[], skipped=[], collisions=[])
         for child in sorted(specs_dir.iterdir()):
@@ -150,7 +150,7 @@ class JsmasteryAdapter:
                     SkippedSource(path=child, reason="no ## Decision section")
                 )
                 continue
-            status_raw = _bold_field(index_text, "Status")
+            status_raw = _bold_field(_preamble(index_text), "Status")
             if status_raw is None or status_raw not in _STATUS_MAP:
                 skipped.append(
                     SkippedSource(
@@ -160,13 +160,7 @@ class JsmasteryAdapter:
                 )
                 continue
             if spec_id in seen:
-                collisions.append(
-                    Collision(
-                        id=spec_id,
-                        paths=[seen[spec_id], child],
-                        used=seen[spec_id],
-                    )
-                )
+                colliding.setdefault(spec_id, [seen[spec_id]]).append(child)
                 continue
             seen[spec_id] = child
             contributing = [index_path]
@@ -181,7 +175,14 @@ class JsmasteryAdapter:
                     contributing_files=contributing,
                 )
             )
-        return DiscoveryResult(specs=specs, skipped=skipped, collisions=collisions)
+        return DiscoveryResult(
+            specs=specs,
+            skipped=skipped,
+            collisions=[
+                Collision(id=spec_id, paths=paths, used=paths[0])
+                for spec_id, paths in colliding.items()
+            ],
+        )
 
     def parse(self, spec: DiscoveredSpec) -> AdaptationResult:
         """Turn one discovered spec into a validated canonical record."""
@@ -209,7 +210,7 @@ class JsmasteryAdapter:
         rationale_sections = _h2_sections(rationale_text) if rationale_text else {}
         sibling_names = {path.name for path in spec.contributing_files}
 
-        status_raw = _bold_field(index_text, "Status")
+        status_raw = _bold_field(_preamble(index_text), "Status")
         if status_raw is None or status_raw not in _STATUS_MAP:
             return AdaptationResult(
                 record=None,
@@ -268,11 +269,12 @@ class JsmasteryAdapter:
         title = _title_from_h1(_h1_title(index_text))
         if title is None:
             attempted.add("title")
-        date = _bold_field(index_text, "Date")
+        date = _bold_field(_preamble(index_text), "Date")
 
         consequences_body = index_sections.get("Consequences")
         positive: list[str] = []
         negative: list[str] = []
+        consequences_remainder = ""
         consumed = _CONSUMED_SECTIONS
         if (
             consequences_body is None
@@ -286,15 +288,26 @@ class JsmasteryAdapter:
             negative = _list_under_label(consequences_body, "Negative")
             if not positive and not negative:
                 # Present, but written with labels the mapping does not know.
-                # Flag it and let the section fall through to the body, so an
-                # unrecognized heading loses no content.
+                # Flag it and let the whole section fall through to the body,
+                # so an unrecognized heading loses no content.
                 attempted.add("consequences.positive")
                 attempted.add("consequences.negative")
                 consumed = consumed - {"Consequences"}
+            else:
+                # The canonical fields took Positive and Negative; anything
+                # else in the section (for example **Neutral**) is residue and
+                # must survive in the body rather than vanish (AC-11).
+                consequences_remainder = _unconsumed_remainder(consequences_body)
 
         body = _residue_body(
             index_sections, rationale_sections, sibling_names, consumed
         )
+        if consequences_remainder:
+            body = (
+                f"{body}\n\n{consequences_remainder}"
+                if body
+                else consequences_remainder
+            )
         evidence, unresolved = _evidence_and_unresolved(spec)
 
         record = CanonicalDecisionRecord(
@@ -314,7 +327,7 @@ class JsmasteryAdapter:
             else None,
             evidence=evidence,
             tags=[f"{_STATUS_TAG_PREFIX}{status_raw}"],
-            supersedes=_bold_field(index_text, "Supersedes"),
+            supersedes=_bold_field(_preamble(index_text), "Supersedes"),
         )
 
         context = ValidationContext(
@@ -394,8 +407,21 @@ def _title_from_h1(title: str | None) -> str | None:
 
 
 def _h2_sections(text: str) -> dict[str, str]:
-    """Map of H2 heading to body (including any nested H3), in document order."""
-    return {block.heading: block.body for block in _blocks(text) if block.level == 2}
+    """Map of H2 heading to body (including any nested H3), in document order.
+
+    A duplicated heading concatenates its bodies instead of overwriting, so a
+    later occurrence's content is never silently lost; the first occurrence
+    keeps its place in the order.
+    """
+    sections: dict[str, str] = {}
+    for block in _blocks(text):
+        if block.level != 2:
+            continue
+        if block.heading in sections:
+            sections[block.heading] = f"{sections[block.heading]}\n\n{block.body}"
+        else:
+            sections[block.heading] = block.body
+    return sections
 
 
 def _fenced_line_numbers(lines: list[str]) -> frozenset[int]:
@@ -482,13 +508,36 @@ def _section_text(
 
 
 def _is_stub(body: str, sibling_names: set[str]) -> bool:
-    """A short single line that points at a sibling contributing file."""
+    """A short pointer to a sibling contributing file, treated as absent.
+
+    A stub is a section whose whole collapsed body points at a sibling file,
+    for example ``See `rationale.md`.`` or ``See [rationale.md](rationale.md).``.
+    The 80 character bound keeps the test to short bodies, and the pointer
+    shape check stops a section that merely mentions a sibling in passing
+    (``This supersedes rationale.md entirely.``) from being discarded.
+    """
     collapsed = _collapse_whitespace(_reduce_links(body))
-    if "\n" in collapsed:
-        return False
     if len(collapsed) > 80:
         return False
-    return any(name in collapsed for name in sibling_names)
+    return any(_is_pointer(collapsed, name) for name in sibling_names)
+
+
+def _is_pointer(collapsed: str, name: str) -> bool:
+    """Whether ``collapsed`` points at ``name`` rather than just mentions it.
+
+    A pointer is the sibling's name alone, or a short phrase that points at
+    it (``See rationale.md.``); a mention embedded in a real sentence
+    (``This supersedes rationale.md entirely.``) is not a pointer, so real
+    content is never discarded as a stub.
+    """
+    lowered = collapsed.lower()
+    name_lower = name.lower()
+    if lowered.strip(" .,;:!?") == name_lower:
+        return True
+    remainder = lowered.replace(name_lower, "", 1).strip(" .,;:!?")
+    return remainder.startswith(
+        ("see", "read", "refer", "check", "point to", "look at")
+    )
 
 
 def _residue_body(
@@ -501,18 +550,22 @@ def _residue_body(
 
     ``consumed`` lets the caller narrow the default set when a section the
     mapping normally claims turned out to yield nothing, so its content falls
-    through to the body instead of being dropped.
+    through to the body instead of being dropped. A heading present in both
+    files is emitted once with the ``rationale.md`` body, the same precedence
+    every other section rule applies (AC-8), so nothing is duplicated.
     """
     parts: list[str] = []
-    for sections in (index_sections, rationale_sections):
-        for heading, body in sections.items():
-            if heading in consumed:
-                continue
-            if not body.strip():
-                continue
-            if _is_stub(body, sibling_names):
-                continue
-            parts.append(f"## {heading}\n\n{body}")
+    seen: set[str] = set()
+    for heading in (*index_sections.keys(), *rationale_sections.keys()):
+        if heading in consumed or heading in seen:
+            continue
+        body = rationale_sections.get(heading)
+        if body is None or not body.strip() or _is_stub(body, sibling_names):
+            body = index_sections.get(heading)
+        if body is None or not body.strip() or _is_stub(body, sibling_names):
+            continue
+        parts.append(f"## {heading}\n\n{body}")
+        seen.add(heading)
     return "\n\n".join(parts)
 
 
@@ -524,6 +577,22 @@ def _bold_field(text: str, label: str) -> str | None:
             value = match.group(2).strip()
             return value if value else None
     return None
+
+
+def _preamble(text: str) -> str:
+    """The content before the first H2: the title line and metadata fields.
+
+    ``**Date**``, ``**Status**``, and ``**Supersedes**`` live in the preamble;
+    a mention of one inside a section body must not populate the field, so
+    the field mapping reads them only from here (the parsing model already
+    defines the preamble as the metadata block).
+    """
+    lines = text.split("\n")
+    for index, line in enumerate(lines):
+        match = _HEADING_RE.match(line)
+        if match is not None and len(match.group(1)) >= 2:
+            return "\n".join(lines[:index])
+    return text
 
 
 def _matches_label(heading: str, label: str) -> bool:
@@ -570,6 +639,43 @@ def _list_under_label(body: str, label: str) -> list[str]:
         if bullet:
             items.append(bullet.group(1).strip())
     return items
+
+
+def _unconsumed_remainder(body: str) -> str:
+    """The parts of a Consequences body no canonical field consumes.
+
+    Positive and Negative become canonical fields; any other bold labeled
+    block (for example **Neutral**) plus any leading or trailing prose is
+    content the mapping did not consume, so it must survive in the record
+    body (AC-11) instead of vanishing.
+    """
+    parts: list[str] = []
+    current: list[str] = []
+    current_label: str | None = None
+
+    def flush() -> None:
+        text = "\n".join(current).strip()
+        current.clear()
+        if not text:
+            return
+        if current_label is not None and (
+            _matches_label(current_label, "Positive")
+            or _matches_label(current_label, "Negative")
+        ):
+            return
+        parts.append(text)
+
+    for line in body.split("\n"):
+        stripped = line.strip()
+        label_match = (
+            _BOLD_LABEL_RE.match(stripped) if stripped.startswith("**") else None
+        )
+        if label_match is not None:
+            flush()
+            current_label = label_match.group(1)
+        current.append(line)
+    flush()
+    return "\n\n".join(parts)
 
 
 def _build_alternatives(
@@ -655,12 +761,13 @@ def _parse_options(unit_body: str) -> list[_Option]:
 def _parse_inline_options(unit_body: str) -> list[_Option]:
     """Options written as bold label lines, bounded by the next option or heading."""
     lines = unit_body.split("\n")
+    fenced = _fenced_line_numbers(lines)
     starts = [index for index, line in enumerate(lines) if _OPTION_LINE_RE.match(line)]
     options: list[_Option] = []
     for position, start in enumerate(starts):
         end = starts[position + 1] if position + 1 < len(starts) else len(lines)
         for index in range(start + 1, end):
-            if _HEADING_RE.match(lines[index]):
+            if index not in fenced and _HEADING_RE.match(lines[index]):
                 end = index
                 break
         block_lines = lines[start:end]
@@ -741,12 +848,16 @@ def _cons_for_block(body_lines: list[str]) -> str | None:
     match = _CONS_LABEL_RE.match(body_lines[cons_start].strip())
     if match is None:
         return None
+    fenced = _fenced_line_numbers(body_lines)
     parts: list[str] = []
     inline = match.group(1).strip()
     if inline:
         parts.append(inline)
-    for line in body_lines[cons_start + 1 :]:
-        stripped = line.strip()
+    for index in range(cons_start + 1, len(body_lines)):
+        if index in fenced:
+            parts.append(body_lines[index])
+            continue
+        stripped = body_lines[index].strip()
         if not stripped:
             parts.append("")
             continue
@@ -850,8 +961,9 @@ def _looks_like_path(token: str) -> bool:
 
     A token is path shaped when it contains a slash, ends in a known file
     extension compared without regard to case, or starts with a dot. The
-    caller passes the token as it stood before the trailing slash was
-    stripped, so a trailing slash counts as a path signal in its own right.
+    caller passes ``shape_token``, the token as it stood before the trailing
+    slash was stripped, so a trailing slash counts as a path signal in its
+    own right.
     """
     if "/" in token:
         return True
@@ -913,7 +1025,8 @@ def _extract_code_paths(text: str, corpus_root: Path) -> tuple[list[str], int]:
                 continue
             token = _TRAILING_LINE_RE.sub("", token)
             shape_token = token
-            token = token.rstrip("/")
+            if token.endswith("/"):
+                token = token[:-1]
             if not token:
                 continue
             if token.startswith("/") or token.startswith("@") or "*" in token:

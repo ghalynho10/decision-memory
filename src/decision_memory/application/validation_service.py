@@ -9,18 +9,36 @@ framework code stays in infrastructure.
 from __future__ import annotations
 
 import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from decision_memory.domain.records import Severity, ValidationContext, Violation
+from decision_memory.domain.records import (
+    CanonicalDecisionRecord,
+    ParseResult,
+    Severity,
+    ValidationContext,
+    Violation,
+)
 from decision_memory.domain.validation import validate
-from decision_memory.infrastructure.file_reader import parse_record_file
-from decision_memory.infrastructure.path_resolution import resolve_cited_paths
 
 # Exit codes fixed by spec 0002.
 EXIT_OK = 0
 EXIT_ERROR = 1
 EXIT_UNPARSEABLE = 3
+
+
+# The narrow read port: a callable that reads a record file into a parse
+# result. Infrastructure implements it; validate takes it as a parameter so
+# the application never imports infrastructure (AGENTS.md: outer layers depend
+# inward). cli.py, the composition root, wires the concrete reader.
+RecordReader = Callable[[Path], ParseResult]
+
+# The narrow resolution port: a callable that resolves a record's cited
+# evidence targets to the ones that exist under a root. Infrastructure
+# implements it (case sensitive path resolution); validate takes it as a
+# parameter so the application never imports infrastructure.
+CitedPathResolver = Callable[[CanonicalDecisionRecord, Path], frozenset[str]]
 
 
 @dataclass(frozen=True)
@@ -32,10 +50,14 @@ class ValidationOutcome:
 
 
 def validate_file(
-    file_path: Path, project_root: Path | None = None
+    file_path: Path,
+    project_root: Path | None = None,
+    *,
+    reader: RecordReader,
+    resolver: CitedPathResolver,
 ) -> ValidationOutcome:
     """Parse and validate a record file, gathering context from the project root."""
-    parse_result = parse_record_file(file_path)
+    parse_result = reader(file_path)
     if parse_result.record is None:
         return ValidationOutcome(
             violations=parse_result.violations, exit_code=EXIT_UNPARSEABLE
@@ -45,7 +67,7 @@ def validate_file(
     context = ValidationContext(
         attempted_fields=frozenset(),
         unknown_fields=parse_result.unknown_fields,
-        existing_paths=resolve_cited_paths(parse_result.record, root),
+        existing_paths=resolver(parse_result.record, root),
         known_commits=known_commits,
         git_available=git_available,
     )

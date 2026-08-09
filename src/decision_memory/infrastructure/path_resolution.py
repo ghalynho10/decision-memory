@@ -54,6 +54,12 @@ def _listdir(
     try:
         entries = frozenset(os.listdir(path))
     except OSError:
+        # Cache an empty set as the miss sentinel: a missing directory and an
+        # empty one both fail the membership check in
+        # ``path_resolves_case_sensitive`` the same way, so a failed listing
+        # is attempted once per run instead of once per token.
+        if cache is not None:
+            cache[path] = frozenset()
         return None
     if cache is not None:
         cache[path] = entries
