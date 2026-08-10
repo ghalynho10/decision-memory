@@ -4,7 +4,7 @@
 
 - **Language / Runtime**: Python 3.11+ (managed with uv, pinned 3.11)
 - **Framework**: Typer (CLI), Pydantic v2 (schema)
-- **Key dependencies**: typer, pydantic, pyyaml; later slices add openai, chromadb, rank_bm25
+- **Key dependencies**: typer, pydantic, pyyaml, openai, chromadb, tiktoken; rank_bm25 comes with Slice 2 (lexical retrieval)
 - **Package manager**: uv
 
 ## Build approach
