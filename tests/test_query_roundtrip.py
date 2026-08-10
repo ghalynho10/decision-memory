@@ -106,6 +106,7 @@ def _ingest(records_dir: Path, index: FakeIndex | None = None, dry_run: bool = F
             count_tokens=tiktoken_count,
             embed=fake_embed,
             raw_manifest_digest=lambda: raw_manifest_digest(manifest_path(records_dir)),
+            require_api_key=lambda: None,
             store=index,
         ),
     )
@@ -219,6 +220,23 @@ def test_empty_question_is_usage(tmp_path) -> None:
     assert result.failure.code == "usage.empty_question"
 
 
+def test_query_without_active_generation_is_corrupt_init(tmp_path) -> None:
+    """A store with no active generation is corrupt initialized state (AC-21)."""
+    index = FakeIndex()  # generation left None, as a FORMAT only store presents
+    result = query_index(
+        QueryRequest(
+            question="why?",
+            store_dir=Path("/fake/store"),
+            allow_stale=False,
+        ),
+        _query_deps(index),
+    )
+    assert result.state == QueryState.FAILED
+    assert result.exit_code == 1
+    assert result.failure is not None
+    assert result.failure.code == "store.uninitialized"
+
+
 def _raise_if_called(texts):
     raise AssertionError("embedding must not be called on an empty index")
 
@@ -250,6 +268,7 @@ def test_real_store_roundtrip_with_deterministic_embedder(tmp_path) -> None:
                 raw_manifest_digest=lambda: raw_manifest_digest(
                     manifest_path(records_dir)
                 ),
+                require_api_key=lambda: None,
                 store=writer,
             ),
         )

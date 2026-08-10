@@ -68,6 +68,7 @@ from decision_memory.infrastructure.manifest_reader import (
     raw_manifest_digest,
     record_loader,
 )
+from decision_memory.infrastructure.openai_common import require_api_key
 from decision_memory.infrastructure.openai_embeddings import embed_texts
 from decision_memory.infrastructure.openai_generation import (
     coverage_verdict,
@@ -669,6 +670,7 @@ def ingest_command(
                 raw_manifest_digest=lambda: raw_manifest_digest(
                     manifest_path(resolved)
                 ),
+                require_api_key=require_api_key,
                 store=writer,
             ),
         )
@@ -781,6 +783,11 @@ def _print_ingest_report(outcome: IngestResult, debug: bool, dry_run: bool) -> N
                 )
     typer.echo(f"result: {outcome.state.value}")
     typer.echo(f"output: {outcome.store_path}")
+    if outcome.failure is not None:
+        typer.echo(
+            f"error {outcome.failure.stage} {outcome.failure.code}: "
+            f"{outcome.failure.detail}"
+        )
     if dry_run:
         typer.echo("dry run, no provider calls or writes")
 

@@ -27,6 +27,7 @@ from decision_memory.infrastructure.manifest_reader import (
     raw_manifest_digest,
     record_loader,
 )
+from decision_memory.infrastructure.openai_common import require_api_key
 from decision_memory.infrastructure.openai_embeddings import embed_texts
 from decision_memory.infrastructure.openai_generation import (
     coverage_verdict,
@@ -71,6 +72,7 @@ def test_query_one_against_real_jobpilot(tmp_path) -> None:
                 raw_manifest_digest=lambda: raw_manifest_digest(
                     manifest_path(records_dir)
                 ),
+                require_api_key=require_api_key,
                 store=writer,
             ),
         )

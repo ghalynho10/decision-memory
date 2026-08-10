@@ -182,6 +182,19 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
             EXIT_USAGE,
         )
 
+    if deps.store.generation_id() is None:
+        return _failed_result(
+            request,
+            _freshness_trace(deps, None, None),
+            Failure(
+                "store.uninitialized",
+                "store",
+                "store is missing an active generation (corrupt initialized "
+                "state); run ingest or rebuild",
+            ),
+            EXIT_ERROR,
+        )
+
     running_signature = pipeline_signature()
     stored_signature = deps.store.pipeline_signature()
     manifest_path, stored_semantic, stored_raw, _hint = deps.store.manifest_metadata()

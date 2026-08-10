@@ -75,6 +75,7 @@ def _ingest_with(records_dir: Path, index: FakeIndex):
             count_tokens=tiktoken_count,
             embed=counting_embed,
             raw_manifest_digest=lambda: raw_manifest_digest(manifest_path(records_dir)),
+            require_api_key=lambda: None,
             store=index,
         ),
     )
@@ -141,6 +142,7 @@ def test_dry_run_counts_batches_without_writes(tmp_path) -> None:
             count_tokens=tiktoken_count,
             embed=fake_embed,
             raw_manifest_digest=lambda: raw_manifest_digest(manifest_path(records_dir)),
+            require_api_key=lambda: None,
             store=index,
         ),
     )
@@ -182,6 +184,7 @@ def test_real_ingest_under_exclusive_lock_succeeds(tmp_path) -> None:
                     raw_manifest_digest=lambda: raw_manifest_digest(
                         manifest_path(records_dir)
                     ),
+                    require_api_key=lambda: None,
                     store=writer,
                 ),
             )
@@ -215,6 +218,7 @@ def test_rebuild_failure_preserves_old_generation(tmp_path) -> None:
                 raw_manifest_digest=lambda: raw_manifest_digest(
                     manifest_path(records_dir)
                 ),
+                require_api_key=lambda: None,
                 store=writer,
             ),
         )

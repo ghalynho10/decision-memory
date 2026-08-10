@@ -129,9 +129,37 @@ class SqliteChromaIndexWriter(IndexWriter):
         return pipeline_signature(self._config)
 
     def existing_states(self) -> dict[str, tuple[str, str | None, str | None]]:
-        """Map of record id to (state, desired fingerprint, active fingerprint)."""
-        assert self._conn is not None
-        rows = self._conn.execute(
+        """Record id to (state, desired, active) for the generation to resume.
+
+        The AC-20 plan check calls this before ``open_generation``, so it reads
+        the active generation directly when a normal ingest would resume it; a
+        fresh or mismatched store has no prior states and returns empty without
+        mutating anything. After ``open_generation`` it reads the open
+        connection.
+        """
+        if self._conn is None:
+            active = read_active(self._store_dir)
+            if active is None:
+                return {}
+            metadata = read_generation_json(self._store_dir, active)
+            if (
+                metadata is None
+                or metadata.pipeline_signature != self._config_signature()
+            ):
+                return {}
+            database, _, _ = self._generation_paths(active)
+            connection = open_store_database(database)
+            try:
+                verify_schema_version(connection)
+                return self._read_states(connection)
+            finally:
+                connection.close()
+        return self._read_states(self._conn)
+
+    def _read_states(
+        self, connection: Any
+    ) -> dict[str, tuple[str, str | None, str | None]]:
+        rows = connection.execute(
             "SELECT record_id, state, desired_fingerprint, active_fingerprint "
             "FROM record_state"
         ).fetchall()

@@ -100,6 +100,7 @@ class IngestDependencies:
     count_tokens: Callable[[str], int]
     embed: Callable[[Sequence[str]], list[list[float]]]
     raw_manifest_digest: Callable[[], str]
+    require_api_key: Callable[[], None]
     store: IndexWriter
 
 
@@ -128,9 +129,27 @@ def ingest_records(request: IngestRequest, deps: IngestDependencies) -> IngestRe
 def _run_ingest(
     request: IngestRequest, deps: IngestDependencies, manifest: Manifest
 ) -> IngestResult:
-    """The real incremental run: compare, embed changed, remove absent."""
-    generation_id = deps.store.open_generation(request.rebuild)
+    """The real incremental run: compare, embed changed, remove absent.
+
+    The plan is read first, so the API key is validated after read only
+    planning and before any store mutation (AC-20): a run whose completed
+    plan includes an embedding call refuses without a key and leaves the
+    store untouched. Unchanged, removal only, and dry runs never call the key
+    check.
+    """
     states = deps.store.existing_states() if not request.rebuild else {}
+    if _plan_needs_provider(manifest, states, request.rebuild):
+        try:
+            deps.require_api_key()
+        except Exception as exc:  # noqa: BLE001 - a missing key is a returned result
+            detail = str(exc).strip() or "OPENAI_API_KEY is not set"
+            return _result(
+                EXIT_ERROR,
+                IngestState.FAILED,
+                (),
+                Failure("provider.key", "planning", detail),
+            )
+    generation_id = deps.store.open_generation(request.rebuild)
     results: list[RecordIngestResult] = []
     old_vectors: list[list[str]] = []
     for entry in sorted(manifest.entries, key=lambda item: item.id):
@@ -180,6 +199,27 @@ def _run_ingest(
     failed = any(result.action == RecordAction.FAILED for result in results)
     state = IngestState.PARTIAL if failed else IngestState.COMPLETED
     return _result(EXIT_ERROR if failed else EXIT_OK, state, tuple(results), None)
+
+
+def _plan_needs_provider(
+    manifest: Manifest,
+    states: dict[str, tuple[str, str | None, str | None]],
+    rebuild: bool,
+) -> bool:
+    """True when the completed plan includes at least one embedding call (AC-20)."""
+    if not manifest.entries:
+        return False
+    if rebuild:
+        return True
+    for entry in manifest.entries:
+        existing = states.get(entry.id)
+        if not (
+            existing is not None
+            and existing[0] == STATE_CURRENT
+            and existing[2] == entry.fingerprint
+        ):
+            return True
+    return False
 
 
 def _ingest_entry(

@@ -29,6 +29,7 @@ from decision_memory.infrastructure.manifest_reader import (
     raw_manifest_digest,
     record_loader,
 )
+from decision_memory.infrastructure.openai_common import OpenAIClientError
 from decision_memory.infrastructure.tokenization import tiktoken_count
 
 
@@ -43,8 +44,14 @@ def _adapt_dm0012(tmp_path) -> Path:
     return corpus / ".decision-memory" / "records"
 
 
-def _ingest(records_dir: Path, dry_run: bool = False, embed=fake_embed):
-    index = FakeIndex()
+def _ingest(
+    records_dir: Path,
+    dry_run: bool = False,
+    embed=fake_embed,
+    index: FakeIndex | None = None,
+    require_api_key=lambda: None,
+):
+    index = index or FakeIndex()
     calls: list[list[str]] = []
 
     def counting_embed(texts):
@@ -57,6 +64,7 @@ def _ingest(records_dir: Path, dry_run: bool = False, embed=fake_embed):
         count_tokens=tiktoken_count,
         embed=counting_embed,
         raw_manifest_digest=lambda: raw_manifest_digest(manifest_path(records_dir)),
+        require_api_key=require_api_key,
         store=index,
     )
     result = ingest_records(
@@ -122,11 +130,49 @@ def test_ingest_without_records_dir_is_exit_three(tmp_path) -> None:
             count_tokens=tiktoken_count,
             embed=fake_embed,
             raw_manifest_digest=lambda: "",
+            require_api_key=lambda: None,
             store=index,
         ),
     )
     assert result.state == IngestState.FAILED
     assert result.exit_code == 3
+
+
+def test_ingest_requires_key_before_any_store_mutation(tmp_path) -> None:
+    """A plan with an embedding call refuses without a key, before mutation."""
+    records_dir = _adapt_dm0012(tmp_path)
+    index = FakeIndex()
+
+    def no_key():
+        raise OpenAIClientError("OPENAI_API_KEY is not set")
+
+    result, _, _ = _ingest(records_dir, index=index, require_api_key=no_key)
+    assert result.state == IngestState.FAILED
+    assert result.exit_code == 1
+    assert result.failure is not None
+    assert result.failure.code == "provider.key"
+    assert result.records == ()
+    # No store mutation: open_generation was never reached.
+    assert index.generation is None
+    assert index.chunks == {}
+
+
+def test_unchanged_ingest_needs_no_key(tmp_path) -> None:
+    """A second, unchanged run never requests the API key (AC-20)."""
+    records_dir = _adapt_dm0012(tmp_path)
+    index = FakeIndex()
+    first, _, _ = _ingest(records_dir, index=index)
+    assert first.exit_code == 0
+    calls: list[str] = []
+
+    def raising_key():
+        calls.append("require_api_key")
+        raise OpenAIClientError("OPENAI_API_KEY is not set")
+
+    second, _, _ = _ingest(records_dir, index=index, require_api_key=raising_key)
+    assert second.exit_code == 0
+    assert second.records[0].action == RecordAction.UNCHANGED
+    assert calls == []
 
 
 def test_missing_provenance_names_every_path() -> None:
