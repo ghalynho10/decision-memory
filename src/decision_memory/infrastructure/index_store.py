@@ -409,6 +409,41 @@ class SqliteChromaIndexWriter(IndexWriter):
                 ),
             )
 
+    def derive_supersessions(self) -> list[str]:
+        """Derive supersession links and evidence from active snapshots (AC-18).
+
+        A successor is a record whose ``supersedes`` names its predecessor.
+        The links and their metadata evidence are rewritten from the current
+        snapshots each run. A self link or a cycle is returned as a problem so
+        the run can fail ingestion; nothing is written when a problem exists.
+        """
+        assert self._conn is not None
+        rows = self._conn.execute(
+            "SELECT record_id, supersedes FROM record_snapshot "
+            "WHERE supersedes IS NOT NULL"
+        ).fetchall()
+        edges = [(str(row[1]), str(row[0])) for row in rows]
+        problems = _validate_supersession_edges(edges)
+        if problems:
+            return problems
+        with self._conn:
+            self._conn.execute("DELETE FROM supersession_link")
+            self._conn.execute("DELETE FROM metadata_evidence")
+            for predecessor, successor in sorted(set(edges)):
+                evidence_id = supersession_evidence_id(predecessor, successor)
+                self._conn.execute(
+                    "INSERT OR REPLACE INTO supersession_link "
+                    "(predecessor_id, successor_id) VALUES (?, ?)",
+                    (predecessor, successor),
+                )
+                self._conn.execute(
+                    "INSERT OR REPLACE INTO metadata_evidence "
+                    "(evidence_id, kind, record_id, value_path, text) "
+                    "VALUES (?, 'supersession', ?, 'supersedes', ?)",
+                    (evidence_id, successor, predecessor),
+                )
+        return []
+
     def activate(self, generation_id: str) -> list[str]:
         """Verify parity, update the active digest, then switch ACTIVE."""
         assert self._conn is not None and self._chroma is not None
@@ -446,3 +481,51 @@ class SqliteChromaIndexWriter(IndexWriter):
             with contextlib.suppress(Exception):
                 self._chroma.clear_system_cache()
             self._chroma = None
+
+
+def supersession_evidence_id(predecessor: str, successor: str) -> str:
+    """A deterministic evidence id for one supersession edge (AC-18)."""
+    return "mev_" + sha256_hex(
+        canonical_json(["supersession-v1", predecessor, successor])
+    )
+
+
+def _validate_supersession_edges(
+    edges: Sequence[tuple[str, str]],
+) -> list[str]:
+    """Problems for self links and cycles; empty means the graph is clean."""
+    if not edges:
+        return []
+    for predecessor, successor in edges:
+        if predecessor == successor:
+            return [f"supersedes.self_reference: {successor}"]
+    graph: dict[str, list[str]] = {}
+    for predecessor, successor in edges:
+        graph.setdefault(predecessor, []).append(successor)
+    white = 0
+    gray = 1
+    black = 2
+    color: dict[str, int] = {}
+    involved: set[str] = set()
+
+    def visit(node: str, stack: list[str]) -> None:
+        color[node] = gray
+        stack.append(node)
+        for nxt in graph.get(node, ()):
+            state = color.get(nxt, white)
+            if state == gray:
+                start = stack.index(nxt)
+                for item in stack[start:]:
+                    involved.add(item)
+                involved.add(nxt)
+            elif state == white:
+                visit(nxt, stack)
+        stack.pop()
+        color[node] = black
+
+    for node in list(graph):
+        if color.get(node, white) == white:
+            visit(node, [])
+    if involved:
+        return ["supersedes.cycle: " + ", ".join(sorted(involved))]
+    return []

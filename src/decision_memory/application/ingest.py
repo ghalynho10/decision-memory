@@ -88,6 +88,7 @@ class IndexWriter(Protocol):
         raw_digest: str,
         source_root_hint: str,
     ) -> None: ...
+    def derive_supersessions(self) -> list[str]: ...
     def activate(self, generation_id: str) -> list[str]: ...
 
 
@@ -179,6 +180,14 @@ def _run_ingest(
         )
 
     deps.store.cleanup_orphans(generation_id)
+    supersession_problems = deps.store.derive_supersessions()
+    if supersession_problems:
+        return _result(
+            EXIT_ERROR,
+            IngestState.FAILED,
+            tuple(results),
+            Failure("supersession.invalid", "ingest", "; ".join(supersession_problems)),
+        )
     problems = deps.store.activate(generation_id)
     if problems:
         return _result(

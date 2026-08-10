@@ -35,6 +35,7 @@ from decision_memory.infrastructure.openai_generation import (
     extract_facets,
     generate_answer,
 )
+from decision_memory.infrastructure.source_resolver import resolve_source_path
 from decision_memory.infrastructure.tokenization import tiktoken_count
 
 pytestmark = pytest.mark.integration
@@ -98,6 +99,9 @@ def test_query_one_against_real_jobpilot(tmp_path) -> None:
             raise FileNotFoundError("no stored manifest path")
         return raw_manifest_digest(path)
 
+    def _stored_hint() -> str | None:
+        return reader.manifest_metadata()[3]
+
     result = query_index(
         QueryRequest(
             question=(
@@ -113,6 +117,7 @@ def test_query_one_against_real_jobpilot(tmp_path) -> None:
             embed=embed_texts,
             load_manifest=load_stored_manifest,
             raw_manifest_digest=stored_manifest_digest,
+            resolve_source=lambda path: resolve_source_path(path, _stored_hint()),
             extract_facets=extract_facets,
             generate_answer=generate_answer,
             entail=entail_verdict,

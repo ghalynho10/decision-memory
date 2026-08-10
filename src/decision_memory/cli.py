@@ -83,6 +83,7 @@ from decision_memory.infrastructure.project_config import (
     load_project_config,
 )
 from decision_memory.infrastructure.runtime_loader import LoadFailure, select_adapter
+from decision_memory.infrastructure.source_resolver import resolve_source_path
 from decision_memory.infrastructure.tokenization import tiktoken_count
 
 app = typer.Typer(
@@ -730,6 +731,9 @@ def query_command(
             raise FileNotFoundError("no stored manifest path")
         return raw_manifest_digest(path)
 
+    def _stored_hint() -> str | None:
+        return reader.manifest_metadata()[3]
+
     try:
         with store_lock(store_dir, exclusive=False):
             outcome = query_index(
@@ -744,6 +748,9 @@ def query_command(
                     embed=embed_texts,
                     load_manifest=_load_stored_manifest,
                     raw_manifest_digest=_stored_manifest_raw_digest,
+                    resolve_source=lambda path: resolve_source_path(
+                        path, _stored_hint()
+                    ),
                     extract_facets=extract_facets,
                     generate_answer=generate_answer,
                     entail=entail_verdict,
@@ -888,12 +895,19 @@ def _print_query_debug(result: QueryResult) -> None:
         )
     typer.echo("Citations")
     for citation in result.citations:
-        typer.echo(f"  {citation.citation_id} {citation.record_id} {citation.chunk_id}")
+        chunk = citation.chunk_id or "-"
+        typer.echo(
+            f"  {citation.citation_id} {citation.kind.value} {citation.record_id} "
+            f"{chunk} {citation.value_path} {citation.relative_path} "
+            f"{citation.section} resolution={citation.resolution.value} "
+            f"freshness={citation.freshness.value}"
+        )
     typer.echo("Result")
     typer.echo(f"  state: {result.state.value}")
     if result.abstention_stage is not None:
         typer.echo(f"  abstention_stage: {result.abstention_stage.value}")
     typer.echo(f"  freshness: {result.freshness.value}")
+    typer.echo(f"  stale_markers: {','.join(result.trace.result.stale_markers)}")
 
 
 if __name__ == "__main__":

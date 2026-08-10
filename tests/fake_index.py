@@ -18,6 +18,7 @@ from decision_memory.application.dto import (
     CoverageRow,
     DraftSentence,
     Facet,
+    SupersessionNotice,
 )
 from decision_memory.application.pipeline import pipeline_signature
 from decision_memory.application.query import RetrievedChunk
@@ -60,6 +61,7 @@ class FakeIndex:
             None,
         )
         self.deleted_vectors: set[str] = set()
+        self.supersession_notices_map: dict[str, list[SupersessionNotice]] = {}
         self.signature = pipeline_signature()
         self.parity_problems_list: list[str] = []
         self.search_error: Exception | None = None
@@ -162,6 +164,10 @@ class FakeIndex:
             source_root_hint,
         )
 
+    def derive_supersessions(self) -> list[str]:
+        # The fake does not derive links from snapshots; tests seed the map.
+        return []
+
     def activate(self, generation_id: str) -> list[str]:
         return list(self.parity_problems_list)
 
@@ -198,6 +204,11 @@ class FakeIndex:
             if chunk.record_id == record_id:
                 return chunk.fingerprint
         return None
+
+    def supersession_notices(
+        self, predecessor_id: str
+    ) -> tuple[SupersessionNotice, ...]:
+        return tuple(self.supersession_notices_map.get(predecessor_id, ()))
 
     def eligible_tuples(self) -> tuple[tuple[str, str, str], ...]:
         if self.empty_eligible:

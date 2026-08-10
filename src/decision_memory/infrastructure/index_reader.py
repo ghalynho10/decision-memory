@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from decision_memory.application.canonical import SourceReference
+from decision_memory.application.dto import SupersessionNotice
 from decision_memory.application.query import (
     CANDIDATE_LIMIT,
     IndexReader,
@@ -271,3 +272,36 @@ class SqliteChromaIndexReader(IndexReader):
     def _chroma_client(self, generation_id: str) -> Any:
         _, _, chroma_dir = generation_paths(self._store_dir, generation_id)
         return _client(chroma_dir)
+
+    def supersession_notices(
+        self, predecessor_id: str
+    ) -> tuple[SupersessionNotice, ...]:
+        """Immediate eligible successors of a predecessor, sorted by id (AC-18)."""
+        generation_id = self.generation_id()
+        if generation_id is None:
+            return ()
+        connection = self._connection(generation_id)
+        try:
+            verify_schema_version(connection)
+            rows = connection.execute(
+                "SELECT s.successor_id, snap.title, snap.status, snap.date, "
+                "me.evidence_id "
+                "FROM supersession_link s "
+                "JOIN record_snapshot snap ON snap.record_id = s.successor_id "
+                "JOIN metadata_evidence me ON me.record_id = s.successor_id "
+                "WHERE s.predecessor_id = ? ORDER BY s.successor_id",
+                (predecessor_id,),
+            ).fetchall()
+            return tuple(
+                SupersessionNotice(
+                    predecessor_id=predecessor_id,
+                    successor_id=str(row[0]),
+                    successor_title=str(row[1]),
+                    successor_status=str(row[2]),
+                    successor_date=str(row[3]) if row[3] is not None else None,
+                    metadata_evidence_id=str(row[4]),
+                )
+                for row in rows
+            )
+        finally:
+            connection.close()

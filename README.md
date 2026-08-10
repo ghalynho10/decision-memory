@@ -4,7 +4,7 @@ A local, cited RAG system that makes software decision history queryable.
 
 Point it at a project's decision records and ask why something is built the way it is. Every answer comes back with citations to the source spec, commit, or file — or an honest "not enough evidence here" when the history does not support one.
 
-> **Status: early development.** The schema, validator, and first adapter (jsmastery specs) are shipped. `adapt` turns a project's decision specs into validated records today. Two tracks are in flight next: the retrieval pipeline behind the `query` command, and the adapter work that makes the tool usable on a corpus it was not built for (a `doctor` diagnostic, runtime adapter loading, a conformance suite, and built-in ADR adapters).
+> **Status: early development.** `adapt` turns a project's decision specs into validated records; `ingest` builds a versioned local query index from them; `query` answers with citations or an honest abstention. Adapter work (a `doctor` diagnostic, runtime adapter loading, a conformance suite, and built-in ADR adapters) makes the tool usable on a corpus it was not built for.
 
 ## The problem
 
@@ -196,7 +196,15 @@ It is not a general assistant. It does not guess, and it only knows what was wri
 
    Use `--dry-run` to preview without writing anything. Records land in `.decision-memory/records/` inside the project. Read the report: skipped sources, unresolved references, and fields the adapter tried and failed to fill are all listed there, and they are the fastest signal that a corpus does not fit the adapter you chose.
 
-3. **Query** asks a question about those records (coming in a later release; not available yet):
+3. **Ingest** builds a local query index from the adapted records:
+
+   ```bash
+   uv run decision-memory ingest <records-dir>
+   ```
+
+   Use `--dry-run` first to preview the provider spend without calling it.
+
+4. **Query** asks a question about that index:
 
    ```bash
    uv run decision-memory query "why was the private beta gate added?"
@@ -219,3 +227,73 @@ Every answer comes with citations to the source specs it came from, so you can v
 A refusal you did not expect is worth inspecting rather than accepting: the debug view shows which records were retrieved, how they scored, and whether the answer was refused because nothing relevant came back or because no claim could be traced to a source. That distinction matters — the first means the history genuinely does not cover your question, the second means something went wrong.
 
 The quality of the answer depends entirely on the quality of the records, so run `adapt` first and validate the output before you ask.
+
+## Using the query index
+
+`adapt` produces canonical records. `ingest` turns them into a versioned local index (SQLite plus a vector store) that `query` reads. The three commands together answer questions with citations.
+
+### Preview the cost before you pay
+
+OpenAI calls cost money. `ingest --dry-run` reads the records, plans every chunk, and reports per record the evidence tokens, the embedding input tokens (the embedding prefix is billed input but is not evidence), and the provider batch count, without calling the provider, writing anything, or needing an API key:
+
+```bash
+uv run decision-memory ingest <records-dir> --dry-run
+```
+
+A real `ingest` needs `OPENAI_API_KEY` only when the plan actually embeds a record. A dry run, an ingest where every record is unchanged, a removal only ingest, and an empty index abstention never call the provider. When a real ingest needs the key and it is missing, it refuses before writing anything to the store.
+
+### Ingest is incremental
+
+Run `ingest` again after `adapt` and only changed and new records are reembedded. Unchanged records are validated, not reembedded. Records removed from the manifest become tombstones. When a record fails (a tampered digest, missing provenance, or a provider error), the rest continue and the run reports the failure.
+
+### Ask
+
+```bash
+uv run decision-memory query "why was the private beta gate added?"
+```
+
+Every factual sentence carries a citation marker such as `[C1]`, and a `Sources` list names each citation's record, chunk, value path, relative path, and section. When no eligible chunk supports an answer, the tool prints exactly `not enough evidence here` and exits 0. That is an honest abstention, never a failure.
+
+### Stale index warnings
+
+The index remembers the manifest it was built from. If you `adapt` again but do not re-ingest, the index is stale. `query` refuses by default and tells you to re-ingest; `query --allow-stale` reads it anyway and prints `WARNING: stale index` with the reasons (a record added, changed, or removed, a failed ingest, or the manifest changed mid query). A citation backed by an older version of a record is marked `stale version`.
+
+### Moved index
+
+The store remembers the absolute corpus root as a hint, so a citation's relative path can be resolved back to a file at query time. If the corpus moved, the hint may no longer resolve: each citation reports whether its source resolved, is missing, had no hint, or was an invalid relative path. An unresolved path is informative, not an error, and the relative path is always shown.
+
+### Debug output is sensitive
+
+`query --debug` prints the full trace: retrieved chunks with their scores, extracted facets, draft sentences, verification verdicts, provider attempts, citations, and full chunk text. It may include private project data. Treat debug output as sensitive when you paste it into an issue.
+
+### Rebuild and recovery
+
+If the pipeline configuration changed (the embedding model, the chunker, or the token encoding), the index no longer matches. Normal ingest and query refuse and tell you to rebuild:
+
+```bash
+uv run decision-memory ingest <records-dir> --rebuild
+```
+
+A rebuild stages a fresh generation, verifies it completely, then switches to it atomically. If it fails, the previous good index stays active. `--rebuild` needs only the records and their manifest, not the original corpus or an adapter.
+
+### Exit codes
+
+- `0` a successful ingest, an answered query, or an honest abstention
+- `1` a partial ingest, stale refusal, pipeline mismatch, provider failure, lock conflict, malformed manifest, or corrupt store
+- `2` invalid usage, including an empty question
+- `3` a missing records directory or missing store path
+
+### When an answer is wrong: the triage map
+
+The four stage chain is reviewer guidance for working backward from a bad answer. It applies only after you have confirmed the fact really is in the canonical record; if the record itself is wrong or missing the fact, the failure belongs to adaptation or ingestion, not this chain. Work backward from the answer:
+
+| First failing check | Stage |
+|---|---|
+| A correct indexed chunk was not accepted | Retrieval (candidate ranks, scores, floor, dispositions) |
+| An expected canonical value is absent or malformed in the index plan | Chunking (chunk text, boundaries, value path, provenance) |
+| Correct chunks were accepted but a draft sentence is missing or wrong | Generation (accepted chunk ids, facets, draft sentences) |
+| A supported draft was removed or a covered facet was rejected | Claim verification or abstention (sentence verdicts, uncovered facets) |
+
+### Supersession
+
+A record can declare that it supersedes an earlier one. When a query retrieves the earlier decision, the answer includes a deterministic sentence, `This decision was later changed by <title> (<id>).`, cited to the successor's record, without inventing how it changed. A self link or a cycle between records fails ingestion. The built in jsmastery adapter does not currently populate supersedes, so this path is built and tested against synthetic data but not yet exercised against a real corpus.

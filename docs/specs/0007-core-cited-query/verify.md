@@ -134,3 +134,18 @@ cover them deterministically.
 - [ ] Change the manifest bytes while a query runs -> default query discards the answer and exits `1`; `--allow-stale` returns it with `manifest_changed_during_query` -> AC-9
 - [ ] Run the rebuild failure integration test -> a parity failed rebuild leaves the previous `ACTIVE` generation untouched -> AC-8, AC-21
 - [ ] Run the incremental, removal, dry run, freshness, lock, and rebuild tests in `tests/test_ingest_incremental.py`, `tests/test_freshness.py`, `tests/test_lock.py`, and `tests/test_cli_query.py` -> all pass -> AC-3, AC-6 to AC-9, AC-16, AC-17, AC-21
+
+## Milestone 4 (build plan tasks 6, 7, 8), added 2026-08-10
+
+These steps prove source resolution, supersession, the completed trace and
+debug rendering, the failure triage map, and the user documentation. The
+supersession path is proven against synthetic corpora; JobPilot cannot
+exercise it because the jsmastery adapter emits no links (AC-18 disposition).
+
+- [ ] Query a built index and inspect each citation's resolution state -> an existing source under the stored `source_root_hint` is `resolved`, an absent file is `missing`, a missing hint is `hint_unavailable`, and an absolute or escaping path is `invalid_relative_path`, and no unresolved path fails the query -> AC-19
+- [ ] Move the corpus away from the hint and re query -> citations report `missing` or `hint_unavailable` and still show the relative path, and the query still answers -> AC-19
+- [ ] Adapt and ingest a synthetic corpus where one record carries `**Supersedes**: <id>` -> the store derives the link and evidence, and a query that retrieves the predecessor answers with a deterministic sentence `This decision was later changed by <title> (<id>).` cited to a `supersession` citation with no chunk id -> AC-18
+- [ ] Make two records supersede each other and ingest -> the run fails with `supersession.invalid` and names `supersedes.cycle` -> AC-18
+- [ ] Run `query --debug` -> the fixed sections print in order, and the Citations section now shows each citation's kind, resolution, and freshness while the Result section shows `stale_markers` -> AC-13
+- [ ] Read the README `Using the query index` section -> it documents `ingest --dry-run` billing, incremental ingest, stale warnings, moved index resolution, debug data sensitivity, exit codes, rebuild recovery, the four stage failure triage map, and supersession -> AC-1, AC-14, AC-20, AC-21
+- [ ] Run the supersession and source resolver tests in `tests/test_supersession.py` and `tests/test_source_resolver.py` -> all pass -> AC-18, AC-19

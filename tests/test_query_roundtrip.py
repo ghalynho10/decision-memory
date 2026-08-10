@@ -32,6 +32,7 @@ from decision_memory.application.dto import (
     IngestState,
     QueryRequest,
     QueryState,
+    ResolutionState,
 )
 from decision_memory.application.ingest import IngestDependencies, ingest_records
 from decision_memory.application.query import QueryDependencies, query_index
@@ -82,6 +83,9 @@ def _query_deps(index: Any, **overrides: object) -> QueryDependencies:
         "embed": fake_embed,
         "load_manifest": load_stored_manifest,
         "raw_manifest_digest": stored_manifest_digest,
+        "resolve_source": lambda path: (
+            ResolutionState.RESOLVED if path else ResolutionState.HINT_UNAVAILABLE
+        ),
         "extract_facets": fake_extract_facets,
         "generate_answer": fake_generate_answer,
         "entail": fake_entail,

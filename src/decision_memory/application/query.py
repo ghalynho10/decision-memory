@@ -89,6 +89,9 @@ class IndexReader(Protocol):
     def ledger_fingerprints(self) -> dict[str, str | None]: ...
     def has_failed_records(self) -> bool: ...
     def active_fingerprint(self, record_id: str) -> str | None: ...
+    def supersession_notices(
+        self, predecessor_id: str
+    ) -> tuple[SupersessionNotice, ...]: ...
     def search(
         self,
         embedding: Sequence[float],
@@ -107,6 +110,7 @@ class QueryDependencies:
     embed: Callable[[Sequence[str]], list[list[float]]]
     load_manifest: Callable[[], Manifest]
     raw_manifest_digest: Callable[[], str]
+    resolve_source: Callable[[str], ResolutionState]
     extract_facets: Callable[[str, list[ProviderAttempt] | None], tuple[Facet, ...]]
     generate_answer: Callable[
         [
@@ -361,8 +365,11 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
 
     accepted_texts = [chunk.text for chunk in accepted]
     known_ids = frozenset(chunk.chunk_id for chunk in accepted)
+    notices = _collect_notices(deps.store, accepted)
     try:
-        draft = deps.generate_answer(facets, accepted_texts, (), known_ids, attempts)
+        draft = deps.generate_answer(
+            facets, accepted_texts, notices, known_ids, attempts
+        )
     except Exception as exc:  # noqa: BLE001 - provider failure is a result
         return _failed_result(
             request,
@@ -372,7 +379,7 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
         )
     generation = GenerationTrace(
         facets=facets,
-        supersession_notices=(),
+        supersession_notices=notices,
         draft_sentences=draft,
         cited_chunk_ids=tuple(sorted(known_ids)),
     )
@@ -454,16 +461,31 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
         for record_id, desired in deps.store.ledger_fingerprints().items()
         if desired is not None and deps.store.active_fingerprint(record_id) != desired
     )
-    citations, sentence_citation_ids = _allocate_citations(
-        kept, chunk_by_id, stale_record_ids
+    chunk_citations, chunk_sentence_ids = _allocate_citations(
+        kept, chunk_by_id, stale_record_ids, deps.resolve_source
     )
-    answer_sentences = tuple(
-        AnswerSentence(
-            sentence_id=sentence.sentence_id,
-            text=sentence.text,
-            citation_ids=sentence_citation_ids.get(sentence.sentence_id, ()),
+    try:
+        manifest = deps.load_manifest()
+    except Exception:  # noqa: BLE001 - no manifest means no supersedes provenance
+        manifest = None
+    disclosure_sentences, disclosure_citations = _render_disclosures(
+        manifest,
+        notices,
+        deps.resolve_source,
+        stale_record_ids,
+        start_at=len(chunk_citations),
+    )
+    citations = chunk_citations + disclosure_citations
+    answer_sentences = (
+        tuple(
+            AnswerSentence(
+                sentence_id=sentence.sentence_id,
+                text=sentence.text,
+                citation_ids=chunk_sentence_ids.get(sentence.sentence_id, ()),
+            )
+            for sentence in kept
         )
-        for sentence in kept
+        + disclosure_sentences
     )
 
     # Recheck the raw manifest bytes before returning (AC-9).
@@ -492,7 +514,11 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
         state=QueryState.ANSWERED,
         abstention_stage=None,
         citations=tuple(citation.citation_id for citation in citations),
-        stale_markers=(),
+        stale_markers=tuple(
+            citation.citation_id
+            for citation in citations
+            if citation.freshness == CitationFreshness.STALE_VERSION
+        ),
     )
     trace = QueryTrace(
         freshness=freshness,
@@ -519,8 +545,11 @@ def _allocate_citations(
     sentences: Sequence[DraftSentence],
     chunk_by_id: dict[str, RetrievedChunk],
     stale_record_ids: frozenset[str] = frozenset(),
+    resolve_source: Callable[[str], ResolutionState] | None = None,
 ) -> tuple[tuple[Citation, ...], dict[str, tuple[str, ...]]]:
     """Allocate C1.. by first sentence use, deduplicating by source location."""
+    if resolve_source is None:
+        resolve_source = _unresolved
     citations: list[Citation] = []
     seen: dict[tuple[str, str, str, str], str] = {}
     sentence_ids: dict[str, tuple[str, ...]] = {}
@@ -553,7 +582,7 @@ def _allocate_citations(
                         value_path=chunk.value_path,
                         relative_path=source.path,
                         section=source.section,
-                        resolution=ResolutionState.HINT_UNAVAILABLE,
+                        resolution=resolve_source(source.path),
                         freshness=freshness,
                     )
                 )
@@ -561,6 +590,93 @@ def _allocate_citations(
         ids.sort(key=lambda value: int(value[1:]))
         sentence_ids[sentence.sentence_id] = tuple(ids)
     return tuple(citations), sentence_ids
+
+
+def _unresolved(_path: str) -> ResolutionState:
+    """The fallback resolver when none is injected: no hint is available."""
+    return ResolutionState.HINT_UNAVAILABLE
+
+
+def _collect_notices(
+    store: IndexReader, accepted: Sequence[RetrievedChunk]
+) -> tuple[SupersessionNotice, ...]:
+    """Immediate eligible successors of every retrieved predecessor record (AC-18)."""
+    collected: list[SupersessionNotice] = []
+    seen: set[tuple[str, str]] = set()
+    for record_id in sorted({chunk.record_id for chunk in accepted}):
+        for notice in store.supersession_notices(record_id):
+            key = (notice.predecessor_id, notice.successor_id)
+            if key not in seen:
+                seen.add(key)
+                collected.append(notice)
+    return tuple(sorted(collected, key=lambda n: (n.successor_id, n.predecessor_id)))
+
+
+def _render_disclosures(
+    manifest: Manifest | None,
+    notices: Sequence[SupersessionNotice],
+    resolve_source: Callable[[str], ResolutionState],
+    stale_record_ids: frozenset[str],
+    start_at: int,
+) -> tuple[tuple[AnswerSentence, ...], tuple[Citation, ...]]:
+    """Deterministic disclosure sentences citing successor supersedes evidence.
+
+    Disclosure does not depend on model output: each notice renders one
+    sentence naming the successor by title and id, sorted by successor id,
+    and cites the successor's stored ``supersedes`` provenance (AC-18).
+    """
+    if not notices:
+        return (), ()
+    manifest_by_id = (
+        {entry.id: entry for entry in manifest.entries} if manifest is not None else {}
+    )
+    sentences: list[AnswerSentence] = []
+    citations: list[Citation] = []
+    for index, notice in enumerate(
+        sorted(notices, key=lambda n: (n.successor_id, n.predecessor_id)), start=1
+    ):
+        entry = manifest_by_id.get(notice.successor_id)
+        sources = (
+            (entry.field_sources or {}).get("supersedes", ())
+            if entry is not None
+            else ()
+        )
+        source = sources[0] if sources else SourceReference("", "")
+        freshness = (
+            CitationFreshness.STALE_VERSION
+            if notice.successor_id in stale_record_ids
+            else CitationFreshness.CURRENT
+        )
+        citation_id = f"C{start_at + len(citations) + 1}"
+        citations.append(
+            Citation(
+                citation_id=citation_id,
+                kind=CitationKind.SUPERSESSION,
+                evidence_id=notice.metadata_evidence_id,
+                record_id=notice.successor_id,
+                chunk_id=None,
+                value_path="supersedes",
+                relative_path=source.path,
+                section=source.section,
+                resolution=(
+                    resolve_source(source.path)
+                    if source.path
+                    else ResolutionState.HINT_UNAVAILABLE
+                ),
+                freshness=freshness,
+            )
+        )
+        sentences.append(
+            AnswerSentence(
+                sentence_id=f"D{index}",
+                text=(
+                    f"This decision was later changed by {notice.successor_title} "
+                    f"({notice.successor_id})."
+                ),
+                citation_ids=(citation_id,),
+            )
+        )
+    return tuple(sentences), tuple(citations)
 
 
 def _freshness_trace(
