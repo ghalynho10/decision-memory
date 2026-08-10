@@ -4,7 +4,9 @@ A local, cited RAG system that makes software decision history queryable.
 
 Point it at a project's decision records and ask why something is built the way it is. Every answer comes back with citations to the source spec, commit, or file — or an honest "not enough evidence here" when the history does not support one.
 
-> **Status: early development.** `adapt` turns a project's decision specs into validated records; `ingest` builds a versioned local query index from them; `query` answers with citations or an honest abstention. Adapter work (a `doctor` diagnostic, runtime adapter loading, a conformance suite, and built-in ADR adapters) makes the tool usable on a corpus it was not built for.
+> **Status: early development.** `adapt` turns a project's decision specs into validated records; `ingest` builds a versioned local query index from them; `query` answers with citations or an honest abstention. Adapter work (a `doctor` diagnostic, runtime adapter loading, a conformance suite) makes the tool usable on a corpus it was not built for.
+
+**Current state.** Seven commands ship: `version`, `validate`, `doctor`, `adapt`, `test-adapter`, `ingest`, `query`, with a stable exit-code contract (`0` ok, `1` runtime, `2` usage, `3` corpus). The cited-query pipeline is verified live against a real project's specs: a known-answer question returns a correct, cited answer, and a question with no supporting evidence returns the exact honest abstention `not enough evidence here`, exit `0`. Built-in ADR adapters and hybrid retrieval are planned, not yet shipped.
 
 ## The problem
 
@@ -33,7 +35,7 @@ Sources (project-specific)
                 ↓
     Canonical decision record
                 ↓
-    Generic RAG core     ingestion · hybrid retrieval · citation
+    Generic RAG core     ingestion · semantic retrieval (hybrid planned) · citation
 ```
 
 ## Canonical record
@@ -110,7 +112,7 @@ Three pieces make that practical, in the order they help:
 
 **`doctor`** reads an unfamiliar corpus and reports what is actually there: how many markdown files, the most common H2 headings, and documents grouped by their exact heading set, with samples. It makes no mapping claims and produces no records. It exists so you can tell whether a built-in adapter fits before writing anything.
 
-**Built-in adapters** for common formats (MADR, plain ADR) ship with the tool and are versioned (`madr@1`), so many projects never write an adapter at all. They are calibrated against real repositories rather than a format's documentation, because a format's spec and a format's actual use are not the same thing. On a corpus that only partly fits, they adapt what matches and report the rest as skipped — never a thin record standing in for a document they could not read.
+**Built-in adapters** for common formats (MADR, plain ADR) are planned, versioned like `madr@1`, so many projects would never write an adapter at all. They are to be calibrated against real repositories rather than a format's documentation, because a format's spec and a format's actual use are not the same thing. On a corpus that only partly fits, they adapt what matches and report the rest as skipped — never a thin record standing in for a document they could not read.
 
 **Runtime loading** lets a third-party adapter be used by module path, so writing one means writing your own package rather than forking this one. A minimal starter template and a short guide come with it; `.decision-memory.yml` persists the adapter, corpus root, and output directory per project.
 
@@ -168,7 +170,7 @@ Both are wrappers, not rewrites. The retrieval core stays interface-agnostic.
 
 ## License
 
-TBD
+MIT — see [LICENSE](LICENSE).
 
 ## User guide
 
@@ -222,7 +224,25 @@ Questions shaped as "why", "what was decided", "what changed", and "what was rej
 
 ### What an answer looks like
 
-Every answer comes with citations to the source specs it came from, so you can verify the claim. When nothing in the records supports an answer, the tool says so plainly. "Not enough evidence here" is a correct answer, not a failure.
+Every answer comes with citations to the source specs it came from, so you can verify the claim. Here is a verified live run on a real project's decision specs:
+
+```console
+$ decision-memory query "why was the private beta access gate added, and what was the alternative?"
+The private beta access gate was added to prevent any visitor from running up the
+project owner's Adzuna, Browserbase, or OpenAI bill ... [C1]
+The alternative ... was to route the gate to cover only the two agent routes, but this
+was rejected because it left two GPT-4o call sites reachable by any signed-in visitor ... [C2]
+Sources
+C1 DM-0012 ch_104bd4993e12... body[1] docs/specs/0012-portfolio-private-access-gate/index.md Requirements
+C2 DM-0012 ch_fde6b7ab... decision.alternatives[0] docs/specs/0012-portfolio-private-access-gate/rationale.md Options considered
+```
+
+When nothing in the records supports an answer, the tool says so plainly — "not enough evidence here" is a correct answer, not a failure:
+
+```console
+$ decision-memory query "why is the retry limit 5?"
+not enough evidence here
+```
 
 A refusal you did not expect is worth inspecting rather than accepting: the debug view shows which records were retrieved, how they scored, and whether the answer was refused because nothing relevant came back or because no claim could be traced to a source. That distinction matters — the first means the history genuinely does not cover your question, the second means something went wrong.
 

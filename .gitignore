@@ -58,6 +58,11 @@ dmypy.json
 .chroma/
 chroma_db/
 
+# Design handoff drafts and external design references
+docs/cli-presentation-redesign-architect-prompt.md
+decision-memory-cli-redesign.html
+docs/reference/artifact/decision-memory-cli-redesign.pdf
+
 # Runtime storage (spec 0001): canonical records DB + Chroma persistent dir
 .decision-memory/
 *.faiss
