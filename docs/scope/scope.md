@@ -133,6 +133,7 @@ spec [0007](../specs/0007-core-cited-query/index.md) · code in src/decision_mem
 
 ### 10. Reliable multi source retrieval · needs a decision
 Add structured metadata filtering and lexical retrieval alongside semantic retrieval, so a filter can constrain the candidate set before semantic similarity chooses among it, which is what keeps the tool from confidently citing the wrong document. Exact stage ordering and whether scores fuse or run as a pipeline is an `/architect` decision.
+**Carry into the spec (does filtering enable structured queries?):** the `/architect` decision must also answer whether metadata filtering stays a retrieval constraint or enables structured query types (for example rejected alternatives across records, or lineage and supersession across records). The deeper query types sit on that answer; decide it with feature 11 evidence rather than by default.
 **Done when:** query 2 (what decisions affect resume generation) and query 4 (what was decided about separating server side and browser side database clients, and why) return correctly sourced answers, not merely plausible ones.
 - [ ] Design it (spec): `/architect reliable multi source retrieval`
 
