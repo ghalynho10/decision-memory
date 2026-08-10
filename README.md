@@ -224,23 +224,26 @@ Questions shaped as "why", "what was decided", "what changed", and "what was rej
 
 ### What an answer looks like
 
-Every answer comes with citations to the source specs it came from, so you can verify the claim. Here is a verified live run on a real project's decision specs:
+Every answer comes with citations to the source specs it came from, so you can verify the claim. Here is a live run against this repository's own decision specs:
 
 ```console
-$ decision-memory query "why was the private beta access gate added, and what was the alternative?"
-The private beta access gate was added to prevent any visitor from running up the
-project owner's Adzuna, Browserbase, or OpenAI bill ... [C1]
-The alternative ... was to route the gate to cover only the two agent routes, but this
-was rejected because it left two GPT-4o call sites reachable by any signed-in visitor ... [C2]
+$ decision-memory adapt .
+$ decision-memory ingest .decision-memory/records
+$ decision-memory query "why was the entry point discovery approach rejected for third party adapters?"
+The entry point discovery approach was rejected because it adds packaging work
+before any external adapter exists, introduces new product behavior with discovery
+and duplicate name policy, and still requires runtime object validation after
+loading. [C1]
 Sources
-C1 DM-0012 ch_104bd4993e12... body[1] docs/specs/0012-portfolio-private-access-gate/index.md Requirements
-C2 DM-0012 ch_fde6b7ab... decision.alternatives[0] docs/specs/0012-portfolio-private-access-gate/rationale.md Options considered
+C1 DM-0005 ch_b728a86a8b08... decision.alternatives[0] docs/specs/0005-runtime-adapter-loading/rationale.md Options considered
 ```
+
+The answer summarizes the cited chunk — spec 0005's rejected Option 2, entry point discovery — and the citation resolves to `decision.alternatives[0]` in that spec's rationale, so you can open the file and check it yourself. Because the index is built from this repository's own specs, you can reproduce the whole thing on a clone: `adapt`, then `ingest`, then the same question.
 
 When nothing in the records supports an answer, the tool says so plainly — "not enough evidence here" is a correct answer, not a failure:
 
 ```console
-$ decision-memory query "why is the retry limit 5?"
+$ decision-memory query "why is the subscription priced at nine dollars per month?"
 not enough evidence here
 ```
 
