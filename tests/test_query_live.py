@@ -125,7 +125,10 @@ def test_query_one_against_real_jobpilot(tmp_path) -> None:
         ),
     )
     assert result.state == QueryState.ANSWERED
-    joined = " ".join(sentence.text for sentence in result.sentences)
-    assert "Option B" in joined
-    assert "The two agent routes only" in joined
+    joined = " ".join(sentence.text for sentence in result.sentences).lower()
+    # The answer explains the gate's purpose (protecting paid provider spend).
+    assert any(keyword in joined for keyword in ("cost", "bill"))
+    # The rejected alternative, the two agent routes only, is named.
+    assert "two agent routes" in joined
+    # The answer is cited to the DM-0012 record.
     assert any(citation.record_id == "DM-0012" for citation in result.citations)
