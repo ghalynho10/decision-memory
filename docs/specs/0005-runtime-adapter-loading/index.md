@@ -102,6 +102,7 @@ Exit code `2` means required command input was absent or malformed, including a 
 | Corpus validation | record violations or exception | `adapter.parse` for that source |
 | Corpus validation | exit code | invalid root, adapter exceptions, and error severity violations collected by the run |
 | Adapt manifest | adapter version | `adapter.adapter_version` |
+| Adapt manifest | source root hint | the resolved corpus root at adapt time (spec 0007 AC-19) |
 | Starter fingerprint | digest | contributing path and bytes in fixed order plus `adapter_version` |
 
 ### Key invariants

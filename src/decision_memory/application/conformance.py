@@ -27,6 +27,10 @@ from decision_memory.application.adapter import (
     DiscoveryResult,
     SourceAdapter,
 )
+from decision_memory.application.canonical import (
+    SourceReference,
+    normalize_field_sources,
+)
 from decision_memory.domain.records import CanonicalDecisionRecord, Severity, Violation
 
 
@@ -79,13 +83,28 @@ class ViolationExpectation:
 
 
 @dataclass(frozen=True)
+class FieldSourceExpectation:
+    """One expected source location for a canonical value."""
+
+    path: str
+    section: str
+
+
+@dataclass(frozen=True)
 class ResultExpectation:
-    """The complete expected parse result for one source."""
+    """The complete expected parse result for one source.
+
+    ``field_sources`` is optional: when None the comparison skips provenance
+    checking; when set it must match the adapter's exact field_sources map,
+    so a conformance case can lock the new schema version 2 contract (spec
+    0007 AC-2).
+    """
 
     record: CanonicalDecisionRecord | None
     attempted_fields: frozenset[str]
     unresolved_mention_count: int
     violations: tuple[ViolationExpectation, ...]
+    field_sources: dict[str, tuple[FieldSourceExpectation, ...]] | None = None
 
 
 @dataclass(frozen=True)
@@ -252,12 +271,14 @@ SourceShape = tuple[str, str, tuple[str, ...]]
 SkipShape = tuple[str, ...]
 CollisionShape = tuple[str, tuple[str, ...], str]
 DiscoveryShape = tuple[tuple[SourceShape, ...], SkipShape, tuple[CollisionShape, ...]]
+FieldSourceShape = dict[str, tuple[tuple[str, str], ...]]
 AdaptationShape = tuple[
     CanonicalDecisionRecord | None,
     frozenset[str],
     int,
     tuple[tuple[str, str, str], ...],
     str,
+    FieldSourceShape,
 ]
 
 
@@ -331,6 +352,15 @@ def _violation_triple(violation: Violation) -> tuple[str, str, str]:
     return (violation.severity.value, violation.rule, violation.field)
 
 
+def _field_sources_shape(
+    field_sources: dict[str, list[SourceReference]],
+) -> FieldSourceShape:
+    return {
+        path: tuple((ref.path, ref.section) for ref in refs)
+        for path, refs in normalize_field_sources(field_sources).items()
+    }
+
+
 def _adaptation_shape(result: AdaptationResult) -> AdaptationShape:
     return (
         result.record,
@@ -338,6 +368,7 @@ def _adaptation_shape(result: AdaptationResult) -> AdaptationShape:
         result.unresolved_mention_count,
         tuple(_violation_triple(v) for v in result.violations),
         result.fingerprint,
+        _field_sources_shape(result.field_sources),
     )
 
 
@@ -373,6 +404,13 @@ def _result_difference(
     )
     if actual_triples != expected_triples:
         return "violations differ"
+    if expected.field_sources is not None:
+        expected_shape: FieldSourceShape = {
+            path: tuple((ref.path, ref.section) for ref in refs)
+            for path, refs in expected.field_sources.items()
+        }
+        if _field_sources_shape(actual.field_sources) != expected_shape:
+            return "field sources differ"
     return None
 
 

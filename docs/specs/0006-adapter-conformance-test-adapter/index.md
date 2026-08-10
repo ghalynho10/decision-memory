@@ -138,6 +138,8 @@ The YAML boundary value for `result.record` is a relative path or `null`. A nonn
 
 Expected record comparison is semantic. Every record field and ordered list is compared. Attempted fields compare as a set. Violation comparison preserves list order, ignores reason prose, and compares severity, rule, and field. YAML `field: null` normalizes to the contract's empty field string. Discovery sources, contributing files, skips, collisions, and collision paths compare as ordered sequences after actual paths become corpus relative POSIX paths.
 
+A result expectation may optionally declare `field_sources`, a map from canonical value path to a list of source references, each with a relative `path` and a `section` (the reserved `preamble` names metadata before the first H2). When declared, the adapter's provenance map is normalized, deduplicated, and sorted by path then section and compared exactly against it, locking the schema version 2 output contract (spec 0007 AC-2). When absent, provenance is not compared.
+
 The empty corruption payload is `b""`. The invalid UTF8 payload is exactly `b"\xff\xfe\xfa"`. Fingerprint coverage appends exactly `b"\nconformance fingerprint probe\n"` to one contributing file in a fresh copy and calls only `fingerprint` on the remapped discovered source.
 
 ### Starter adapter expansion
@@ -285,7 +287,7 @@ Within a case, sources and paths follow manifest order. Corruption variants run 
 | Discovery comparison | expected sources, skips, and collisions | case discovery expectation |
 | Discovery comparison | normalized actual paths | returned paths relative to the copied `DiscoveredSpec.corpus_root` |
 | Result comparison | expected record | canonical record file parsed through the existing record reader |
-| Result comparison | expected metadata | attempted fields, unresolved count, and violation triples in the manifest |
+| Result comparison | expected metadata | attempted fields, unresolved count, violation triples, and declared field_sources in the manifest |
 | Confidence check | confident or non confident | record presence plus actual error severity violations from AC-7 |
 | Corruption planning | affected sources | every source whose contributing files contain the required path |
 | Corruption execution | empty and invalid UTF8 bytes | fixed suite constants named by AC-8 |

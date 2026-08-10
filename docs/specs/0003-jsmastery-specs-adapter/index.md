@@ -31,7 +31,7 @@ It also adds a command, `adapt`, that runs the conversion against a real corpus 
 - **AC-11**: `body` holds every section that neither file's mapping consumed, with headings intact, including sections this format does not standardise.
 - **AC-12**: `attempted_fields` names only fields that have a defined source section which turned out absent or empty. A canonical field with no source section in this format, such as `context.triggering_change`, is left unset and is not flagged.
 - **AC-13**: A spec's fingerprint is a SHA-256 over each contributing file's corpus relative path and bytes, in a fixed order, combined with the adapter version string. Editing any contributing file changes it, and so does changing the adapter version.
-- **AC-14**: A manifest is written to the output directory recording the adapter version, the run timestamp, and per record the id, fingerprint, contributing files, and record path, plus every skip and every collision from the run.
+- **AC-14**: A manifest is written to the output directory recording the adapter version, the run timestamp, the source root hint, and per record the id, fingerprint, contributing files, record path, record digest, entry digest, and field sources, plus every skip and every collision from the run. The output manifest schema version is `2`; an older version 1 manifest forces a full rewrite (spec 0007 AC-2).
 - **AC-15**: On a second run, a spec whose fingerprint matches the manifest is not rewritten, a spec whose fingerprint differs is rewritten, and the report gives both counts.
 - **AC-16**: A record that fails validation is not written, and is reported as failed with its violations. No spec in the current corpus can reach this path, so it is exercised by a synthetic fixture only; see the note under `## Requirements`.
 - **AC-17**: `--dry-run` performs the whole run and its full report, and writes no record file and no manifest.
@@ -42,7 +42,7 @@ It also adds a command, `adapt`, that runs the conversion against a real corpus 
 - **AC-22**: The `validate` command resolves evidence by checking each cited target directly rather than scanning the project root, and a target that names a directory resolves.
 - **AC-23**: `ValidationContext` carries the unresolved mention count, and `validate` emits `evidence.mentions_unresolved` as a warning from it.
 - **AC-24**: A written record file is the exact inverse of the read grammar spec 0002 fixed, so a record `adapt` writes parses back to an equal record. Its filename is the record id plus `.md`.
-- **AC-25**: The manifest is written as `manifest.json` in the output directory, as JSON with two space indent and entries ordered by id.
+- **AC-25**: The manifest is written as `manifest.json` in the output directory, as JSON with two space indent, entries ordered by id, and schema version `2`.
 
 **A note on what the corpus can and cannot exercise.** Every field whose absence would fail validation is present in all 15 directory specs: a digit leading directory name, the H1 title, `**Date**`, `## Decision` with its `**Chosen option**` line, and `## Rationale` in `rationale.md`. Evidence is non empty by construction, since the contributing files are always cited. So a real spec cannot produce an invalid record, and the failure paths in **AC-16** and the exit `1` branch of **AC-21** are reachable only through synthetic fixtures. Build them as fixtures; do not expect a run against the real corpus to cover them.
 
@@ -65,9 +65,9 @@ The canonical record itself is unchanged; it is fixed by spec 0002. This feature
 | `SkippedSource` | application | `path: Path` (required) · `reason: str` (required) |
 | `Collision` | application | `id: str` · `paths: list[Path]` (every source that derived this id) · `used: Path` |
 | `DiscoveryResult` | application | `specs: list[DiscoveredSpec]` · `skipped: list[SkippedSource]` · `collisions: list[Collision]` |
-| `AdaptationResult` | application | `record: CanonicalDecisionRecord \| None` · `violations: list[Violation]` · `attempted_fields: frozenset[str]` · `unresolved_mention_count: int` · `fingerprint: str` |
-| `ManifestEntry` | application | `id: str` · `fingerprint: str` · `contributing_files: list[str]` (corpus relative POSIX) · `record_path: str` |
-| `Manifest` | application | `adapter_version: str` · `generated_at: str` · `entries: list[ManifestEntry]` · `skipped: list[SkippedSource]` · `collisions: list[Collision]` |
+| `AdaptationResult` | application | `record: CanonicalDecisionRecord \| None` · `violations: list[Violation]` · `attempted_fields: frozenset[str]` · `unresolved_mention_count: int` · `fingerprint: str` · `field_sources: dict[str, list[SourceReference]]` (spec 0007 AC-2) |
+| `ManifestEntry` | application | `id: str` · `fingerprint: str` · `contributing_files: list[str]` (corpus relative POSIX) · `record_path: str` · `record_digest: str` · `entry_digest: str` · `field_sources: dict[str, list[SourceReference]]` |
+| `Manifest` | application | `schema_version: int` (2) · `adapter_version: str` · `generated_at: str` · `source_root_hint: str` · `entries: list[ManifestEntry]` · `skipped: list[SkippedSource]` · `collisions: list[Collision]` |
 
 One shipped domain type changes: `ValidationContext` gains `unresolved_mention_count: int = 0`. `existing_paths` keeps its name and its type, but its meaning narrows from every path under the project root to the cited targets that resolve, because resolution moves from a scan to a direct check (**AC-22**).
 
@@ -115,7 +115,7 @@ Sources are `index.md` and `rationale.md`. Where both carry the same section, `r
 
 **Record serialization** (**AC-24**): a written record is the exact inverse of the read grammar spec 0002 fixed. A `---` fence, the frontmatter written with `yaml.safe_dump` at `sort_keys=False` so field order follows the schema rather than alphabetical order, a closing `---`, one blank line, then the body verbatim. A key whose value is `None` or an empty list is omitted rather than written as null, so a record never asserts an empty field it simply does not have. The filename is the record id plus `.md`, giving `DM-0012.md`.
 
-**Manifest serialization** (**AC-25**): `manifest.json` in the output directory, JSON with two space indent, entries ordered by id so a diff between runs is readable.
+**Manifest serialization** (**AC-25**): `manifest.json` in the output directory, JSON with two space indent, entries ordered by id so a diff between runs is readable. The manifest carries `schema_version: 2`, the absolute `source_root_hint`, and per record the `record_digest`, `entry_digest`, and `field_sources` provenance map (spec 0007 AC-2).
 
 **Code path extraction**, applied to the text of both contributing files (**AC-4**):
 

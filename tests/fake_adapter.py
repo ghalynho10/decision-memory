@@ -95,6 +95,7 @@ class FakeAdapter:
             attempted_fields=frozenset(),
             unresolved_mention_count=0,
             fingerprint=self.fingerprint(spec),
+            field_sources={},
         )
 
 

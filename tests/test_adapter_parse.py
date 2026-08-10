@@ -10,6 +10,7 @@ from pathlib import Path
 
 from spec_factory import INDEX, RATIONALE, make_corpus, write_spec
 
+from decision_memory.application.canonical import SourceReference
 from decision_memory.domain.records import EvidenceKind, Status
 from decision_memory.infrastructure.jsmastery_adapter import JsmasteryAdapter
 
@@ -1269,3 +1270,49 @@ def test_recognized_consequences_stay_out_of_the_body(tmp_path) -> None:
     assert result.record.consequences.positive
     assert "consequences.positive" not in result.attempted_fields
     assert "## Consequences" not in result.record.body
+
+
+def test_field_sources_trace_provenance_for_each_value(tmp_path) -> None:
+    # spec 0007 AC-2: every populated chunkable value maps to the exact source
+    # file and section that produced it. The standard corpus shape puts
+    # Context and Options considered in rationale.md, Decision and
+    # Consequences in index.md, and Rationale in rationale.md.
+    corpus = make_corpus(tmp_path)
+    write_spec(corpus, "0001-first")
+    result = _adapt(corpus)
+    index_rel = "docs/specs/0001-first/index.md"
+    rationale_rel = "docs/specs/0001-first/rationale.md"
+    expected = {
+        "body[0]": [(index_rel, "Summary")],
+        "consequences.negative[0]": [(index_rel, "Consequences")],
+        "consequences.positive[0]": [(index_rel, "Consequences")],
+        "context.problem": [(rationale_rel, "Context")],
+        "decision.alternatives[0].rejection_reason": [
+            (rationale_rel, "Options considered")
+        ],
+        "decision.alternatives[0].title": [(rationale_rel, "Options considered")],
+        "decision.chosen": [(index_rel, "Decision")],
+        "rationale_summary": [(rationale_rel, "Rationale")],
+        "title": [(index_rel, "preamble")],
+    }
+    actual = {
+        path: [(ref.path, ref.section) for ref in refs]
+        for path, refs in result.field_sources.items()
+    }
+    assert actual == expected
+
+
+def test_supersedes_gets_a_preamble_source(tmp_path) -> None:
+    # spec 0007 AC-2: a populated supersedes value must carry a source, from
+    # the preamble metadata block before the first H2.
+    corpus = make_corpus(tmp_path)
+    index = INDEX.replace(
+        "**Status**: Accepted",
+        "**Status**: Accepted\n**Supersedes**: DM-0001",
+    )
+    write_spec(corpus, "0001-first", index=index)
+    result = _adapt(corpus)
+    assert result.record.supersedes == "DM-0001"
+    assert result.field_sources["supersedes"] == [
+        SourceReference("docs/specs/0001-first/index.md", "preamble")
+    ]
