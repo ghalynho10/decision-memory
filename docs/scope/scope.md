@@ -19,7 +19,7 @@ _You are in charge. Every box below is a suggestion, not a gate: run any, skip a
 | 6 | Runtime adapter loading | Foundation | done |
 | 7 | Adapter conformance suite and `test-adapter` | Foundation | done |
 | 8 | Built-in ADR adapters | Foundation | planned |
-| 9 | Core cited query | Slice 1 | in-progress |
+| 9 | Core cited query | Slice 1 | done |
 | 10 | Reliable multi source retrieval | Slice 2 | planned |
 | 11 | Proven correctness (evaluation harness) | Slice 3 | planned |
 | 12 | Flat single file spec support | V2 | planned |
@@ -113,7 +113,7 @@ Ship built-in adapters for common ADR formats such as MADR and plain ADR, versio
 
 ## Slice 1: Core cited query
 
-### 9. Core cited query · in-progress
+### 9. Core cited query · done
 Ingest real specs (parse, chunk on canonical field boundaries, embed, index, with metadata kept as structured queryable fields), semantic only retrieval, and a CLI `query` command returning an answer plus citations through a clean function boundary, with an explicit "not enough evidence" path when nothing supports an answer. Include query transparency: a debug view showing retrieved chunks, scores, filters, excluded candidates, and whether abstention happened at retrieval or after claim verification. Incremental re ingestion via the adapter's fingerprint is built in here, not deferred, since retrofitting it later means re embedding everything. This retrieval pipeline can proceed in parallel with adapter accessibility work.
 **Done when:** a user runs the CLI against JobPilot's real specs and gets a cited answer, or an honest no evidence response, to query 1 (why was the private beta access gate added, and what was the alternative) end to end, and can inspect enough retrieval detail to distinguish unsupported evidence from retrieval failure.
 **Carry into the spec (retrieval must know about superseding):** if a retrieved chunk belongs to a record that carries a `superseded_by` link, the generator must be told, so the answer can say the decision was later changed instead of presenting it as current. An answer that is accurate about a superseded decision and does not say so is confident and wrong at the same time, which is the exact failure this project exists to prevent. Caveat to state plainly in the spec: this is not exercisable against the current corpus, since the jsmastery adapter does not populate supersedes. Build the check, and record it as untested, the same disposition as ladder step 4 in spec 0003.
