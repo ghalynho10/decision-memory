@@ -17,7 +17,9 @@ Skateboard: ship the smallest usable whole first, then grow it release by releas
 uv sync                # install
 uv run decision-memory # run the CLI
 uv build               # build
-uv run pytest          # test
+uv run pytest          # test (unit suite; integration excluded)
+uv run pytest -m integration   # integration suite: real OpenAI, Chroma, live JobPilot
+# live provider runs: uv run --env-file .env decision-memory ... (uv run does not auto load .env)
 ```
 
 ## Specs
@@ -67,6 +69,7 @@ MCP servers: chroma-core/chroma-mcp (recommended)
 ## Context files
 
 - [examples/starter-adapter/AGENTS.md](examples/starter-adapter/AGENTS.md): the teaching adapter package (install, selector, tiny format, fixtures)
+- [tests/AGENTS.md](tests/AGENTS.md): the pytest suite: unit vs integration markers, shared fakes (FakeIndex, FakeAdapter), conformance fixtures, live JobPilot requirements
 
 <!-- Nested AGENTS.md files are listed here as they are created -->
 

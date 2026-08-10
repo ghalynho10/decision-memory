@@ -11,6 +11,9 @@ directory and turns each decision file into a canonical record.
 - `decisions/` ships one valid fixture (`valid.md`) and one skipped fixture
   (`skipped.md`, no Decision section).
 - `pyproject.toml` is the minimal installable package manifest.
+- `adapter-conformance.yml` plus `adapter-conformance/` (cases and expected)
+  ship the package's conformance manifest, proven with
+  `test-adapter starter_adapter.adapter:adapter --cases adapter-conformance.yml`.
 
 ## Install and run
 
