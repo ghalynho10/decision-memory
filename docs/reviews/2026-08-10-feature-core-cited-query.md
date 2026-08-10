@@ -2,13 +2,13 @@
 
 **Reviewed by**: DeepSeek V4 Pro (author on DeepSeek V4 Flash)
 **Scope**: 57 files, branch feature/0007-core-cited-query vs main
-**Verdict**: Blocked → Approved (blocker + major fixed in `17db8c4`; one cosmetic minor remains open)
+**Verdict**: Blocked → Approved (blocker + major fixed in `17db8c4`; cosmetic minor also fixed 2026-08-10)
 
 ## Summary
 
 This feature delivers a complete local cited RAG pipeline across `adapt` → `ingest` → `query`, with a versioned two-store index (SQLite + Chroma), semantic retrieval, structured generation with facet extraction/entailment/coverage, source citations, supersession disclosure, and full traces. The architecture is clean, the DTO contracts are well-specified, and the test suite is thorough with both deterministic fakes and real-store integration tests. However, one blocker must be addressed before merge: ingest silently destroys all data when the pipeline signature mismatches, contrary to the spec's explicit requirement that it refuse and point to `--rebuild`.
 
-**Resolved after review (2026-08-10)**: the blocker (ingest refused to refuse on pipeline mismatch, AC-8) and the major (freshness compared `fingerprint` instead of `entry_digest`, AC-17) were fixed in commit `17db8c4` ("refuse pipeline mismatch on ingest and compare entry digests for freshness"). `/check verify` subsequently passed all local and live behaviors, including live JobPilot query 1 against the real corpus. The minor `IngestResult.store_path` is still open: `src/decision_memory/application/ingest.py` still reports `output: /unset` on the CLI. It is cosmetic and can ride along with a later change.
+**Resolved after review (2026-08-10)**: the blocker (ingest refused to refuse on pipeline mismatch, AC-8) and the major (freshness compared `fingerprint` instead of `entry_digest`, AC-17) were fixed in commit `17db8c4` ("refuse pipeline mismatch on ingest and compare entry digests for freshness"). `/check verify` subsequently passed all local and live behaviors, including live JobPilot query 1 against the real corpus. The minor `IngestResult.store_path` is also fixed (2026-08-10): `_result` now threads `request.store_dir` through, so the CLI prints the real `output:` path instead of `/unset`, locked by a regression assertion in `tests/test_ingest.py`.
 
 ## Blockers
 
