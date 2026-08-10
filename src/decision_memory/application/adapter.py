@@ -18,9 +18,11 @@ from typing import Protocol
 
 from decision_memory.application.canonical import (
     SourceReference,
+    canonical_json,
     entry_digest,
     normalize_field_sources,
     record_digest,
+    sha256_hex,
 )
 from decision_memory.domain.records import (
     CanonicalDecisionRecord,
@@ -487,3 +489,36 @@ def _write_manifest(path: Path, manifest: Manifest) -> None:
     }
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+
+
+def semantic_manifest_digest(manifest: Manifest) -> str:
+    """The semantic manifest digest (spec 0007 AC-9).
+
+    Hashes schema version, adapter version, source root hint, and entries
+    sorted by id. It excludes ``generated_at``, skips, and collisions, so a
+    pure rerun that changes only the timestamp produces the same digest. Used
+    by ingest and query freshness as the stable comparison value.
+    """
+    mapping: dict[str, object] = {
+        "schema_version": manifest.schema_version,
+        "adapter_version": manifest.adapter_version,
+        "source_root_hint": manifest.source_root_hint,
+        "entries": [
+            {
+                "id": entry.id,
+                "fingerprint": entry.fingerprint,
+                "contributing_files": entry.contributing_files,
+                "record_path": entry.record_path,
+                "record_digest": entry.record_digest,
+                "entry_digest": entry.entry_digest,
+                "field_sources": {
+                    path: [{"path": ref.path, "section": ref.section} for ref in refs]
+                    for path, refs in normalize_field_sources(
+                        entry.field_sources
+                    ).items()
+                },
+            }
+            for entry in sorted(manifest.entries, key=lambda entry: entry.id)
+        ],
+    }
+    return sha256_hex(canonical_json(mapping))

@@ -46,6 +46,11 @@ def sha256_hex(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+def sha256_bytes(data: bytes) -> str:
+    """Lowercase 64 character SHA256 over raw bytes (the raw manifest digest)."""
+    return hashlib.sha256(data).hexdigest()
+
+
 def normalize_field_sources(
     field_sources: dict[str, list[SourceReference]],
 ) -> dict[str, tuple[SourceReference, ...]]:

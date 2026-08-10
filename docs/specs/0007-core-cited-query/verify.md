@@ -95,3 +95,40 @@ and the chunking plus store foundation landed. Later milestones extend them.
 - [ ] Chroma upsert and verify parity report a missing vector or a metadata mismatch; a valid cosine distance is finite and within 0 to 2 -> AC-6
 - [ ] the version 1 DTO schemas construct with tuples and explicit `None` for optional fields -> AC-10, AC-13
 - [ ] all OpenAI SDK access lives only in `openai_embeddings.py` and `openai_generation.py`, and `OPENAI_API_KEY` is validated inside them before any provider call -> AC-20
+
+## Milestone 2 (build plan task 3), added 2026-08-09
+
+These steps prove the first complete end to end answer. The deterministic
+roundtrip test runs in the fast unit suite; the live JobPilot check is
+integration and skipped without the corpus and key.
+
+- [ ] Adapt a DM-0012 shaped corpus, ingest with the deterministic fake embedder, and query `Why was the private beta access gate added, and what was the alternative?` -> answered, every citation names `DM-0012`, and the answer states Panel 1 was which routes the gate covers, Option B covering all four routes was chosen, and Option A `The two agent routes only (the original proposal)` was rejected -> AC-11
+- [ ] Run the same query against the real JobPilot corpus with `OPENAI_API_KEY` set -> the same three propositions, plus a separately extracted why facet covered by a sentence entailed by a cited `DM-0012` chunk -> AC-11
+- [ ] `decision-memory ingest RECORDS_DIR --store PATH --dry-run` -> prints `plan: added N, ...`, one record line per id, `result: completed`, and `dry run, no provider calls or writes`, and creates no store directory -> AC-1
+- [ ] `decision-memory ingest RECORDS_DIR --store PATH` -> ingests, activates the generation, and prints `result: completed` with exit `0` -> AC-1
+- [ ] `decision-memory query QUESTION --store PATH` -> prints each answer sentence with `[C1]` markers, then `Sources` with citation rows -> AC-1, AC-10
+- [ ] Ingest with a tampered record file -> that record fails with a digest code, the run exits `1`, and later records still run -> AC-3, AC-16
+- [ ] Query an empty index -> exact `not enough evidence here`, exit `0`, stage `retrieval`, and no embedding call -> AC-16
+- [ ] Fail facet extraction or entailment -> exit `1`, stage named, never abstention -> AC-16
+- [ ] Query with an empty question -> exit `2` -> AC-16
+- [ ] Run the query `--debug` -> the fixed sections print in order (Freshness, Retrieval, Facets, Draft, Verification, Providers, Citations, Result), floats to six decimals, full chunk text between `chunk text begin` and `chunk text end` -> AC-13
+- [ ] The retrieval trace shows user `filters: none`, candidate limit `24`, accepted limit `8`, floor `null`, candidates sorted by distance then chunk id, and `accepted` or `outside_top_8` dispositions -> AC-12
+- [ ] Run the real SQLite plus Chroma store roundtrip integration test with the deterministic embedder -> parity clean, eligibility populated, answered with `DM-0012` citations -> AC-6
+
+## Milestone 3 (build plan tasks 4 and 5), added 2026-08-09
+
+These steps prove incremental ingestion, removals, dry run spend preview,
+rebuild, locking, freshness, and recovery. The unit and integration suites
+cover them deterministically.
+
+- [ ] `decision-memory ingest RECORDS_DIR --store PATH --dry-run` on a fresh store -> prints `plan: added N, ...` plus per record chunk, evidence token, embedding input token, and batch counts, and creates no store directory and no lock database -> AC-3
+- [ ] Ingest once, then ingest the same records again into the same store -> every record reports `unchanged`, no embedding call runs, and existing vector ids stay put -> AC-7
+- [ ] Add a second record, re run adapt, and ingest into the same store -> the new record reports `added` and is the only one embedded; the unchanged record reports `unchanged` -> AC-7
+- [ ] Drop a record from the manifest, re run adapt, and ingest -> the record reports `removed`, its chunks and vectors disappear, and the tombstone records `absent_from_manifest` -> AC-7
+- [ ] Fail embedding for one changed record -> the run exits `1`, the record stays `failed`, later records continue, and `query --allow-stale` reports `failed_ingest` and marks its citation `stale version` -> AC-7, AC-16, AC-17
+- [ ] Run two ingests at once -> the second reports `store is locked` and exits `1`; a query during an ingest also reports the lock -> AC-9
+- [ ] Change one manifest entry without ingesting, then `query` -> refuses with exit `1` and names the stale record; `query --allow-stale` prints `WARNING: stale index`, lists `record_added`, `record_changed`, or `record_removed`, and answers -> AC-17
+- [ ] Delete the stored records manifest path hint, then `query` -> refuses by default and with `--allow-stale` traces freshness `unknown` with `manifest_unavailable` -> AC-17
+- [ ] Change the manifest bytes while a query runs -> default query discards the answer and exits `1`; `--allow-stale` returns it with `manifest_changed_during_query` -> AC-9
+- [ ] Run the rebuild failure integration test -> a parity failed rebuild leaves the previous `ACTIVE` generation untouched -> AC-8, AC-21
+- [ ] Run the incremental, removal, dry run, freshness, lock, and rebuild tests in `tests/test_ingest_incremental.py`, `tests/test_freshness.py`, `tests/test_lock.py`, and `tests/test_cli_query.py` -> all pass -> AC-3, AC-6 to AC-9, AC-16, AC-17, AC-21

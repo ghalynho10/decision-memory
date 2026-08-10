@@ -122,8 +122,8 @@ spec [0007](../specs/0007-core-cited-query/index.md) · code in src/decision_mem
 - [x] Design it (spec): `/architect core cited query`
 - [ ] Build it: `/develop core cited query`
   - [x] Extend the adapter result and manifest provenance contract, then establish canonical chunking and the versioned SQLite plus Chroma store (AC-2 to AC-8, AC-19, AC-20)
-  - [ ] Deliver the first complete JobPilot query with cited sentences, independent facets, verification, and honest abstention (AC-1, AC-10 to AC-16)
-  - [ ] Add incremental updates, removals, dry run spend preview, rebuild, locking, freshness, and recovery (AC-3, AC-6 to AC-9, AC-16, AC-17, AC-21)
+  - [x] Deliver the first complete JobPilot query with cited sentences, independent facets, verification, and honest abstention (AC-1, AC-10 to AC-16)
+  - [x] Add incremental updates, removals, dry run spend preview, rebuild, locking, freshness, and recovery (AC-3, AC-6 to AC-9, AC-16, AC-17, AC-21)
   - [ ] Complete traces, supersession disclosure, source resolution, user documentation, and all quality gates (AC-13, AC-14, AC-18 to AC-21)
 - [ ] Verify it: `/check verify core cited query`
 - [ ] Test it: `/test core cited query`

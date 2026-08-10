@@ -16,6 +16,7 @@ import typer
 from decision_memory.application.adapter import (
     BUILTIN_ADAPTER_ID,
     AdaptOutcome,
+    Manifest,
     SourceAdapter,
     adapt_corpus,
 )
@@ -36,6 +37,16 @@ from decision_memory.application.doctor_service import (
     DoctorRequest,
     run_doctor,
 )
+from decision_memory.application.dto import (
+    FreshnessState,
+    IngestRequest,
+    IngestResult,
+    QueryRequest,
+    QueryResult,
+    QueryState,
+)
+from decision_memory.application.ingest import IngestDependencies, ingest_records
+from decision_memory.application.query import QueryDependencies, query_index
 from decision_memory.application.settings import SettingsError, resolve_runtime_settings
 from decision_memory.application.validation_service import validate_file
 from decision_memory.infrastructure.conformance_fixtures import conformance_fixture_port
@@ -48,6 +59,22 @@ from decision_memory.infrastructure.file_reader import (
     parse_record_file,
     write_record_file,
 )
+from decision_memory.infrastructure.index_lock import LockError, store_lock
+from decision_memory.infrastructure.index_reader import SqliteChromaIndexReader
+from decision_memory.infrastructure.index_store import SqliteChromaIndexWriter
+from decision_memory.infrastructure.manifest_reader import (
+    load_manifest,
+    manifest_path,
+    raw_manifest_digest,
+    record_loader,
+)
+from decision_memory.infrastructure.openai_embeddings import embed_texts
+from decision_memory.infrastructure.openai_generation import (
+    coverage_verdict,
+    entail_verdict,
+    extract_facets,
+    generate_answer,
+)
 from decision_memory.infrastructure.path_resolution import resolve_cited_paths
 from decision_memory.infrastructure.project_config import (
     ProjectConfig,
@@ -55,6 +82,7 @@ from decision_memory.infrastructure.project_config import (
     load_project_config,
 )
 from decision_memory.infrastructure.runtime_loader import LoadFailure, select_adapter
+from decision_memory.infrastructure.tokenization import tiktoken_count
 
 app = typer.Typer(
     name="decision-memory",
@@ -532,6 +560,333 @@ def _print_conformance_check(check: CheckResult) -> None:
     typer.echo(line)
     if check.artifact_path is not None:
         typer.echo(f"artifact: {check.artifact_path}")
+
+
+# ---------------------------------------------------------------------------
+# Ingest and query commands (spec 0007)
+# ---------------------------------------------------------------------------
+
+
+def _git_root(start: Path) -> Path | None:
+    """The nearest Git root above ``start``, or None."""
+    import subprocess
+
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=start,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return None
+    if result.returncode != 0:
+        return None
+    root = result.stdout.strip()
+    return Path(root) if root else None
+
+
+def _resolve_records_dir(
+    cli_records: Path | None, config: ProjectConfig | None
+) -> Path | None:
+    """Records directory precedence: CLI, config output, config corpus root."""
+    if cli_records is not None:
+        return cli_records
+    if config is not None and config.output is not None:
+        return config.output
+    if config is not None and config.corpus_root is not None:
+        return config.corpus_root / ".decision-memory" / "records"
+    return None
+
+
+def _resolve_store_dir(cli_store: Path | None, config: ProjectConfig | None) -> Path:
+    """Store directory precedence: CLI, config corpus root, Git root, cwd."""
+    if cli_store is not None:
+        return cli_store
+    if config is not None and config.corpus_root is not None:
+        return config.corpus_root / ".decision-memory" / "query-index"
+    root = _git_root(Path.cwd())
+    if root is not None:
+        return root / ".decision-memory" / "query-index"
+    return Path.cwd() / ".decision-memory" / "query-index"
+
+
+@app.command("ingest")
+def ingest_command(
+    records_dir: Annotated[
+        Path | None,
+        typer.Argument(
+            help="Records directory; defaults to the configured output or corpus root"
+        ),
+    ] = None,
+    store: Annotated[
+        Path | None,
+        typer.Option("--store", help="Index store path"),
+    ] = None,
+    rebuild: Annotated[
+        bool,
+        typer.Option("--rebuild", help="Force an explicit rebuild"),
+    ] = False,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            help="Preview spend without provider calls or writes",
+        ),
+    ] = False,
+    debug: Annotated[
+        bool,
+        typer.Option("--debug", help="Print the complete chunk plan"),
+    ] = False,
+) -> None:
+    """Ingest canonical records into the versioned query index."""
+    config = _project_config()
+    resolved = _resolve_records_dir(records_dir, config)
+    if resolved is None:
+        typer.echo(
+            "no records directory resolved; pass RECORDS_DIR or set config output"
+        )
+        raise typer.Exit(2)
+    if not resolved.is_dir():
+        typer.echo(f"records directory does not exist: {resolved}")
+        raise typer.Exit(3)
+    store_dir = _resolve_store_dir(store, config)
+    writer = SqliteChromaIndexWriter(store_dir)
+
+    def _run() -> IngestResult:
+        return ingest_records(
+            IngestRequest(
+                records_dir=resolved,
+                store_dir=store_dir,
+                rebuild=rebuild,
+                dry_run=dry_run,
+            ),
+            IngestDependencies(
+                load_manifest=lambda: load_manifest(manifest_path(resolved)),
+                read_record=record_loader(resolved),
+                count_tokens=tiktoken_count,
+                embed=embed_texts,
+                raw_manifest_digest=lambda: raw_manifest_digest(
+                    manifest_path(resolved)
+                ),
+                store=writer,
+            ),
+        )
+
+    try:
+        if dry_run:
+            outcome = _run()
+        else:
+            with store_lock(store_dir, exclusive=True):
+                outcome = _run()
+    except LockError:
+        typer.echo("store is locked by another ingest or query")
+        raise typer.Exit(1) from None
+    finally:
+        writer.close()
+    _print_ingest_report(outcome, debug, dry_run)
+    raise typer.Exit(outcome.exit_code)
+
+
+@app.command("query")
+def query_command(
+    question: Annotated[str, typer.Argument(help="The question to answer")],
+    store: Annotated[
+        Path | None,
+        typer.Option("--store", help="Index store path"),
+    ] = None,
+    allow_stale: Annotated[
+        bool,
+        typer.Option("--allow-stale", help="Allow a stale index manifest"),
+    ] = False,
+    debug: Annotated[
+        bool,
+        typer.Option("--debug", help="Print the full query trace"),
+    ] = False,
+) -> None:
+    """Ask a question and get a cited answer from the index."""
+    config = _project_config()
+    store_dir = _resolve_store_dir(store, config)
+    if not store_dir.exists():
+        typer.echo(f"store directory does not exist: {store_dir}")
+        raise typer.Exit(3)
+    reader = SqliteChromaIndexReader(store_dir)
+
+    def _stored_manifest_path() -> Path | None:
+        stored = reader.manifest_metadata()[0]
+        return Path(stored) if stored else None
+
+    def _load_stored_manifest() -> Manifest:
+        path = _stored_manifest_path()
+        if path is None:
+            raise FileNotFoundError("no stored manifest path")
+        return load_manifest(path)
+
+    def _stored_manifest_raw_digest() -> str:
+        path = _stored_manifest_path()
+        if path is None:
+            raise FileNotFoundError("no stored manifest path")
+        return raw_manifest_digest(path)
+
+    try:
+        with store_lock(store_dir, exclusive=False):
+            outcome = query_index(
+                QueryRequest(
+                    question=question,
+                    store_dir=store_dir,
+                    allow_stale=allow_stale,
+                ),
+                QueryDependencies(
+                    store=reader,
+                    count_tokens=tiktoken_count,
+                    embed=embed_texts,
+                    load_manifest=_load_stored_manifest,
+                    raw_manifest_digest=_stored_manifest_raw_digest,
+                    extract_facets=extract_facets,
+                    generate_answer=generate_answer,
+                    entail=entail_verdict,
+                    coverage=coverage_verdict,
+                ),
+            )
+    except LockError:
+        typer.echo("store is locked by an ingest")
+        raise typer.Exit(1) from None
+    _print_query_report(outcome, debug)
+    raise typer.Exit(outcome.exit_code)
+
+
+def _print_ingest_report(outcome: IngestResult, debug: bool, dry_run: bool) -> None:
+    """Print the fixed ingest report (spec 0007 AC-10)."""
+    counts: dict[str, int] = {}
+    for record in outcome.records:
+        counts[record.action.value] = counts.get(record.action.value, 0) + 1
+    typer.echo(
+        "plan: "
+        f"added {counts.get('added', 0)}, updated {counts.get('updated', 0)}, "
+        f"unchanged {counts.get('unchanged', 0)}, "
+        f"removed {counts.get('removed', 0)}, failed {counts.get('failed', 0)}"
+    )
+    for record in sorted(outcome.records, key=lambda item: item.record_id):
+        if record.action.value == "failed":
+            typer.echo(f"failed {record.record_id}: {record.failure_code}")
+        else:
+            typer.echo(f"{record.action.value} {record.record_id}")
+        if debug:
+            for chunk in record.chunks:
+                typer.echo(
+                    f"  chunk {chunk.chunk_id} {chunk.value_path} "
+                    f"ordinal={chunk.ordinal} "
+                    f"evidence_tokens={chunk.evidence_token_count} "
+                    f"embedding_tokens={chunk.embedding_input_token_count}"
+                )
+    typer.echo(f"result: {outcome.state.value}")
+    typer.echo(f"output: {outcome.store_path}")
+    if dry_run:
+        typer.echo("dry run, no provider calls or writes")
+
+
+def _print_query_report(outcome: QueryResult, debug: bool) -> None:
+    """Print the fixed query report (spec 0007 AC-10, AC-13)."""
+    if outcome.state == QueryState.FAILED and outcome.failure is not None:
+        typer.echo(
+            f"error {outcome.failure.stage} {outcome.failure.code}: "
+            f"{outcome.failure.detail}"
+        )
+        return
+    if outcome.state == QueryState.ABSTAINED:
+        typer.echo("not enough evidence here")
+        return
+    for sentence in outcome.sentences:
+        markers = ",".join(sentence.citation_ids)
+        typer.echo(f"{sentence.text} [{markers}]")
+    typer.echo("Sources")
+    for citation in outcome.citations:
+        chunk = citation.chunk_id or "-"
+        typer.echo(
+            f"{citation.citation_id} {citation.record_id} {chunk} "
+            f"{citation.value_path} {citation.relative_path} {citation.section}"
+        )
+    stale_reasons = outcome.trace.freshness.stale_reasons
+    if (
+        outcome.trace.freshness.state
+        in (
+            FreshnessState.DRIFT,
+            FreshnessState.UNKNOWN,
+        )
+        or stale_reasons
+    ):
+        labels = ", ".join(reason.value for reason in stale_reasons)
+        typer.echo(f"WARNING: stale index{f' ({labels})' if labels else ''}")
+    if debug:
+        _print_query_debug(outcome)
+
+
+def _print_query_debug(result: QueryResult) -> None:
+    """Print the fixed debug sections in order (spec 0007 AC-13)."""
+    trace = result.trace
+    typer.echo("Freshness")
+    typer.echo(f"  state: {trace.freshness.state.value}")
+    stored = trace.freshness.stored_pipeline_signature
+    running = trace.freshness.running_pipeline_signature
+    typer.echo(f"  stored_pipeline_signature: {stored}")
+    typer.echo(f"  running_pipeline_signature: {running}")
+    typer.echo(f"  records_manifest_path: {trace.freshness.records_manifest_path}")
+    typer.echo(f"  manifest_available: {trace.freshness.manifest_available}")
+    typer.echo(f"  start_semantic_digest: {trace.freshness.start_semantic_digest}")
+    typer.echo(f"  end_semantic_digest: {trace.freshness.end_semantic_digest}")
+    typer.echo(f"  start_raw_digest: {trace.freshness.start_raw_digest}")
+    typer.echo(f"  end_raw_digest: {trace.freshness.end_raw_digest}")
+    if trace.freshness.stale_reasons:
+        labels = ", ".join(reason.value for reason in trace.freshness.stale_reasons)
+        typer.echo(f"  stale_reasons: {labels}")
+    typer.echo("Retrieval")
+    typer.echo(f"  question: {trace.retrieval.question}")
+    typer.echo(f"  filters: {','.join(trace.retrieval.filters)}")
+    typer.echo(f"  candidate_limit: {trace.retrieval.candidate_limit}")
+    typer.echo(f"  accepted_limit: {trace.retrieval.accepted_limit}")
+    typer.echo(f"  relevance_floor: {trace.retrieval.relevance_floor}")
+    for candidate in trace.retrieval.candidates:
+        typer.echo(
+            f"  candidate {candidate.chunk_id} {candidate.record_id} "
+            f"distance={candidate.distance:.6f} similarity={candidate.similarity:.6f} "
+            f"rank={candidate.rank} disposition={candidate.disposition.value}"
+        )
+        typer.echo("  chunk text begin")
+        typer.echo(candidate.text)
+        typer.echo("  chunk text end")
+    typer.echo("Facets")
+    for facet in trace.generation.facets:
+        typer.echo(f"  {facet.facet_id}: {facet.text}")
+    typer.echo("Draft")
+    for sentence in trace.generation.draft_sentences:
+        markers = ",".join(sentence.chunk_ids)
+        typer.echo(f"  {sentence.sentence_id}: {sentence.text} [{markers}]")
+    typer.echo("Verification")
+    for sentence_id, contained in trace.verification.containment:
+        typer.echo(f"  {sentence_id} containment={contained}")
+    for sentence_id, verdict, reason in trace.verification.entailment:
+        typer.echo(f"  {sentence_id} entailment={verdict} reason={reason}")
+    for removed_id in trace.verification.removed_sentences:
+        typer.echo(f"  removed {removed_id}")
+    for row in trace.verification.coverage:
+        markers = ",".join(row.sentence_ids)
+        typer.echo(f"  {row.facet_id} covered={row.covered} [{markers}]")
+    for facet in trace.verification.uncovered_facets:
+        typer.echo(f"  uncovered {facet.facet_id}: {facet.text}")
+    typer.echo("Providers")
+    for attempt in trace.providers:
+        typer.echo(
+            f"  {attempt.concern} attempt={attempt.attempt_number} "
+            f"elapsed_ms={attempt.elapsed_ms} outcome={attempt.outcome.value}"
+        )
+    typer.echo("Citations")
+    for citation in result.citations:
+        typer.echo(f"  {citation.citation_id} {citation.record_id} {citation.chunk_id}")
+    typer.echo("Result")
+    typer.echo(f"  state: {result.state.value}")
+    if result.abstention_stage is not None:
+        typer.echo(f"  abstention_stage: {result.abstention_stage.value}")
+    typer.echo(f"  freshness: {result.freshness.value}")
 
 
 if __name__ == "__main__":

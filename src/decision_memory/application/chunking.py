@@ -405,3 +405,24 @@ def chunk_record(
                 )
             )
     return tuple(plans)
+
+
+def missing_provenance(
+    record: CanonicalDecisionRecord,
+    field_sources: dict[str, list[SourceReference]],
+) -> tuple[str, ...]:
+    """Value paths populated but lacking a source (spec 0007 AC-3, AC-19).
+
+    Every populated chunkable leaf, the title, and a populated supersedes
+    value must name at least one source. Returns the offending value paths in
+    schema order so ingest can fail the record and name them all.
+    """
+    missing: list[str] = []
+    for unit in _chunkable_units(record, field_sources):
+        if not unit.sources:
+            missing.append(unit.value_path)
+    if record.title and not field_sources.get("title"):
+        missing.append("title")
+    if record.supersedes and not field_sources.get("supersedes"):
+        missing.append("supersedes")
+    return tuple(missing)
