@@ -125,7 +125,7 @@ spec [0007](../specs/0007-core-cited-query/index.md) · code in src/decision_mem
   - [x] Deliver the first complete JobPilot query with cited sentences, independent facets, verification, and honest abstention (AC-1, AC-10 to AC-16)
   - [x] Add incremental updates, removals, dry run spend preview, rebuild, locking, freshness, and recovery (AC-3, AC-6 to AC-9, AC-16, AC-17, AC-21)
   - [x] Complete traces, supersession disclosure, source resolution, user documentation, and all quality gates (AC-13, AC-14, AC-18 to AC-21)
-- [ ] Verify it: `/check verify core cited query`
+- [x] Verify it: `/check verify core cited query` (all local + live behaviors pass, incl. live JobPilot query 1 against the real corpus, 2026-08-10)
 - [ ] Test it: `/test core cited query`
 
 ## Slice 2: Reliable multi source retrieval
