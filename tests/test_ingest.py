@@ -175,6 +175,55 @@ def test_unchanged_ingest_needs_no_key(tmp_path) -> None:
     assert calls == []
 
 
+def test_ingest_refuses_pipeline_mismatch_without_rebuild(tmp_path) -> None:
+    """AC-8: a normal ingest refuses when the active generation was built with
+    a different pipeline signature, instead of silently creating a fresh one."""
+    records_dir = _adapt_dm0012(tmp_path)
+    index = FakeIndex()
+    first, _, _ = _ingest(records_dir, index=index)
+    assert first.exit_code == 0
+    chunks_before = dict(index.chunks)
+    index.signature = "a-different-pipeline-signature"
+    second, _, _ = _ingest(records_dir, index=index)
+    assert second.state == IngestState.FAILED
+    assert second.exit_code == 1
+    assert second.failure is not None
+    assert second.failure.code == "pipeline.incompatible"
+    assert second.records == ()
+    # The store is untouched: same generation, same chunks.
+    assert index.generation == "gen-fake"
+    assert index.chunks == chunks_before
+
+
+def test_ingest_rebuild_overrides_pipeline_mismatch(tmp_path) -> None:
+    """AC-8: an explicit rebuild is the sanctioned way to cross a pipeline."""
+    records_dir = _adapt_dm0012(tmp_path)
+    index = FakeIndex()
+    first, _, _ = _ingest(records_dir, index=index)
+    assert first.exit_code == 0
+    index.signature = "a-different-pipeline-signature"
+    result = ingest_records(
+        IngestRequest(
+            records_dir=records_dir,
+            store_dir=Path("/fake/store"),
+            rebuild=True,
+            dry_run=False,
+        ),
+        IngestDependencies(
+            load_manifest=lambda: load_manifest(manifest_path(records_dir)),
+            read_record=record_loader(records_dir),
+            count_tokens=tiktoken_count,
+            embed=fake_embed,
+            raw_manifest_digest=lambda: raw_manifest_digest(manifest_path(records_dir)),
+            require_api_key=lambda: None,
+            store=index,
+        ),
+    )
+    assert result.state == IngestState.COMPLETED
+    assert result.exit_code == 0
+    assert result.records[0].action == RecordAction.ADDED
+
+
 def test_missing_provenance_names_every_path() -> None:
     from decision_memory.domain.records import Decision
 

@@ -165,12 +165,23 @@ class SqliteChromaIndexWriter(IndexWriter):
         ).fetchall()
         return {str(row[0]): (str(row[1]), row[2], row[3]) for row in rows}
 
+    def active_pipeline_signature(self) -> str | None:
+        """The active generation's pipeline signature, or None."""
+        active = read_active(self._store_dir)
+        if active is None:
+            return None
+        metadata = read_generation_json(self._store_dir, active)
+        if metadata is None:
+            return None
+        return metadata.pipeline_signature
+
     def write_record(
         self,
         generation_id: str,
         record: CanonicalDecisionRecord,
         chunks: Sequence[ChunkPlan],
         embeddings: Sequence[Sequence[float]],
+        entry_digest: str,
     ) -> list[str]:
         """Write one record's vectors and SQLite rows, returning old chunk ids.
 
@@ -200,7 +211,7 @@ class SqliteChromaIndexWriter(IndexWriter):
         ]
         if ids:
             upsert_vectors(self._chroma, ids, embeddings, metadatas)
-        self._write_sqlite(record_id, record, chunks)
+        self._write_sqlite(record_id, record, chunks, entry_digest)
         return old_ids
 
     def _write_sqlite(
@@ -208,6 +219,7 @@ class SqliteChromaIndexWriter(IndexWriter):
         record_id: str,
         record: CanonicalDecisionRecord,
         chunks: Sequence[ChunkPlan],
+        entry_digest: str,
     ) -> None:
         conn = self._conn
         fingerprint = chunks[0].fingerprint if chunks else record_digest(record)
@@ -217,7 +229,7 @@ class SqliteChromaIndexWriter(IndexWriter):
             conn.execute(
                 "INSERT OR REPLACE INTO record_state (record_id, state, action, "
                 "desired_fingerprint, active_fingerprint, record_path, "
-                "indexed_time) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                "desired_entry_digest, indexed_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     record_id,
                     STATE_CURRENT,
@@ -225,6 +237,7 @@ class SqliteChromaIndexWriter(IndexWriter):
                     fingerprint,
                     fingerprint,
                     f"{record_id}.md",
+                    entry_digest,
                     now,
                 ),
             )
@@ -299,6 +312,7 @@ class SqliteChromaIndexWriter(IndexWriter):
         desired_fingerprint: str,
         active_fingerprint: str | None,
         failure_code: str,
+        entry_digest: str | None = None,
     ) -> None:
         """Record a failed record so freshness can report failed_ingest."""
         assert self._conn is not None
@@ -306,14 +320,15 @@ class SqliteChromaIndexWriter(IndexWriter):
             self._conn.execute(
                 "INSERT OR REPLACE INTO record_state (record_id, state, action, "
                 "desired_fingerprint, active_fingerprint, record_path, "
-                "failure_code, indexed_time) VALUES (?, 'failed', 'failed', "
-                "?, ?, ?, ?, ?)",
+                "failure_code, desired_entry_digest, indexed_time) "
+                "VALUES (?, 'failed', 'failed', ?, ?, ?, ?, ?, ?)",
                 (
                     record_id,
                     desired_fingerprint,
                     active_fingerprint,
                     f"{record_id}.md",
                     failure_code,
+                    entry_digest,
                     datetime.now(UTC).isoformat(),
                 ),
             )

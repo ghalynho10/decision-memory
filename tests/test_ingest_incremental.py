@@ -249,7 +249,9 @@ def test_rebuild_failure_preserves_old_generation(tmp_path) -> None:
             embedding_input(record.title or "", chunk.value_path, chunk.text)
             for chunk in chunks
         ]
-        writer2.write_record(staging, record, chunks, fake_embed(inputs))
+        writer2.write_record(
+            staging, record, chunks, fake_embed(inputs), entry.entry_digest
+        )
         _, _, chroma_dir = generation_paths(store, staging)
         collection = _client(chroma_dir).get_collection(CHROMA_COLLECTION)
         ids = (collection.get(include=[]) or {}).get("ids", [])

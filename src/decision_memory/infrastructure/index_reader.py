@@ -212,6 +212,24 @@ class SqliteChromaIndexReader(IndexReader):
         finally:
             connection.close()
 
+    def ledger_entry_digests(self) -> dict[str, str | None]:
+        """Live record id to desired entry digest pairs (AC-17)."""
+        generation_id = self.generation_id()
+        if generation_id is None:
+            return {}
+        connection = self._connection(generation_id)
+        try:
+            verify_schema_version(connection)
+            rows = connection.execute(
+                "SELECT record_id, desired_entry_digest FROM record_state "
+                "WHERE state != 'removed'"
+            ).fetchall()
+            return {
+                str(row[0]): str(row[1]) if row[1] is not None else None for row in rows
+            }
+        finally:
+            connection.close()
+
     def has_failed_records(self) -> bool:
         generation_id = self.generation_id()
         if generation_id is None:

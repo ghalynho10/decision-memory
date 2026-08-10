@@ -62,6 +62,7 @@ class FakeIndex:
         )
         self.deleted_vectors: set[str] = set()
         self.supersession_notices_map: dict[str, list[SupersessionNotice]] = {}
+        self.entry_digests: dict[str, str | None] = {}
         self.signature = pipeline_signature()
         self.parity_problems_list: list[str] = []
         self.search_error: Exception | None = None
@@ -75,11 +76,15 @@ class FakeIndex:
                 self.chunks = {}
                 self.embeddings = {}
                 self.record_states = {}
+                self.entry_digests = {}
                 self.deleted_vectors = set()
         return self.generation
 
     def existing_states(self) -> dict[str, tuple[str, str | None, str | None]]:
         return dict(self.record_states)
+
+    def active_pipeline_signature(self) -> str | None:
+        return self.signature if self.generation is not None else None
 
     def write_record(
         self,
@@ -87,6 +92,7 @@ class FakeIndex:
         record: CanonicalDecisionRecord,
         chunks: Sequence[ChunkPlan],
         embeddings: Sequence[Sequence[float]],
+        entry_digest: str,
     ) -> list[str]:
         record_id = record.id
         old_ids = [
@@ -110,6 +116,7 @@ class FakeIndex:
         fingerprint = chunks[0].fingerprint if chunks else None
         if record_id is not None:
             self.record_states[record_id] = ("current", fingerprint, fingerprint)
+            self.entry_digests[record_id] = entry_digest
         return old_ids
 
     def mark_pending_removal(self, record_id: str) -> None:
@@ -124,12 +131,14 @@ class FakeIndex:
         desired_fingerprint: str,
         active_fingerprint: str | None,
         failure_code: str,
+        entry_digest: str | None = None,
     ) -> None:
         self.record_states[record_id] = (
             "failed",
             desired_fingerprint,
             active_fingerprint,
         )
+        self.entry_digests[record_id] = entry_digest
 
     def remove_record(
         self, generation_id: str, record_id: str, prior_fingerprint: str | None
@@ -191,6 +200,14 @@ class FakeIndex:
             record_id: desired
             for record_id, (state, desired, _active) in self.record_states.items()
             if state != "removed"
+        }
+
+    def ledger_entry_digests(self) -> dict[str, str | None]:
+        return {
+            record_id: digest
+            for record_id, (state, _desired, _active) in self.record_states.items()
+            if state != "removed"
+            for digest in (self.entry_digests.get(record_id),)
         }
 
     def has_failed_records(self) -> bool:

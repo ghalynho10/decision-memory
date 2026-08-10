@@ -187,7 +187,9 @@ def test_unknown_manifest_is_stale(tmp_path) -> None:
 def test_failed_ingest_reports_failed(tmp_path) -> None:
     records_dir = _adapt(make_corpus(tmp_path), ["0012-portfolio"])
     _, index = _ingest(records_dir)
-    index.mark_failed("DM-0012", "fp", "fp", "provider.embedding")
+    manifest = load_manifest(manifest_path(records_dir))
+    digest = manifest.entries[0].entry_digest
+    index.mark_failed("DM-0012", "fp", "fp", "provider.embedding", digest)
     result = query_index(
         QueryRequest(
             question="Why was the private beta access gate added?",
@@ -204,8 +206,10 @@ def test_failed_ingest_reports_failed(tmp_path) -> None:
 def test_failed_update_marks_citation_stale_version(tmp_path) -> None:
     records_dir = _adapt(make_corpus(tmp_path), ["0012-portfolio"])
     _, index = _ingest(records_dir)
+    manifest = load_manifest(manifest_path(records_dir))
+    digest = manifest.entries[0].entry_digest
     # A failed update: the desired fingerprint advanced, the active one did not.
-    index.mark_failed("DM-0012", "fp-new", "fp-old", "provider.embedding")
+    index.mark_failed("DM-0012", "fp-new", "fp-old", "provider.embedding", digest)
     result = query_index(
         QueryRequest(
             question="Why was the private beta access gate added?",
@@ -220,3 +224,36 @@ def test_failed_update_marks_citation_stale_version(tmp_path) -> None:
         citation.freshness == CitationFreshness.STALE_VERSION
         for citation in result.citations
     )
+
+
+def test_record_changed_uses_entry_digest_not_fingerprint(tmp_path) -> None:
+    """AC-17: RECORD_CHANGED fires on an entry digest change even when the
+    ledger fingerprint is unchanged, proving freshness compares entry digests."""
+    records_dir = _adapt(make_corpus(tmp_path), ["0012-portfolio"])
+    _, index = _ingest(records_dir)
+    manifest = load_manifest(manifest_path(records_dir))
+    entry = manifest.entries[0]
+    # Baseline: the ledger agrees with the manifest on both dimensions.
+    assert index.ledger_fingerprints()[entry.id] == entry.fingerprint
+    assert index.ledger_entry_digests()[entry.id] == entry.entry_digest
+    # Only the entry digest diverges; the fingerprint is unchanged.
+    index.entry_digests[entry.id] = "digest-X"
+    # Force the reasons path by storing a divergent semantic digest that still
+    # points at the same manifest on disk.
+    index.set_manifest_metadata(
+        str(manifest_path(records_dir)),
+        "different-semantic-digest",
+        raw_manifest_digest(manifest_path(records_dir)),
+        "",
+    )
+    result = query_index(
+        QueryRequest(
+            question="Why was the private beta access gate added?",
+            store_dir=Path("/fake/store"),
+            allow_stale=True,
+        ),
+        _query_deps(index),
+    )
+    assert result.state == QueryState.ANSWERED
+    assert result.freshness == FreshnessState.DRIFT
+    assert StaleReason.RECORD_CHANGED in result.trace.freshness.stale_reasons

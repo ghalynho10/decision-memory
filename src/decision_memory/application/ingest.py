@@ -42,6 +42,7 @@ from decision_memory.application.dto import (
     RecordAction,
     RecordIngestResult,
 )
+from decision_memory.application.pipeline import pipeline_signature
 from decision_memory.domain.records import CanonicalDecisionRecord
 
 EXIT_CORPUS_INVALID = 3
@@ -60,6 +61,7 @@ class IndexWriter(Protocol):
     """The write side of the store, implemented in infrastructure."""
 
     def open_generation(self, force_rebuild: bool) -> str: ...
+    def active_pipeline_signature(self) -> str | None: ...
     def existing_states(self) -> dict[str, tuple[str, str | None, str | None]]: ...
     def write_record(
         self,
@@ -67,6 +69,7 @@ class IndexWriter(Protocol):
         record: CanonicalDecisionRecord,
         chunks: Sequence[ChunkPlan],
         embeddings: Sequence[Sequence[float]],
+        entry_digest: str,
     ) -> list[str]: ...
     def mark_pending_removal(self, record_id: str) -> None: ...
     def mark_failed(
@@ -75,6 +78,7 @@ class IndexWriter(Protocol):
         desired_fingerprint: str,
         active_fingerprint: str | None,
         failure_code: str,
+        entry_digest: str | None = None,
     ) -> None: ...
     def remove_record(
         self, generation_id: str, record_id: str, prior_fingerprint: str | None
@@ -136,8 +140,23 @@ def _run_ingest(
     planning and before any store mutation (AC-20): a run whose completed
     plan includes an embedding call refuses without a key and leaves the
     store untouched. Unchanged, removal only, and dry runs never call the key
-    check.
+    check. A normal ingest also refuses a pipeline mismatch and points to
+    ``--rebuild`` rather than silently rebuilding (AC-8).
     """
+    if not request.rebuild:
+        stored_signature = deps.store.active_pipeline_signature()
+        if stored_signature is not None and stored_signature != pipeline_signature():
+            return _result(
+                EXIT_ERROR,
+                IngestState.FAILED,
+                (),
+                Failure(
+                    "pipeline.incompatible",
+                    "pipeline",
+                    "index was built with a different pipeline signature; "
+                    "run ingest --rebuild",
+                ),
+            )
     states = deps.store.existing_states() if not request.rebuild else {}
     if _plan_needs_provider(manifest, states, request.rebuild):
         try:
@@ -281,7 +300,9 @@ def _ingest_entry(
         vectors = _embed_in_batches(inputs, deps)
     except Exception:  # noqa: BLE001 - provider failure is a failed record
         return _failed(deps, entry, existing, "provider.embedding"), []
-    old_ids = deps.store.write_record(generation_id, record, chunks, vectors)
+    old_ids = deps.store.write_record(
+        generation_id, record, chunks, vectors, entry.entry_digest
+    )
     action = (
         RecordAction.UPDATED
         if existing is not None and existing[2] is not None
@@ -308,17 +329,29 @@ def _unchanged_entry(
         record = deps.read_record(entry.id)
     except Exception:  # noqa: BLE001 - a failed record continues the run
         deps.store.mark_failed(
-            entry.id, entry.fingerprint, entry.fingerprint, "record.unreadable"
+            entry.id,
+            entry.fingerprint,
+            entry.fingerprint,
+            "record.unreadable",
+            entry.entry_digest,
         )
         return _failed_result(entry.id, "record.unreadable")
     if record_digest(record) != entry.record_digest:
         deps.store.mark_failed(
-            entry.id, entry.fingerprint, entry.fingerprint, "digest.record_mismatch"
+            entry.id,
+            entry.fingerprint,
+            entry.fingerprint,
+            "digest.record_mismatch",
+            entry.entry_digest,
         )
         return _failed_result(entry.id, "digest.record_mismatch")
     if missing_provenance(record, entry.field_sources):
         deps.store.mark_failed(
-            entry.id, entry.fingerprint, entry.fingerprint, "provenance.missing"
+            entry.id,
+            entry.fingerprint,
+            entry.fingerprint,
+            "provenance.missing",
+            entry.entry_digest,
         )
         return _failed_result(entry.id, "provenance.missing")
     return RecordIngestResult(
@@ -341,7 +374,9 @@ def _failed(
 ) -> RecordIngestResult:
     """Record a failed addition or update, keeping any prior version."""
     prior = existing[2] if existing is not None else None
-    deps.store.mark_failed(entry.id, entry.fingerprint, prior, failure_code)
+    deps.store.mark_failed(
+        entry.id, entry.fingerprint, prior, failure_code, entry.entry_digest
+    )
     return _failed_result(entry.id, failure_code)
 
 

@@ -87,6 +87,7 @@ class IndexReader(Protocol):
         self,
     ) -> tuple[str | None, str | None, str | None, str | None]: ...
     def ledger_fingerprints(self) -> dict[str, str | None]: ...
+    def ledger_entry_digests(self) -> dict[str, str | None]: ...
     def has_failed_records(self) -> bool: ...
     def active_fingerprint(self, record_id: str) -> str | None: ...
     def supersession_notices(
@@ -725,12 +726,12 @@ def _manifest_freshness(
     if current_semantic == stored_semantic and not deps.store.has_failed_records():
         return FreshnessState.CURRENT, ()
     reasons: list[StaleReason] = []
-    ledger = deps.store.ledger_fingerprints()
+    ledger = deps.store.ledger_entry_digests()
     manifest_ids = {entry.id for entry in manifest.entries}
     for entry in manifest.entries:
         if entry.id not in ledger:
             reasons.append(StaleReason.RECORD_ADDED)
-        elif ledger[entry.id] != entry.fingerprint:
+        elif ledger[entry.id] != entry.entry_digest:
             reasons.append(StaleReason.RECORD_CHANGED)
     for record_id in ledger:
         if record_id not in manifest_ids:
