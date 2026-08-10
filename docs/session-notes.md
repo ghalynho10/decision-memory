@@ -13,6 +13,7 @@ In session residue that has not earned a place in scope, a spec, or AGENTS.md ye
 
 - Plain single command Typer app (one `@app.command` plus `no_args_is_help`) does not dispatch in Typer 0.27.1: it auto invokes the command and rejects the command name. The CLI uses a callback (`invoke_without_command`) plus commands instead.
 - Measuring adapter behaviour with a hand written script that re implements the extraction pipeline. This produced wrong figures that were committed to spec 0003 `rationale.md` and survived a full cross check before review round 3 caught them. Two divergences caused it: the replica concatenated both contributing files into one string while the shipped `_evidence_and_unresolved` extracts per file and sums (which matters because backtick pairing is naive, so the join changes pairing across the seam), and it ignored `spec` kind evidence so it under reported the resolved targets. Call the shipped API.
+- Splitting the core cited query milestones 2 and 3 into two separate commits. Impossible: milestone 2 was never committed and milestone 3 rewrote its core files (`ingest.py`, `index_store.py`), so no milestone 2 snapshot exists anywhere. The user chose the combined commit `40cf406` instead.
 
 ## Standing instructions
 
