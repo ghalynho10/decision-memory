@@ -57,9 +57,10 @@ def store_lock(store_dir: Path, *, exclusive: bool) -> Iterator[None]:
         row = connection.execute("SELECT id FROM lock_guard WHERE id = 1").fetchone()
         if row is None:
             raise LockError("lock_guard row is missing")
-        yield
     except sqlite3.OperationalError:
         raise LockError("lock conflict") from None
+    try:
+        yield
     finally:
         try:
             connection.execute("COMMIT")

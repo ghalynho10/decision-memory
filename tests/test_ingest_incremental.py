@@ -23,6 +23,7 @@ from decision_memory.application.dto import (
 from decision_memory.application.ingest import IngestDependencies, ingest_records
 from decision_memory.infrastructure.chroma_store import CHROMA_COLLECTION, _client
 from decision_memory.infrastructure.file_reader import write_record_file
+from decision_memory.infrastructure.index_lock import store_lock
 from decision_memory.infrastructure.index_store import SqliteChromaIndexWriter
 from decision_memory.infrastructure.jsmastery_adapter import JsmasteryAdapter
 from decision_memory.infrastructure.manifest_reader import (
@@ -150,6 +151,45 @@ def test_dry_run_counts_batches_without_writes(tmp_path) -> None:
     assert result.provider_attempts == result.records[0].batch_count
     assert index.generation is None
     assert index.chunks == {}
+
+
+@pytest.mark.integration
+def test_real_ingest_under_exclusive_lock_succeeds(tmp_path) -> None:
+    """The real writer must work inside the CLI's exclusive lock (AC-9).
+
+    Regression: open_generation used to reopen the lock database while the
+    exclusive lock was already held, which raised a database locked error that
+    store_lock mislabeled as a lock conflict, so every real ingest exited 1
+    with ``store is locked``.
+    """
+    records_dir = _adapt(make_corpus(tmp_path), ["0012-portfolio"])
+    store = tmp_path / "store"
+    writer = SqliteChromaIndexWriter(store)
+    try:
+        with store_lock(store, exclusive=True):
+            result = ingest_records(
+                IngestRequest(
+                    records_dir=records_dir,
+                    store_dir=store,
+                    rebuild=False,
+                    dry_run=False,
+                ),
+                IngestDependencies(
+                    load_manifest=lambda: load_manifest(manifest_path(records_dir)),
+                    read_record=record_loader(records_dir),
+                    count_tokens=tiktoken_count,
+                    embed=fake_embed,
+                    raw_manifest_digest=lambda: raw_manifest_digest(
+                        manifest_path(records_dir)
+                    ),
+                    store=writer,
+                ),
+            )
+    finally:
+        writer.close()
+    assert result.state == IngestState.COMPLETED
+    assert result.exit_code == 0
+    assert result.records[0].action == RecordAction.ADDED
 
 
 @pytest.mark.integration

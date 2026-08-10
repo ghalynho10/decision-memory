@@ -7,6 +7,7 @@ paths surface as ``LockError`` rather than a raw SQLite busy error.
 
 from __future__ import annotations
 
+import sqlite3
 from pathlib import Path
 
 import pytest
@@ -55,3 +56,10 @@ def test_lock_is_released_after_block(tmp_path: Path) -> None:
         pass
     with store_lock(store, exclusive=True):
         pass
+
+
+def test_lock_propagates_body_operational_error(tmp_path: Path) -> None:
+    """A body database error must not masquerade as a lock conflict."""
+    store = tmp_path / "store"
+    with pytest.raises(sqlite3.OperationalError), store_lock(store, exclusive=False):
+        raise sqlite3.OperationalError("body database error")

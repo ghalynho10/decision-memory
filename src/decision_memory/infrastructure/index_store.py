@@ -37,9 +37,7 @@ from decision_memory.infrastructure.chroma_store import (
     verify_vectors,
 )
 from decision_memory.infrastructure.sqlite_store import (
-    create_lock_schema,
     create_schema,
-    open_lock_database,
     open_store_database,
     verify_schema_version,
 )
@@ -47,7 +45,6 @@ from decision_memory.infrastructure.store import (
     new_generation_id,
     read_active,
     read_generation_json,
-    store_paths,
     write_active,
     write_format,
     write_generation_json,
@@ -84,10 +81,6 @@ class SqliteChromaIndexWriter(IndexWriter):
         pointer is set only after parity (AC-8).
         """
         write_format(self._store_dir)
-        paths = store_paths(self._store_dir)
-        lock_conn = open_lock_database(paths.lock_database)
-        create_lock_schema(lock_conn)
-        lock_conn.close()
         if not force_rebuild:
             active = read_active(self._store_dir)
             if active is not None:
