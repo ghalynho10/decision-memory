@@ -806,9 +806,13 @@ def _print_query_report(outcome: QueryResult, debug: bool) -> None:
             f"error {outcome.failure.stage} {outcome.failure.code}: "
             f"{outcome.failure.detail}"
         )
+        if debug:
+            _print_query_debug(outcome)
         return
     if outcome.state == QueryState.ABSTAINED:
         typer.echo("not enough evidence here")
+        if debug:
+            _print_query_debug(outcome)
         return
     for sentence in outcome.sentences:
         markers = ",".join(sentence.citation_ids)

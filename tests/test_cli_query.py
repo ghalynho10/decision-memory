@@ -9,7 +9,9 @@ from test_adapter_parse import REAL_PANEL_INDEX, REAL_PANEL_RATIONALE
 from typer.testing import CliRunner
 
 from decision_memory.application.adapter import adapt_corpus
-from decision_memory.cli import app
+from decision_memory.application.dto import QueryRequest, QueryState
+from decision_memory.application.query import query_index
+from decision_memory.cli import _print_query_report, app
 from decision_memory.infrastructure.file_reader import write_record_file
 from decision_memory.infrastructure.index_lock import store_lock
 from decision_memory.infrastructure.jsmastery_adapter import JsmasteryAdapter
@@ -99,3 +101,28 @@ def test_ingest_cli_locked_store_exits_one(tmp_path) -> None:
         result = runner.invoke(app, ["ingest", str(records_dir), "--store", str(store)])
     assert result.exit_code == 1
     assert "locked" in result.output
+
+
+def test_query_cli_abstention_debug_prints_trace(capsys) -> None:
+    """--debug still prints the full trace when a query abstains (regression)."""
+    from fake_index import FakeIndex
+    from test_query_roundtrip import _query_deps
+
+    index = FakeIndex()
+    index.generation = "gen-fake"
+    index.empty_eligible = True
+    result = query_index(
+        QueryRequest(
+            question="anything at all",
+            store_dir=Path("/fake/store"),
+            allow_stale=True,
+        ),
+        _query_deps(index),
+    )
+    assert result.state == QueryState.ABSTAINED
+    _print_query_report(result, debug=True)
+    captured = capsys.readouterr()
+    assert "not enough evidence here" in captured.out
+    assert "Freshness" in captured.out
+    assert "Retrieval" in captured.out
+    assert "abstention_stage: retrieval" in captured.out
