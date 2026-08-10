@@ -25,6 +25,7 @@ _You are in charge. Every box below is a suggestion, not a gate: run any, skip a
 | 12 | Flat single file spec support | V2 | planned |
 | 13 | Declarative adapters | V2 | planned |
 | 14 | MCP server interface | V2 | planned |
+| 15 | CLI presentation redesign | Slice 4 | planned |
 
 ## Foundations
 
@@ -141,6 +142,17 @@ Add structured metadata filtering and lexical retrieval alongside semantic retri
 The five defining queries as fixtures with known correct sources, plus two further assertions: one whose correct answer requires the rationale summary specifically and cannot be answered from the why list alone, and one that edits a `rationale.md`, re ingests, and confirms the record's chunks updated. The questions and assertions are already fully specified; this feature builds the harness, it does not design one.
 **Done when:** query 3 (which decisions are still provisional rather than ratified), query 5 (what changed the original approach to storing uploaded files, expected to return no evidence in v1), and both extra assertions pass or fail legibly against JobPilot's real corpus.
 - [ ] Build it: `/develop proven correctness (evaluation harness)`
+
+## Slice 4: Presentation
+
+Runs after Slice 2 and Slice 3, and before V2. The number 15 is only the next free ordinal, it is not a claim that this comes after everything else. Ordering against Feature 8 (built-in ADR adapters) is irrelevant, the two do not touch the same surface, and Feature 8 keeps its own sequencing (a `doctor` survey of real corpora first).
+
+### 15. CLI presentation redesign · needs a decision
+Restyle the human facing output of the CLI to one defined visual language: a teal accent, aligned reports at 80 columns, status markers that carry both a shape and a word so meaning survives without color, a single line summary paired with the exit code, and a consistent error then hint then exit grammar. The visual target is an external design (opendesign), corrected against what the CLI really prints today.
+**Done when:** every one of the 7 commands (`version`, `validate`, `doctor`, `adapt`, `test-adapter`, `ingest`, `query`) prints in the new language, including its failure paths, and the whole surface stays untouched underneath: same commands, same flags, same exit codes, same JSON output, same DTOs, same backends.
+**Scope guardrails (carry into the spec):** presentation only. No new command, no new or renamed flag, no changed exit code, no changed DTO field, no retrieval or storage change. The change lives in `src/decision_memory/cli.py` plus one new rendering module; machine readable output (`--json` and friends) stays byte stable, since scripts depend on it.
+**Why it waits for Features 10 and 11:** Feature 10 (reliable multi source retrieval) rewrites what `query --debug` traces, since filtering and lexical stages add candidate sets and scores the current trace has no shape for. Styling today's trace first means styling it twice. Feature 11 (the evaluation harness) is the other output producer whose report shape is not settled yet. Build the visual language once, over output that has stopped moving.
+- [ ] Design it (spec): `/architect CLI presentation redesign`
 
 ## V2
 
