@@ -8,6 +8,12 @@ Point it at a project's decision records and ask why something is built the way 
 
 **Current state.** Seven commands ship: `version`, `validate`, `doctor`, `adapt`, `test-adapter`, `ingest`, `query`, with a stable exit-code contract (`0` ok, `1` runtime, `2` usage, `3` corpus). The cited-query pipeline is verified live against a real project's specs: a known-answer question returns a correct, cited answer, and a question with no supporting evidence returns the exact honest abstention `not enough evidence here`, exit `0`. Built-in ADR adapters and hybrid retrieval are planned, not yet shipped.
 
+## What this is for
+
+decision-memory answers one question about one project: **why is it built this way?** It is not a general assistant, and it does not replace reading a codebase — a capable agent can already read your docs. Its value is the evidence contract: every claim is cited to a source spec and section, or the tool abstains rather than guess.
+
+It pays for itself where that contract matters: onboarding and code review, checking whether an earlier choice was already tried and rejected, understanding what a decision stands on, and corpora large enough that a focused, cited answer beats reading everything. A planned MCP server (feature 14) will expose the same query as a tool an agent calls inside the editor.
+
 ## The problem
 
 During spec-driven or agentic development, the reasoning behind a system lives in scattered places: planning documents, generated specs, commit messages, pull requests, and conversations that vanish when the session ends. Months later the code tells you *what* it does. It rarely tells you:
