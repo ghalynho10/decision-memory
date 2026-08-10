@@ -2,17 +2,17 @@
 
 A local, cited RAG system that makes software decision history queryable.
 
-Point it at a project's decision records and ask why something is built the way it is. Every answer comes back with citations to the source spec, commit, or file — or an honest "not enough evidence here" when the history does not support one.
+Point it at a project's decision records and ask why something is built the way it is. Every answer comes back with citations to the source spec, commit, or file, or an honest "not enough evidence here" when the history does not support one.
 
-> **Status: early development.** `adapt` turns a project's decision specs into validated records; `ingest` builds a versioned local query index from them; `query` answers with citations or an honest abstention. Adapter work (a `doctor` diagnostic, runtime adapter loading, a conformance suite) makes the tool usable on a corpus it was not built for.
+**Working today.** Seven commands ship: `version`, `validate`, `doctor`, `adapt`, `test-adapter`, `ingest`, `query`, with a stable exit-code contract (`0` ok, `1` runtime, `2` usage, `3` corpus). The pipeline is verified live against a real project's specs: a known-answer question returns a correct, cited answer, and an unsupported question returns `not enough evidence here`, exit `0`. Built-in ADR adapters and hybrid retrieval are planned, not yet shipped.
 
-**Current state.** Seven commands ship: `version`, `validate`, `doctor`, `adapt`, `test-adapter`, `ingest`, `query`, with a stable exit-code contract (`0` ok, `1` runtime, `2` usage, `3` corpus). The cited-query pipeline is verified live against a real project's specs: a known-answer question returns a correct, cited answer, and a question with no supporting evidence returns the exact honest abstention `not enough evidence here`, exit `0`. Built-in ADR adapters and hybrid retrieval are planned, not yet shipped.
+**Status: early development.** `adapt` turns decision specs into validated records; `ingest` builds a versioned local query index; `query` answers with citations or an honest abstention. A `doctor` diagnostic, runtime adapter loading, and a conformance suite make the tool usable on a corpus it was not built for.
 
 ## What this is for
 
-decision-memory answers one question about one project: **why is it built this way?** It is not a general assistant, and it does not replace reading a codebase — a capable agent can already read your docs. Its value is the evidence contract: every claim is cited to a source spec and section, or the tool abstains rather than guess.
+decision-memory answers one question about one project: **why is it built this way?** It is not a general assistant, and it does not replace reading a codebase. Its value is the evidence contract: every claim is cited to a source spec and section, or the tool abstains rather than guess.
 
-It pays for itself where that contract matters: onboarding and code review, checking whether an earlier choice was already tried and rejected, understanding what a decision stands on, and corpora large enough that a focused, cited answer beats reading everything. A planned MCP server (feature 14) will expose the same query as a tool an agent calls inside the editor.
+It pays off where that contract matters: onboarding and code review, checking whether an earlier choice was already tried and rejected, understanding what a decision stands on, and corpora large enough that a focused, cited answer beats reading everything. A planned Model Context Protocol (MCP) server (feature 14) will expose the same query as a tool an agent calls inside the editor.
 
 ## The problem
 
@@ -30,7 +30,7 @@ Codebases accumulate answers to *what*. The *why* evaporates.
 
 Two ideas do most of the work here.
 
-**Structured records, not just RAG over prose.** Each meaningful decision gets a small structured record: what was decided, what was rejected and why, what it cost, and what evidence backs it. Retrieval runs over those records rather than over raw documentation, which is what makes citations reliable instead of plausible.
+**Structured records, not just RAG over prose.** Each meaningful decision gets a small structured record: what was decided, what was rejected and why, what it cost, and what evidence backs it. Retrieval runs over those records, not over raw documentation. That is what makes citations reliable instead of plausible.
 
 **A generic core with project-specific adapters.** The retrieval engine knows nothing about any particular project's conventions. Adapters translate a project's native artifacts into a canonical record shape; the core only ever sees canonical records. Someone whose project looks nothing like yours writes an adapter, not a fork.
 
@@ -90,12 +90,12 @@ evidence:
 tags: [retrieval, data-model]
 ```
 
-Three rules carry most of the value:
+Four rules carry most of the value:
 
 - **Rejected alternatives need a reason.** A list without `rejected_because` is decoration. "What did we already rule out" is the query that stops a team relitigating a settled decision.
-- **`why` and `rationale_summary` are separate on purpose.** `why` is a list of discrete reasons; `rationale_summary` is the connected prose weighing the chosen option against the alternatives. At least one must be present. Collapsing them loses whichever gets flattened into the other.
-- **Superseded records are never deleted.** "Why did we do it the old way, and what changed" is one of the most useful questions this system aims to answer. The schema supports it with `supersedes`/`superseded_by`; the first adapter does not populate them yet, so that query returns an honest "not enough evidence" until a source actually records supersession.
-- **Evidence must resolve.** Every reference points at a real file, spec, or commit backing the decision. An uncited record is the exact failure mode this project exists to prevent — and separately, each retrieved chunk carries its own source path, so an answer built from one part of a record cites exactly the file that part came from.
+- **`why` and `rationale_summary` are separate on purpose.** `why` is a list of discrete reasons; `rationale_summary` is the connected prose weighing the chosen option against the alternatives. At least one must be present.
+- **Superseded records are never deleted.** "Why did we do it the old way, and what changed" is one of the most useful questions this system answers. The schema supports it with `supersedes`/`superseded_by`; the first adapter does not populate them yet, so that query returns an honest "not enough evidence" until a source records supersession.
+- **Evidence must resolve.** Every reference points at a real file, spec, or commit backing the decision. An uncited record is the exact failure mode this project exists to prevent. Each retrieved chunk also carries its own source path, so an answer built from one part of a record cites exactly the file that part came from.
 
 ## Adapters
 
@@ -114,15 +114,15 @@ Adapters degrade rather than guess. A missing rejection reason is recorded as mi
 
 ### Using it on a project it was not built for
 
-Three pieces make that practical, in the order they help:
+Four pieces make that practical:
 
-**`doctor`** reads an unfamiliar corpus and reports what is actually there: how many markdown files, the most common H2 headings, and documents grouped by their exact heading set, with samples. It makes no mapping claims and produces no records. It exists so you can tell whether a built-in adapter fits before writing anything.
+**`doctor`** reads an unfamiliar corpus and reports what is actually there: how many markdown files, the most common H2 headings, and documents grouped by their exact heading set, with samples. It makes no mapping claims and produces no records. It tells you whether a built-in adapter fits before you write anything.
 
-**Built-in adapters** for common formats (MADR, plain ADR) are planned, versioned like `madr@1`, so many projects would never write an adapter at all. They are to be calibrated against real repositories rather than a format's documentation, because a format's spec and a format's actual use are not the same thing. On a corpus that only partly fits, they adapt what matches and report the rest as skipped — never a thin record standing in for a document they could not read.
+**Built-in adapters** for common formats (MADR, plain ADR) are planned, versioned like `madr@1`, so many projects would never write an adapter at all. They are calibrated against real repositories, not a format's documentation — a format's spec and its actual use are not the same thing. On a corpus that only partly fits, they adapt what matches and report the rest as skipped, never a thin record standing in for a document they could not read.
 
 **Runtime loading** lets a third-party adapter be used by module path, so writing one means writing your own package rather than forking this one. A minimal starter template and a short guide come with it; `.decision-memory.yml` persists the adapter, corpus root, and output directory per project.
 
-**`test-adapter`** runs a conformance suite against any adapter, including format-drift fixtures — deliberately malformed input, wrong headings, missing fields — and confirms no confident record comes out. This is what makes the anti-fabrication guarantees checkable rather than merely promised.
+**`test-adapter`** runs a conformance suite against any adapter, including format-drift fixtures — deliberately malformed input, wrong headings, missing fields — and confirms no confident record comes out. This makes the anti-fabrication guarantees checkable rather than merely promised.
 
 ## Scope
 
@@ -139,52 +139,32 @@ Three pieces make that practical, in the order they help:
 
 **Not in v1**
 
-- Capture (creating records where no artifacts exist) — planned, see below
-- Declarative adapters: a YAML mapping file instead of Python, for formats simple enough not to need branching logic
-- MCP server and web UI — planned, see below
+- Capture (creating records where no artifacts exist) — see Roadmap
+- Declarative adapters: a YAML mapping file instead of Python — see Roadmap
+- MCP server and web UI — see Roadmap
 - Reconstructing history from a codebase that never recorded it
 - Cross-repo querying
 - Auto-approving generated records without human review
 
-Built in Python. The CLI is one interface onto the retrieval core, not the product; the core keeps a clean query boundary so other interfaces can sit on top of it without touching retrieval logic.
+Built in Python. The CLI is one interface onto the retrieval core, not the product. The core keeps a clean query boundary so other interfaces can sit on top of it without touching retrieval logic.
 
-## Planned: capture
+## Roadmap
 
-Adapters only help projects that already produce decision-shaped artifacts. Capture is the on-ramp for everyone else: at the end of a working session it interviews for what was built, what was decided, what was rejected, and why, then writes a canonical record directly.
+The retrieval core stays interface-agnostic. Everything below is a wrapper, not a rewrite.
 
-Deliberately deferred past v1. Interviewing well is harder than parsing, and validating retrieval against records that already exist is faster than building the record-creation path first and then discovering retrieval does not work.
-
-## Planned: declarative adapters
-
-For formats simple enough not to need branching logic, an adapter should be a YAML mapping file rather than a Python package — sections to fields, with light transforms. The engine keeps stub detection, warn-never-invent, evidence resolution, and attempted-field reporting as its own guarantees, so an author cannot configure them away.
-
-It has a stated ceiling rather than a hidden one: real branching logic (the kind the first adapter needed to work out which option actually won) cannot be expressed in config, and those formats are pointed back at a Python adapter rather than guessed at.
-
-Best built after a second hand-written adapter exists. A config schema designed against one format encodes that format's assumptions, so a second real adapter to design against derisks the schema considerably — it is a strong reason to sequence that way, not a hard prerequisite.
-
-## Planned: other interfaces
-
-**MCP server** — exposes the query function as an MCP tool, so decision history is queryable from inside a coding agent, in the editor where the work is happening. This is where the day-to-day utility lives.
-
-**Web UI** — a frontend over a thin HTTP layer on the core.
-
-Both are wrappers, not rewrites. The retrieval core stays interface-agnostic.
+- **Capture.** Adapters only help projects that already produce decision-shaped artifacts. Capture is the on-ramp for everyone else: at the end of a working session it interviews for what was built, what was decided, what was rejected, and why, then writes a canonical record directly. Deferred past v1 because interviewing well is harder than parsing, and validating retrieval against records that already exist is faster than building record creation first and then discovering retrieval does not work.
+- **Declarative adapters.** For formats simple enough not to need branching logic, an adapter becomes a YAML mapping file instead of a Python package: sections to fields, with light transforms. The engine keeps stub detection, warn-never-invent, evidence resolution, and attempted-field reporting as its own guarantees, so an author cannot configure them away. Best built after a second hand-written adapter exists, so the schema is designed against two real formats rather than one. Real branching logic (like working out which option actually won) cannot be expressed in config; those formats use a Python adapter.
+- **MCP server and web UI.** The MCP server exposes the query function as a tool an agent calls inside the editor, where the day-to-day utility lives. The web UI is a frontend over a thin HTTP layer on the core.
 
 ## Prior art
 
-[Token Saver](https://github.com/Marktechpost/Token-Saver) is a useful reference point: local-first, hybrid keyword and semantic retrieval, page-level citations, built as an MCP extension. It names cross-document source selection as its weaker area, which is the gap this project's structured records and metadata filtering are aimed at.
+[Token Saver](https://github.com/Marktechpost/Token-Saver) is a useful reference: local-first, hybrid keyword and semantic retrieval, page-level citations, built as an MCP extension. It names cross-document source selection as its weaker area, which is the gap this project's structured records and metadata filtering target.
 
 ## License
 
 MIT — see [LICENSE](LICENSE).
 
 ## User guide
-
-### What this tool is for
-
-decision-memory answers one kind of question about one project: **why is it built this way?** It reads the project's recorded decision history and answers from that history, with citations you can check, or an honest "not enough evidence here" when the history does not support an answer.
-
-It is not a general assistant. It does not guess, and it only knows what was written down. If a decision was never recorded, the tool cannot answer from it.
 
 ### The workflow
 
@@ -244,18 +224,18 @@ Sources
 C1 DM-0005 ch_b728a86a8b08... decision.alternatives[0] docs/specs/0005-runtime-adapter-loading/rationale.md Options considered
 ```
 
-The answer summarizes the cited chunk — spec 0005's rejected Option 2, entry point discovery — and the citation resolves to `decision.alternatives[0]` in that spec's rationale, so you can open the file and check it yourself. Because the index is built from this repository's own specs, you can reproduce the whole thing on a clone: `adapt`, then `ingest`, then the same question.
+The answer summarizes the cited chunk — spec 0005's rejected Option 2, entry point discovery — and the citation resolves to `decision.alternatives[0]` in that spec's rationale, so you can open the file and check it yourself. The index is built from this repository's own specs, so you can reproduce the whole run on a clone: `adapt`, then `ingest`, then the same question.
 
-When nothing in the records supports an answer, the tool says so plainly — "not enough evidence here" is a correct answer, not a failure:
+Every factual sentence carries a citation marker such as `[C1]`, and a `Sources` list names each citation's record, chunk, value path, relative path, and section. When no eligible chunk supports an answer, the tool prints exactly `not enough evidence here` and exits 0. That is an honest abstention, never a failure.
 
 ```console
 $ decision-memory query "why is the subscription priced at nine dollars per month?"
 not enough evidence here
 ```
 
-A refusal you did not expect is worth inspecting rather than accepting: the debug view shows which records were retrieved, how they scored, and whether the answer was refused because nothing relevant came back or because no claim could be traced to a source. That distinction matters — the first means the history genuinely does not cover your question, the second means something went wrong.
+A refusal you did not expect is worth inspecting. The debug view shows which records were retrieved, how they scored, and whether the answer was refused because nothing relevant came back or because no claim could be traced to a source. The first means the history does not cover your question; the second means something went wrong.
 
-The quality of the answer depends entirely on the quality of the records, so run `adapt` first and validate the output before you ask.
+The quality of the answer depends entirely on the quality of the records. Run `adapt` first and validate the output before you ask.
 
 ## Using the query index
 
@@ -274,14 +254,6 @@ A real `ingest` needs `OPENAI_API_KEY` only when the plan actually embeds a reco
 ### Ingest is incremental
 
 Run `ingest` again after `adapt` and only changed and new records are reembedded. Unchanged records are validated, not reembedded. Records removed from the manifest become tombstones. When a record fails (a tampered digest, missing provenance, or a provider error), the rest continue and the run reports the failure.
-
-### Ask
-
-```bash
-uv run decision-memory query "why was the private beta gate added?"
-```
-
-Every factual sentence carries a citation marker such as `[C1]`, and a `Sources` list names each citation's record, chunk, value path, relative path, and section. When no eligible chunk supports an answer, the tool prints exactly `not enough evidence here` and exits 0. That is an honest abstention, never a failure.
 
 ### Stale index warnings
 
