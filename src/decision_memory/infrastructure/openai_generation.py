@@ -35,6 +35,25 @@ MODEL_FACETS_AND_ANSWER = "gpt-4o"
 MODEL_ENTAILMENT_COVERAGE = "gpt-4o-mini"
 TEMPERATURE = 0.0
 
+# The id conventions the validators enforce: facets are F1, F2, and so on,
+# answer sentences S1, S2, and so on, and sentences cite the real chunk ids
+# shown in brackets in the evidence. The prompts must state these or a live
+# model invents its own ids and every validation attempt fails.
+FACETS_SYSTEM_PROMPT = (
+    "Extract the distinct factual questions a decision record answer must "
+    "cover. Return exactly 1 to 8 facets, each a short nonempty question "
+    "fragment, ordered as they appear in the user question, numbered F1, "
+    "F2, and so on. Do not answer the question."
+)
+ANSWER_SYSTEM_PROMPT = (
+    "Write short factual answer sentences that directly answer the given "
+    "facets, using ONLY the provided evidence chunks. Every sentence must "
+    "be a single complete sentence and cite 1 to 8 chunk ids it is directly "
+    "supported by, exactly as shown in brackets in the evidence. Number the "
+    "sentences S1, S2, and so on. Never invent facts outside the evidence. "
+    "If the evidence cannot answer a facet, write nothing for it."
+)
+
 MAX_FACETS = 8
 MAX_SENTENCES = 12
 MAX_CITED_CHUNKS = 8
@@ -60,10 +79,12 @@ def _facets_schema() -> dict[str, Any]:
                         "text": {"type": "string"},
                     },
                     "required": ["id", "text"],
+                    "additionalProperties": False,
                 },
             }
         },
         "required": ["facets"],
+        "additionalProperties": False,
     }
 
 
@@ -81,10 +102,12 @@ def _draft_schema() -> dict[str, Any]:
                         "chunk_ids": {"type": "array", "items": {"type": "string"}},
                     },
                     "required": ["id", "text", "chunk_ids"],
+                    "additionalProperties": False,
                 },
             }
         },
         "required": ["sentences"],
+        "additionalProperties": False,
     }
 
 
@@ -96,6 +119,7 @@ def _verdict_schema() -> dict[str, Any]:
             "reason": {"type": "string"},
         },
         "required": ["supported", "reason"],
+        "additionalProperties": False,
     }
 
 
@@ -116,11 +140,13 @@ def _coverage_schema() -> dict[str, Any]:
                             "items": {"type": "string"},
                         },
                     },
-                    "required": ["facet_id", "covered", "reason"],
+                    "required": ["facet_id", "covered", "reason", "sentence_ids"],
+                    "additionalProperties": False,
                 },
             }
         },
         "required": ["rows"],
+        "additionalProperties": False,
     }
 
 
@@ -326,12 +352,7 @@ def extract_facets(
     messages = [
         {
             "role": "system",
-            "content": (
-                "Extract the distinct factual questions a decision record "
-                "answer must cover. Return exactly 1 to 8 facets, each a "
-                "short nonempty question fragment, ordered as they appear in "
-                "the user question. Do not answer the question."
-            ),
+            "content": FACETS_SYSTEM_PROMPT,
         },
         {"role": "user", "content": question},
     ]
@@ -355,19 +376,13 @@ def extract_facets(
 def generate_answer(
     facets: Sequence[Facet],
     chunk_texts: Sequence[str],
+    chunk_ids: Sequence[str],
     notices: Sequence[SupersessionNotice],
     known_chunk_ids: frozenset[str],
     attempts: list[ProviderAttempt] | None = None,
 ) -> tuple[DraftSentence, ...]:
     """Generate structured answer sentences from facets and cited chunks."""
-    system = (
-        "Write short factual answer sentences that directly answer the "
-        "given facets, using ONLY the provided evidence chunks. Every "
-        "sentence must be a single complete sentence and cite 1 to 8 chunk "
-        "ids it is directly supported by. Never invent facts outside the "
-        "evidence. If the evidence cannot answer a facet, write nothing for "
-        "it."
-    )
+    system = ANSWER_SYSTEM_PROMPT
     notices_text = ""
     if notices:
         notices_text = (
@@ -381,7 +396,10 @@ def generate_answer(
             )
         )
     evidence = "\n\n---\n\n".join(
-        f"CHUNK {index}: {text}" for index, text in enumerate(chunk_texts)
+        f"CHUNK {index} ({chunk_id}): {text}"
+        for index, (chunk_id, text) in enumerate(
+            zip(chunk_ids, chunk_texts, strict=False)
+        )
     )
     messages = [
         {

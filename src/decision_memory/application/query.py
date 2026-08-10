@@ -117,6 +117,7 @@ class QueryDependencies:
         [
             Sequence[Facet],
             Sequence[str],
+            Sequence[str],
             Sequence[SupersessionNotice],
             frozenset[str],
             list[ProviderAttempt] | None,
@@ -365,11 +366,12 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
     )
 
     accepted_texts = [chunk.text for chunk in accepted]
+    accepted_ids = [chunk.chunk_id for chunk in accepted]
     known_ids = frozenset(chunk.chunk_id for chunk in accepted)
     notices = _collect_notices(deps.store, accepted)
     try:
         draft = deps.generate_answer(
-            facets, accepted_texts, notices, known_ids, attempts
+            facets, accepted_texts, accepted_ids, notices, known_ids, attempts
         )
     except Exception as exc:  # noqa: BLE001 - provider failure is a result
         return _failed_result(

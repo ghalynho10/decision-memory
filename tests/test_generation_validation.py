@@ -11,7 +11,13 @@ import pytest
 
 from decision_memory.application.dto import Facet
 from decision_memory.infrastructure.openai_generation import (
+    ANSWER_SYSTEM_PROMPT,
+    FACETS_SYSTEM_PROMPT,
     GenerationError,
+    _coverage_schema,
+    _draft_schema,
+    _facets_schema,
+    _verdict_schema,
     validate_coverage,
     validate_draft,
     validate_facets,
@@ -146,3 +152,55 @@ def test_validate_coverage_requires_one_row_per_facet() -> None:
             {"rows": [{"facet_id": "F9", "covered": True, "reason": "yes"}]},
             facets,
         )
+
+
+def _assert_strict_object(schema: object, path: str) -> None:
+    """OpenAI strict structured output rules for one object (regression).
+
+    A live gpt-4o call rejects a schema with a 400 unless every object sets
+    ``additionalProperties: false`` and lists every property as required.
+    The deterministic fakes never hit the API, so this is the only guard.
+    """
+    assert isinstance(schema, dict), f"{path} is not an object"
+    assert schema.get("type") == "object", f"{path} is not typed object"
+    assert schema.get("additionalProperties") is False, (
+        f"{path} lacks additionalProperties false"
+    )
+    properties = schema.get("properties")
+    required = schema.get("required", [])
+    assert isinstance(properties, dict), f"{path} lacks properties"
+    assert set(required) == set(properties), f"{path} properties not all required"
+    for name, child in properties.items():
+        if isinstance(child, dict) and child.get("type") == "object":
+            _assert_strict_object(child, f"{path}.{name}")
+
+
+def test_generation_schemas_are_strict_output_conformant() -> None:
+    """Every structured output schema passes OpenAI strict mode (regression).
+
+    This regression came from a live 400: the schemas omitted
+    ``additionalProperties: false`` and the coverage schema had an optional
+    ``sentence_ids`` field, which strict mode rejects.
+    """
+    for schema in (
+        _facets_schema(),
+        _draft_schema(),
+        _verdict_schema(),
+        _coverage_schema(),
+    ):
+        _assert_strict_object(schema, "schema")
+
+
+def test_facets_prompt_instructs_f_ids() -> None:
+    """The facets prompt must state the F1, F2 id convention the validator
+    enforces, or a live model returns ids like 1 and 2 and every validation
+    attempt fails (regression)."""
+    assert "F1, F2" in FACETS_SYSTEM_PROMPT
+
+
+def test_answer_prompt_instructs_s_ids_and_bracket_chunk_ids() -> None:
+    """The answer prompt must state the S1, S2 id convention and give the
+    model the real chunk ids to cite, or a live model invents ids and cites
+    nothing valid (regression)."""
+    assert "S1, S2" in ANSWER_SYSTEM_PROMPT
+    assert "brackets" in ANSWER_SYSTEM_PROMPT
