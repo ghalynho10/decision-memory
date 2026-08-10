@@ -84,6 +84,7 @@ def test_ingest_adds_all_records_and_activates(tmp_path) -> None:
     result, index, calls = _ingest(records_dir)
     assert result.state == IngestState.COMPLETED
     assert result.exit_code == 0
+    assert result.store_path == Path("/fake/store")
     assert [record.record_id for record in result.records] == ["DM-0012"]
     assert result.records[0].action == RecordAction.ADDED
     assert result.records[0].chunks

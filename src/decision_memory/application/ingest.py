@@ -116,7 +116,9 @@ def ingest_records(request: IngestRequest, deps: IngestDependencies) -> IngestRe
     exit code; only programming errors raise past this boundary.
     """
     if not request.records_dir.is_dir():
-        return _result(EXIT_CORPUS_INVALID, IngestState.FAILED, (), None)
+        return _result(
+            EXIT_CORPUS_INVALID, IngestState.FAILED, (), None, request.store_dir
+        )
     try:
         manifest = deps.load_manifest()
     except Exception:  # noqa: BLE001 - malformed manifest is a returned result
@@ -125,6 +127,7 @@ def ingest_records(request: IngestRequest, deps: IngestDependencies) -> IngestRe
             IngestState.FAILED,
             (),
             Failure("manifest.invalid", "manifest", "manifest could not be read"),
+            request.store_dir,
         )
     if request.dry_run:
         return _dry_run(request, deps, manifest)
@@ -156,6 +159,7 @@ def _run_ingest(
                     "index was built with a different pipeline signature; "
                     "run ingest --rebuild",
                 ),
+                request.store_dir,
             )
     states = deps.store.existing_states() if not request.rebuild else {}
     if _plan_needs_provider(manifest, states, request.rebuild):
@@ -168,6 +172,7 @@ def _run_ingest(
                 IngestState.FAILED,
                 (),
                 Failure("provider.key", "planning", detail),
+                request.store_dir,
             )
     generation_id = deps.store.open_generation(request.rebuild)
     results: list[RecordIngestResult] = []
@@ -206,6 +211,7 @@ def _run_ingest(
             IngestState.FAILED,
             tuple(results),
             Failure("supersession.invalid", "ingest", "; ".join(supersession_problems)),
+            request.store_dir,
         )
     problems = deps.store.activate(generation_id)
     if problems:
@@ -214,6 +220,7 @@ def _run_ingest(
             IngestState.FAILED,
             tuple(results),
             Failure("store.parity", "store", "; ".join(problems)),
+            request.store_dir,
         )
     deps.store.set_manifest_metadata(
         records_manifest_path=str((request.records_dir / MANIFEST_FILENAME).resolve()),
@@ -226,7 +233,13 @@ def _run_ingest(
 
     failed = any(result.action == RecordAction.FAILED for result in results)
     state = IngestState.PARTIAL if failed else IngestState.COMPLETED
-    return _result(EXIT_ERROR if failed else EXIT_OK, state, tuple(results), None)
+    return _result(
+        EXIT_ERROR if failed else EXIT_OK,
+        state,
+        tuple(results),
+        None,
+        request.store_dir,
+    )
 
 
 def _plan_needs_provider(
@@ -402,7 +415,13 @@ def _dry_run(
         results.append(_dry_run_entry(deps, entry))
     failed = any(result.action == RecordAction.FAILED for result in results)
     state = IngestState.PARTIAL if failed else IngestState.COMPLETED
-    return _result(EXIT_ERROR if failed else EXIT_OK, state, tuple(results), None)
+    return _result(
+        EXIT_ERROR if failed else EXIT_OK,
+        state,
+        tuple(results),
+        None,
+        request.store_dir,
+    )
 
 
 def _dry_run_entry(
@@ -499,12 +518,13 @@ def _result(
     state: IngestState,
     records: tuple[RecordIngestResult, ...],
     failure: Failure | None,
+    store_path: Path,
 ) -> IngestResult:
     return IngestResult(
         schema_version=1,
         state=state,
         exit_code=exit_code,
-        store_path=Path("/unset"),
+        store_path=store_path,
         semantic_manifest_digest=None,
         raw_manifest_digest=None,
         records=records,
