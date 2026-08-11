@@ -73,7 +73,7 @@ Sources (project-specific)
     Generic RAG core     ingestion · semantic retrieval (hybrid planned) · citation
 ```
 
-See the [user guide](docs/reference/user-guide.md) for the canonical record schema, adapter internals, exit codes, and how to triage a bad answer.
+See the [user guide](docs/user-guide.md) for the canonical record schema, adapter internals, exit codes, and how to triage a bad answer.
 
 ## Scope
 

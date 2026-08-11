@@ -1,6 +1,6 @@
 # User guide
 
-Deeper reference for people already running the tool. The [README](../../README.md) covers what this is and how to get started; this doc covers the record schema, the pipeline internals, and how to debug a bad answer.
+Deeper reference for people already running the tool. The [README](../README.md) covers what this is and how to get started; this doc covers the record schema, the pipeline internals, and how to debug a bad answer.
 
 ## Questions this tool answers well
 
