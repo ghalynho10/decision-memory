@@ -72,13 +72,13 @@ Adapters degrade rather than guess. A missing rejection reason is recorded as mi
 
 ### Using it on a project it was not built for
 
-**`doctor`** reads an unfamiliar corpus and reports what is actually there: file counts, common H2 headings, and documents grouped by their exact heading set. No mapping claims, no records — it tells you whether a built-in adapter fits before you write anything.
+**`doctor`** reads an unfamiliar corpus and reports what is actually there: file counts, common H2 headings, and documents grouped by their exact heading set. It makes no mapping claims and produces no records; it tells you whether a built-in adapter fits before you write anything.
 
 **Built-in adapters** for common formats (MADR, plain ADR) are planned, versioned like `madr@1`, calibrated against real repositories rather than a format's documentation. On a corpus that only partly fits, they adapt what matches and report the rest as skipped.
 
 **Runtime loading** lets a third-party adapter be used by module path, so writing one means writing your own package rather than forking this one. A minimal starter template and guide live in `examples/starter-adapter/`. `.decision-memory.yml` persists the adapter, corpus root, and output directory per project.
 
-**`test-adapter`** runs a conformance suite against any adapter, including format-drift fixtures — malformed input, wrong headings, missing fields — and confirms no confident record comes out.
+**`test-adapter`** runs a conformance suite against any adapter, including format-drift fixtures (malformed input, wrong headings, missing fields), and confirms no confident record comes out.
 
 ## Using the query index
 
@@ -108,7 +108,7 @@ The store remembers the absolute corpus root as a hint, so a citation's relative
 
 ### Debug output is sensitive
 
-`query --debug` prints the full trace: retrieved chunks with their scores, extracted facets, draft sentences, verification verdicts, provider attempts, citations, and full chunk text. It may include private project data — treat it as sensitive before pasting it into an issue.
+`query --debug` prints the full trace: retrieved chunks with their scores, extracted facets, draft sentences, verification verdicts, provider attempts, citations, and full chunk text. It may include private project data, so treat it as sensitive before pasting it into an issue.
 
 ### Rebuild and recovery
 

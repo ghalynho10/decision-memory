@@ -2,19 +2,19 @@
 
 A local, cited RAG system that makes software decision history queryable.
 
-Point it at a project's decision records and ask why something is built the way it is. Answers come back cited to a source spec, commit, or file — or an honest "not enough evidence here" when the history doesn't support one.
+Point it at a project's decision records and ask why something is built the way it is. Answers come back cited to a source spec, commit, or file, or an honest "not enough evidence here" when the history doesn't support one.
 
-**Status: early development.** Seven commands ship — `version`, `validate`, `doctor`, `adapt`, `test-adapter`, `ingest`, `query` — verified live against a real project's specs: a known-answer question returns a correct, cited answer, and an unsupported question returns `not enough evidence here`, exit `0`. Built-in ADR adapters and hybrid retrieval are planned, not shipped yet.
+**Status: early development.** Seven commands ship (`version`, `validate`, `doctor`, `adapt`, `test-adapter`, `ingest`, `query`), verified live against a real project's specs: a known-answer question returns a correct, cited answer, and an unsupported question returns `not enough evidence here`, exit `0`. Built-in ADR adapters and hybrid retrieval are planned, not shipped yet.
 
 ## What this is for
 
-decision-memory answers one question about one project: **why is it built this way?** It's not a general assistant, and it doesn't replace reading a codebase. The value is the evidence contract — every claim is cited to a source spec and section, or the tool abstains rather than guess.
+decision-memory answers one question about one project: **why is it built this way?** It's a narrow tool, not a general assistant, and it won't replace reading the codebase. The value is the evidence contract: every claim is cited to a source spec and section, or the tool abstains rather than guess.
 
 It pays off during onboarding and code review, when checking whether an earlier choice was already tried and rejected, and on corpora large enough that a focused, cited answer beats reading everything.
 
 ## The problem
 
-During spec-driven or agentic development, the reasoning behind a system lives in scattered places: planning documents, generated specs, commit messages, pull requests, conversations that vanish when the session ends. Months later the code tells you *what* it does. It rarely tells you why this database, this schema, this API shape — what got tried and rejected, what a given feature is standing on, what assumptions to check first when it breaks.
+During spec-driven or agentic development, the reasoning behind a system lives in scattered places: planning documents, generated specs, commit messages, pull requests, conversations that vanish when the session ends. Months later the code tells you *what* it does. It rarely tells you why this database, this schema, this API shape, what got tried and rejected, what a given feature is standing on, or what assumptions to check first when it breaks.
 
 ## Quickstart
 
@@ -47,7 +47,7 @@ $ decision-memory query "why is the subscription priced at nine dollars per mont
 not enough evidence here
 ```
 
-That's an honest abstention, not a failure — the tool exits `0` either way.
+That's an honest abstention, not a failure, and the tool exits `0` either way.
 
 ## The approach
 
@@ -81,7 +81,7 @@ See the [user guide](docs/reference/user-guide.md) for the canonical record sche
 
 **Not in v1:** capture, declarative adapters, MCP server and web UI (see Roadmap), reconstructing history from a codebase that never recorded it, cross-repo querying, auto-approving generated records without human review.
 
-Built in Python. The CLI is one interface onto the retrieval core, not the product — the core keeps a clean query boundary so other interfaces can sit on top of it without touching retrieval logic.
+Built in Python. The CLI is one interface onto the retrieval core, not the product. The core keeps a clean query boundary so other interfaces can sit on top of it without touching retrieval logic.
 
 ## Roadmap
 
@@ -97,4 +97,4 @@ The retrieval core stays interface-agnostic; everything below is a wrapper, not 
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT, see [LICENSE](LICENSE).
