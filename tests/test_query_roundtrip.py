@@ -37,6 +37,7 @@ from decision_memory.application.dto import (
 )
 from decision_memory.application.ingest import IngestDependencies, ingest_records
 from decision_memory.application.query import QueryDependencies, query_index
+from decision_memory.infrastructure.bm25 import bm25_lexical_scorer
 from decision_memory.infrastructure.file_reader import write_record_file
 from decision_memory.infrastructure.index_reader import SqliteChromaIndexReader
 from decision_memory.infrastructure.index_store import SqliteChromaIndexWriter
@@ -82,6 +83,7 @@ def _query_deps(index: Any, **overrides: object) -> QueryDependencies:
         "store": index,
         "count_tokens": tiktoken_count,
         "embed": fake_embed,
+        "lexical_scorer": bm25_lexical_scorer,
         "load_manifest": load_stored_manifest,
         "raw_manifest_digest": stored_manifest_digest,
         "resolve_source": lambda path: (

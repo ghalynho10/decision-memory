@@ -22,6 +22,7 @@ from decision_memory.application.dto import (
 )
 from decision_memory.application.ingest import IngestDependencies, ingest_records
 from decision_memory.application.query import QueryDependencies, query_index
+from decision_memory.infrastructure.bm25 import bm25_lexical_scorer
 from decision_memory.infrastructure.file_reader import write_record_file
 from decision_memory.infrastructure.index_reader import SqliteChromaIndexReader
 from decision_memory.infrastructure.index_store import SqliteChromaIndexWriter
@@ -121,6 +122,7 @@ def test_query_one_against_real_jobpilot(tmp_path) -> None:
             store=reader,
             count_tokens=tiktoken_count,
             embed=embed_texts,
+            lexical_scorer=bm25_lexical_scorer,
             load_manifest=load_stored_manifest,
             raw_manifest_digest=stored_manifest_digest,
             resolve_source=lambda path: resolve_source_path(path, _stored_hint()),

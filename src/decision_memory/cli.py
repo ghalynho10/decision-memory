@@ -50,6 +50,7 @@ from decision_memory.application.ingest import IngestDependencies, ingest_record
 from decision_memory.application.query import QueryDependencies, query_index
 from decision_memory.application.settings import SettingsError, resolve_runtime_settings
 from decision_memory.application.validation_service import validate_file
+from decision_memory.infrastructure.bm25 import bm25_lexical_scorer
 from decision_memory.infrastructure.conformance_fixtures import conformance_fixture_port
 from decision_memory.infrastructure.conformance_manifest import (
     ConformanceManifestError,
@@ -774,6 +775,7 @@ def query_command(
                     store=reader,
                     count_tokens=tiktoken_count,
                     embed=embed_texts,
+                    lexical_scorer=bm25_lexical_scorer,
                     load_manifest=_load_stored_manifest,
                     raw_manifest_digest=_stored_manifest_raw_digest,
                     resolve_source=lambda path: resolve_source_path(

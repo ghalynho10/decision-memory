@@ -3,16 +3,17 @@
 ``query_index`` reads only the local store. It applies explicit metadata
 filters to an immutable ``active_chunks`` snapshot first (AC-4), so a filter
 that matches nothing abstains without any embedding or generation call. It
-then retrieves candidates, ranks them, and passes the accepted context to the
-existing generation and verification path. Milestone 1 runs the semantic only
-retriever over the filtered set; the lexical, fusion, and diversity stages
-land in later milestones. Provider, schema, lock, manifest, and store failures
-are never abstention. The application receives every provider and store
-concern as a narrow callable or protocol (AC-20).
+then runs BM25 lexical and cosine semantic retrieval over the same accepted
+chunks, fuses their ranks with reciprocal rank fusion, applies a two pass
+record diversity rule, and passes the accepted context to the existing
+generation and verification path (AC-5 to AC-8). Provider, schema, lock,
+manifest, and store failures are never abstention. The application receives
+every provider and store concern as a narrow callable or protocol (AC-20).
 """
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Protocol
@@ -23,6 +24,7 @@ from decision_memory.application.dto import (
     AbstentionStage,
     ActiveChunkDescriptor,
     AnswerSentence,
+    BreadthDisposition,
     Citation,
     CitationFreshness,
     CitationKind,
@@ -33,10 +35,14 @@ from decision_memory.application.dto import (
     Failure,
     FilterState,
     FilterTrace,
+    FinalDisposition,
     FreshnessState,
     FreshnessTrace,
+    FusedCandidate,
     FusionTrace,
     GenerationTrace,
+    LexicalDisposition,
+    LexicalRow,
     LexicalTrace,
     ProviderAttempt,
     QueryRequest,
@@ -47,6 +53,7 @@ from decision_memory.application.dto import (
     ResultTrace,
     RetrievalSettings,
     RetrievalTrace,
+    SelectionPass,
     SemanticDisposition,
     SemanticMatches,
     SemanticRow,
@@ -60,6 +67,7 @@ from decision_memory.application.lexical import (
     LEXICAL_TOKENIZER_VERSION,
     STOPWORD_DIGEST,
     STOPWORD_SET,
+    tokenize,
 )
 from decision_memory.application.pipeline import (
     MODEL_TOKEN_LIMIT,
@@ -119,7 +127,6 @@ class IndexReader(Protocol):
     def store_format(self) -> int | None: ...
     def parity_problems(self) -> list[str]: ...
     def active_chunks(self) -> tuple[ActiveChunkDescriptor, ...]: ...
-    def eligible_tuples(self) -> tuple[tuple[str, str, str], ...]: ...
     def manifest_metadata(
         self,
     ) -> tuple[str | None, str | None, str | None, str | None]: ...
@@ -144,6 +151,7 @@ class QueryDependencies:
     store: IndexReader
     count_tokens: Callable[[str], int]
     embed: Callable[[Sequence[str]], list[list[float]]]
+    lexical_scorer: LexicalScorer
     load_manifest: Callable[[], Manifest]
     raw_manifest_digest: Callable[[], str]
     resolve_source: Callable[[str], ResolutionState]
@@ -301,6 +309,19 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
         chunk.chunk_id: chunk for chunk in active if chunk.chunk_id in accepted_ids
     }
 
+    # Lexical stage: BM25 over accepted chunk text, no provider call (AC-5).
+    try:
+        lexical_trace, ranked_lexical = _lexical_stage(
+            question, accepted_by_id, deps.lexical_scorer
+        )
+    except Exception as exc:  # noqa: BLE001 - scorer failure is a result
+        return _failed_result(
+            request,
+            freshness,
+            Failure("retrieval.lexical", "retrieval", _safe(exc)),
+            EXIT_ERROR,
+        )
+
     # Semantic retrieval over the exact accepted ids (AC-6): Chroma receives
     # the accepted count as n_results and an $in over the accepted ids, and the
     # application validates the returned set before local ranking.
@@ -394,20 +415,61 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
     semantic_trace = SemanticTrace(
         rows=tuple(sorted(semantic_rows, key=lambda row: row.chunk_id))
     )
+    ranked_semantic = {
+        row.chunk_id: row.rank
+        for row in semantic_rows
+        if row.disposition == SemanticDisposition.RANKED
+    }
 
-    # Milestone 2 accepts the top eight semantic candidates for generation.
-    accepted_chunks = [chunk for chunk, _distance in scored[:ACCEPTED_LIMIT]]
-    diversity_trace = DiversityTrace(
-        accepted_chunk_ids=tuple(chunk.chunk_id for chunk in accepted_chunks),
-        accepted_limit=ACCEPTED_LIMIT,
-        record_cap=DIVERSITY_CAP,
-    )
+    # Reciprocal rank fusion over the ranked lexical and semantic union (AC-7).
+    try:
+        fused = _fusion_stage(ranked_lexical, ranked_semantic, accepted_by_id)
+    except Exception as exc:  # noqa: BLE001 - fusion failure is a result
+        return _failed_result(
+            request,
+            freshness,
+            Failure("retrieval.fusion", "retrieval", _safe(exc)),
+            EXIT_ERROR,
+        )
+    if not fused:
+        # Ranked union empty after a nonempty filter result: retrieval
+        # abstention, both complete traces preserved, no generation call (AC-9).
+        retrieval = RetrievalTrace(
+            filters=filter_trace,
+            lexical=lexical_trace,
+            semantic=semantic_trace,
+            fusion=FusionTrace(candidates=()),
+            diversity=DiversityTrace(
+                accepted_chunk_ids=(),
+                accepted_limit=ACCEPTED_LIMIT,
+                record_cap=DIVERSITY_CAP,
+            ),
+            settings=_retrieval_settings(),
+        )
+        return _abstained_result(
+            request, freshness, retrieval, AbstentionStage.RETRIEVAL
+        )
+
+    # Two pass record diversity over the fused candidates (AC-8).
+    try:
+        final_candidates, accepted_chunks = _diversity_stage(fused, accepted_by_id)
+    except Exception as exc:  # noqa: BLE001 - diversity failure is a result
+        return _failed_result(
+            request,
+            freshness,
+            Failure("retrieval.diversity", "retrieval", _safe(exc)),
+            EXIT_ERROR,
+        )
     retrieval = RetrievalTrace(
         filters=filter_trace,
-        lexical=LexicalTrace(rows=()),
+        lexical=lexical_trace,
         semantic=semantic_trace,
-        fusion=FusionTrace(candidates=()),
-        diversity=diversity_trace,
+        fusion=FusionTrace(candidates=tuple(final_candidates)),
+        diversity=DiversityTrace(
+            accepted_chunk_ids=tuple(chunk.chunk_id for chunk in accepted_chunks),
+            accepted_limit=ACCEPTED_LIMIT,
+            record_cap=DIVERSITY_CAP,
+        ),
         settings=_retrieval_settings(),
     )
 
@@ -606,6 +668,198 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
         trace=trace,
         failure=None,
     )
+
+
+def _lexical_stage(
+    question: str,
+    accepted_by_id: dict[str, ActiveChunkDescriptor],
+    scorer: LexicalScorer,
+) -> tuple[LexicalTrace, dict[str, int]]:
+    """BM25 over accepted chunk text, returning the trace and ranked ids (AC-5).
+
+    Dispositions use the fixed precedence: no query token intersects the chunk
+    tokens gives ``no_term_match``; a score at or below zero gives
+    ``nonpositive_score``; positive rows sort by score descending then chunk id
+    and receive ranks starting at 1, with ranks 1 through 24 ``ranked`` and
+    later positive ranks ``outside_top_24``. Only ``ranked`` rows contribute to
+    fusion.
+    """
+    ordered = sorted(accepted_by_id.values(), key=lambda chunk: chunk.chunk_id)
+    query_tokens = tokenize(question)
+    document_tokens = [tokenize(chunk.text) for chunk in ordered]
+    scores = list(scorer(query_tokens, document_tokens))
+    if len(scores) != len(ordered):
+        raise ValueError("lexical scorer returned a wrong count")
+    rows: list[LexicalRow] = []
+    positive: list[tuple[ActiveChunkDescriptor, float]] = []
+    for chunk, score, doc_tokens in zip(ordered, scores, document_tokens, strict=True):
+        if not isinstance(score, (int, float)) or not math.isfinite(score):
+            raise ValueError(f"nonfinite lexical score for {chunk.chunk_id}")
+        value = float(score)
+        if not query_tokens or not (set(query_tokens) & set(doc_tokens)):
+            rows.append(
+                LexicalRow(
+                    chunk.chunk_id, value, None, LexicalDisposition.NO_TERM_MATCH
+                )
+            )
+        elif value <= 0.0:
+            rows.append(
+                LexicalRow(
+                    chunk.chunk_id, value, None, LexicalDisposition.NONPOSITIVE_SCORE
+                )
+            )
+        else:
+            positive.append((chunk, value))
+    positive.sort(key=lambda pair: (-pair[1], pair[0].chunk_id))
+    ranked: dict[str, int] = {}
+    for rank, (chunk, score) in enumerate(positive, start=1):
+        ranked[chunk.chunk_id] = rank
+        rows.append(
+            LexicalRow(
+                chunk.chunk_id,
+                score,
+                rank,
+                (
+                    LexicalDisposition.RANKED
+                    if rank <= CANDIDATE_LIMIT
+                    else LexicalDisposition.OUTSIDE_TOP_24
+                ),
+            )
+        )
+    rows.sort(key=lambda row: row.chunk_id)
+    return LexicalTrace(rows=tuple(rows)), ranked
+
+
+def _fusion_stage(
+    ranked_lexical: dict[str, int],
+    ranked_semantic: dict[str, int],
+    accepted_by_id: dict[str, ActiveChunkDescriptor],
+) -> list[FusedCandidate]:
+    """Reciprocal rank fusion over the ranked union (AC-7).
+
+    For each chunk, ``fused_score`` is the sum of ``1 / (60 + rank)`` for each
+    present contribution; a missing contribution adds zero. Fused candidates
+    sort by score descending then chunk id. No raw score normalization or cross
+    scale comparison occurs. The returned candidates carry placeholder
+    diversity facts that the diversity stage replaces.
+    """
+    chunk_ids = sorted(set(ranked_lexical) | set(ranked_semantic))
+    scored: list[tuple[str, float, int | None, int | None]] = []
+    for chunk_id in chunk_ids:
+        lexical_rank = ranked_lexical.get(chunk_id)
+        semantic_rank = ranked_semantic.get(chunk_id)
+        fused = 0.0
+        if lexical_rank is not None:
+            fused += 1.0 / (RRF_CONSTANT + lexical_rank)
+        if semantic_rank is not None:
+            fused += 1.0 / (RRF_CONSTANT + semantic_rank)
+        scored.append((chunk_id, fused, lexical_rank, semantic_rank))
+    scored.sort(key=lambda item: (-item[1], item[0]))
+    candidates: list[FusedCandidate] = []
+    for fused_rank, (chunk_id, fused, lexical_rank, semantic_rank) in enumerate(
+        scored, start=1
+    ):
+        chunk = accepted_by_id[chunk_id]
+        candidates.append(
+            FusedCandidate(
+                chunk_id=chunk_id,
+                record_id=chunk.record_id,
+                value_path=chunk.value_path,
+                fingerprint=chunk.fingerprint,
+                ordinal=chunk.ordinal,
+                text=chunk.text,
+                provenance=chunk.provenance,
+                lexical_rank=lexical_rank,
+                semantic_rank=semantic_rank,
+                fused_score=fused,
+                fused_rank=fused_rank,
+                breadth_disposition=BreadthDisposition.RECORD_CAP,
+                selection_pass=None,
+                final_rank=None,
+                final_disposition=FinalDisposition.OUTSIDE_TOP_8,
+            )
+        )
+    return candidates
+
+
+def _diversity_stage(
+    candidates: Sequence[FusedCandidate],
+    accepted_by_id: dict[str, ActiveChunkDescriptor],
+) -> tuple[list[FusedCandidate], list[ActiveChunkDescriptor]]:
+    """Two pass record diversity, returning final candidates and accepts (AC-8).
+
+    The breadth pass walks fused rank from 1 upward, accepting at most two per
+    record. A candidate at the record cap is deferred with ``record_cap``. As
+    soon as eight are accepted, every unvisited candidate gets
+    ``accepted_limit_reached``. If breadth exhausts the input below eight, the
+    fill pass revisits only deferred rows in fused order and accepts them until
+    eight or exhaustion. Accepted chunks come back in final rank (append)
+    order.
+    """
+    states: list[
+        tuple[FusedCandidate, BreadthDisposition, SelectionPass | None, int | None]
+    ] = []
+    accepted_count = 0
+    record_counts: dict[str, int] = {}
+    deferred: list[int] = []
+    for candidate in candidates:
+        if accepted_count >= ACCEPTED_LIMIT:
+            states.append(
+                (candidate, BreadthDisposition.ACCEPTED_LIMIT_REACHED, None, None)
+            )
+            continue
+        record_count = record_counts.get(candidate.record_id, 0)
+        if record_count >= DIVERSITY_CAP:
+            deferred.append(len(states))
+            states.append((candidate, BreadthDisposition.RECORD_CAP, None, None))
+            continue
+        accepted_count += 1
+        record_counts[candidate.record_id] = record_count + 1
+        states.append(
+            (
+                candidate,
+                BreadthDisposition.ACCEPTED,
+                SelectionPass.BREADTH,
+                accepted_count,
+            )
+        )
+    for index in deferred:
+        if accepted_count >= ACCEPTED_LIMIT:
+            break
+        candidate, breadth, _selection_pass, _final_rank = states[index]
+        accepted_count += 1
+        states[index] = (candidate, breadth, SelectionPass.FILL, accepted_count)
+    final_candidates = [
+        FusedCandidate(
+            chunk_id=candidate.chunk_id,
+            record_id=candidate.record_id,
+            value_path=candidate.value_path,
+            fingerprint=candidate.fingerprint,
+            ordinal=candidate.ordinal,
+            text=candidate.text,
+            provenance=candidate.provenance,
+            lexical_rank=candidate.lexical_rank,
+            semantic_rank=candidate.semantic_rank,
+            fused_score=candidate.fused_score,
+            fused_rank=candidate.fused_rank,
+            breadth_disposition=breadth,
+            selection_pass=selection_pass,
+            final_rank=final_rank,
+            final_disposition=(
+                FinalDisposition.ACCEPTED
+                if final_rank is not None
+                else FinalDisposition.OUTSIDE_TOP_8
+            ),
+        )
+        for candidate, breadth, selection_pass, final_rank in states
+    ]
+    accepted = sorted(
+        (final_rank, candidate.chunk_id)
+        for candidate, _breadth, _selection_pass, final_rank in states
+        if final_rank is not None
+    )
+    accepted_chunks = [accepted_by_id[chunk_id] for _final_rank, chunk_id in accepted]
+    return final_candidates, accepted_chunks
 
 
 def _allocate_citations(
