@@ -9,7 +9,7 @@ from test_adapter_parse import REAL_PANEL_INDEX, REAL_PANEL_RATIONALE
 from typer.testing import CliRunner
 
 from decision_memory.application.adapter import adapt_corpus
-from decision_memory.application.dto import QueryRequest, QueryState
+from decision_memory.application.dto import QueryFilters, QueryRequest, QueryState
 from decision_memory.application.query import query_index
 from decision_memory.cli import _print_query_report, app
 from decision_memory.infrastructure.file_reader import write_record_file
@@ -116,6 +116,7 @@ def test_query_cli_abstention_debug_prints_trace(capsys) -> None:
             question="anything at all",
             store_dir=Path("/fake/store"),
             allow_stale=True,
+            filters=QueryFilters(),
         ),
         _query_deps(index),
     )
@@ -124,5 +125,5 @@ def test_query_cli_abstention_debug_prints_trace(capsys) -> None:
     captured = capsys.readouterr()
     assert "not enough evidence here" in captured.out
     assert "Freshness" in captured.out
-    assert "Retrieval" in captured.out
+    assert "Filter" in captured.out
     assert "abstention_stage: retrieval" in captured.out

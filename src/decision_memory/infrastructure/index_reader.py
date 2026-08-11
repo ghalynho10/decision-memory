@@ -14,12 +14,11 @@ from pathlib import Path
 from typing import Any
 
 from decision_memory.application.canonical import SourceReference
-from decision_memory.application.dto import SupersessionNotice
-from decision_memory.application.query import (
-    CANDIDATE_LIMIT,
-    IndexReader,
-    RetrievedChunk,
+from decision_memory.application.dto import (
+    ActiveChunkDescriptor,
+    SupersessionNotice,
 )
+from decision_memory.application.query import CANDIDATE_LIMIT, IndexReader
 from decision_memory.infrastructure.chroma_store import (
     CHROMA_COLLECTION,
     _client,
@@ -85,6 +84,66 @@ class SqliteChromaIndexReader(IndexReader):
                 tuples.append(candidate)
         return tuple(tuples)
 
+    def active_chunks(self) -> tuple[ActiveChunkDescriptor, ...]:
+        """Every active chunk with its record metadata, chunk id sorted (AC-4, AC-16).
+
+        All reads happen in one SQLite read transaction, so the returned
+        snapshot is immutable for the query. Provenance comes from the chunk
+        source rows and tags from the record tag rows.
+        """
+        generation_id = self.generation_id()
+        if generation_id is None:
+            return ()
+        connection = self._connection(generation_id)
+        try:
+            verify_schema_version(connection)
+            connection.execute("BEGIN")
+            try:
+                rows = connection.execute(
+                    "SELECT c.chunk_id, c.record_id, s.title, s.status, "
+                    "c.active_fingerprint, c.value_path, c.ordinal, c.text "
+                    "FROM chunk c "
+                    "JOIN record_snapshot s ON s.record_id = c.record_id "
+                    "ORDER BY c.chunk_id"
+                ).fetchall()
+                tag_rows = connection.execute(
+                    "SELECT record_id, tag FROM record_tag ORDER BY record_id, tag"
+                ).fetchall()
+                source_rows = connection.execute(
+                    "SELECT chunk_id, path, section FROM chunk_source "
+                    "ORDER BY chunk_id, path, section"
+                ).fetchall()
+            finally:
+                connection.execute("COMMIT")
+            tag_lists: dict[str, list[str]] = {}
+            for record_id, tag in tag_rows:
+                tag_lists.setdefault(str(record_id), []).append(str(tag))
+            source_lists: dict[str, list[SourceReference]] = {}
+            for chunk_id, path, section in source_rows:
+                source_lists.setdefault(str(chunk_id), []).append(
+                    SourceReference(str(path), str(section))
+                )
+            descriptors = [
+                ActiveChunkDescriptor(
+                    chunk_id=str(row[0]),
+                    record_id=str(row[1]),
+                    record_title=str(row[2]),
+                    record_status=str(row[3]) if row[3] is not None else None,
+                    record_tags=tuple(tag_lists.get(str(row[1]), ())),
+                    value_path=str(row[4]),
+                    fingerprint=str(row[5]),
+                    ordinal=int(row[6]),
+                    text=str(row[7]),
+                    provenance=tuple(source_lists.get(str(row[0]), ())),
+                )
+                for row in rows
+            ]
+            return tuple(
+                sorted(descriptors, key=lambda descriptor: descriptor.chunk_id)
+            )
+        finally:
+            connection.close()
+
     def search(
         self,
         embedding: Sequence[float],
@@ -130,43 +189,6 @@ class SqliteChromaIndexReader(IndexReader):
         ids = result.get("ids", [[]])[0] if result.get("ids") else []
         distances = result.get("distances", [[]])[0] if result.get("distances") else []
         return list(zip(ids, distances, strict=False))
-
-    def chunk(self, chunk_id: str) -> RetrievedChunk | None:
-        generation_id = self.generation_id()
-        if generation_id is None:
-            return None
-        connection = self._connection(generation_id)
-        try:
-            row = connection.execute(
-                "SELECT c.chunk_id, c.generation_id, c.record_id, "
-                "c.active_fingerprint, c.value_path, c.ordinal, c.text, "
-                "s.title, s.status "
-                "FROM chunk c JOIN record_snapshot s ON s.record_id = c.record_id "
-                "WHERE c.chunk_id = ?",
-                (chunk_id,),
-            ).fetchone()
-            if row is None:
-                return None
-            sources = tuple(
-                SourceReference(path=item[0], section=item[1])
-                for item in connection.execute(
-                    "SELECT path, section FROM chunk_source WHERE chunk_id = ?",
-                    (chunk_id,),
-                ).fetchall()
-            )
-            return RetrievedChunk(
-                chunk_id=row[0],
-                record_id=row[2],
-                value_path=row[4],
-                fingerprint=row[3],
-                ordinal=row[5],
-                text=row[6],
-                sources=sources,
-                record_title=row[7],
-                record_status=row[8],
-            )
-        finally:
-            connection.close()
 
     def manifest_metadata(
         self,

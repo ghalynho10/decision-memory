@@ -14,7 +14,12 @@ from pathlib import Path
 import pytest
 
 from decision_memory.application.adapter import adapt_corpus
-from decision_memory.application.dto import IngestRequest, QueryRequest, QueryState
+from decision_memory.application.dto import (
+    IngestRequest,
+    QueryFilters,
+    QueryRequest,
+    QueryState,
+)
 from decision_memory.application.ingest import IngestDependencies, ingest_records
 from decision_memory.application.query import QueryDependencies, query_index
 from decision_memory.infrastructure.file_reader import write_record_file
@@ -110,6 +115,7 @@ def test_query_one_against_real_jobpilot(tmp_path) -> None:
             ),
             store_dir=store_dir,
             allow_stale=False,
+            filters=QueryFilters(),
         ),
         QueryDependencies(
             store=reader,

@@ -1,14 +1,14 @@
-"""Application: the query use case (spec 0007 AC-12, AC-15, AC-16).
+"""Application: the query use case (spec 0007 AC-12, AC-15, AC-16; spec 0008).
 
-``query_index`` reads only the local store. It verifies the pipeline
-signature and SQLite to Chroma parity, retrieves up to 24 cosine candidates
-against the SQLite supplied eligibility filter, accepts the first eight under
-the disabled null floor, extracts facets independently, generates structured
-answer sentences, verifies them by deterministic containment or model
-entailment, checks coverage, and returns a cited answer or an honest
-abstention. Provider, schema, lock, manifest, and store failures are never
-abstention. The application receives every provider and store concern as a
-narrow callable or protocol (AC-20).
+``query_index`` reads only the local store. It applies explicit metadata
+filters to an immutable ``active_chunks`` snapshot first (AC-4), so a filter
+that matches nothing abstains without any embedding or generation call. It
+then retrieves candidates, ranks them, and passes the accepted context to the
+existing generation and verification path. Milestone 1 runs the semantic only
+retriever over the filtered set; the lexical, fusion, and diversity stages
+land in later milestones. Provider, schema, lock, manifest, and store failures
+are never abstention. The application receives every provider and store
+concern as a narrow callable or protocol (AC-20).
 """
 
 from __future__ import annotations
@@ -21,19 +21,23 @@ from decision_memory.application.adapter import Manifest, semantic_manifest_dige
 from decision_memory.application.canonical import SourceReference
 from decision_memory.application.dto import (
     AbstentionStage,
+    ActiveChunkDescriptor,
     AnswerSentence,
-    Candidate,
-    CandidateDisposition,
     Citation,
     CitationFreshness,
     CitationKind,
     CoverageRow,
+    DiversityTrace,
     DraftSentence,
     Facet,
     Failure,
+    FilterState,
+    FilterTrace,
     FreshnessState,
     FreshnessTrace,
+    FusionTrace,
     GenerationTrace,
+    LexicalTrace,
     ProviderAttempt,
     QueryRequest,
     QueryResult,
@@ -41,10 +45,20 @@ from decision_memory.application.dto import (
     QueryTrace,
     ResolutionState,
     ResultTrace,
+    RetrievalSettings,
     RetrievalTrace,
+    SemanticDisposition,
+    SemanticRow,
+    SemanticTrace,
     StaleReason,
     SupersessionNotice,
     VerificationTrace,
+)
+from decision_memory.application.filters import filter_descriptors
+from decision_memory.application.lexical import (
+    LEXICAL_TOKENIZER_VERSION,
+    STOPWORD_DIGEST,
+    STOPWORD_SET,
 )
 from decision_memory.application.pipeline import (
     MODEL_TOKEN_LIMIT,
@@ -57,23 +71,30 @@ EXIT_OK = 0
 EXIT_ERROR = 1
 EXIT_USAGE = 2
 
+# Fixed retrieval limits and constants (spec 0008 AC-7, AC-8, AC-10). These
+# are recorded in every settings trace and do not enter the ingestion pipeline
+# signature, so Feature 11 may calibrate them without rebuilding embeddings.
 CANDIDATE_LIMIT = 24
 ACCEPTED_LIMIT = 8
+RRF_CONSTANT = 60
+DIVERSITY_CAP = 2
+BM25_VARIANT = "BM25Okapi"
+BM25_PARAMETERS = "k1=1.5,b=0.75"
+COLLECTION_METRIC = "cosine"
 
 
-@dataclass(frozen=True)
-class RetrievedChunk:
-    """A stored chunk with its record metadata, for generation and citation."""
+class LexicalScorer(Protocol):
+    """Scores documents against query tokens, one float per document (AC-16).
 
-    chunk_id: str
-    record_id: str
-    value_path: str
-    fingerprint: str
-    ordinal: int
-    text: str
-    sources: tuple[SourceReference, ...]
-    record_title: str
-    record_status: str | None
+    Injected from infrastructure (``rank_bm25``). Document token tuples arrive
+    in chunk id order and the returned scores are positionally aligned.
+    """
+
+    def __call__(
+        self,
+        query_tokens: Sequence[str],
+        document_tokens: Sequence[Sequence[str]],
+    ) -> Sequence[float]: ...
 
 
 class IndexReader(Protocol):
@@ -82,6 +103,7 @@ class IndexReader(Protocol):
     def pipeline_signature(self) -> str: ...
     def generation_id(self) -> str | None: ...
     def parity_problems(self) -> list[str]: ...
+    def active_chunks(self) -> tuple[ActiveChunkDescriptor, ...]: ...
     def eligible_tuples(self) -> tuple[tuple[str, str, str], ...]: ...
     def manifest_metadata(
         self,
@@ -99,7 +121,6 @@ class IndexReader(Protocol):
         eligible: Sequence[tuple[str, str, str]],
         limit: int = CANDIDATE_LIMIT,
     ) -> list[tuple[str, float]]: ...
-    def chunk(self, chunk_id: str) -> RetrievedChunk | None: ...
 
 
 @dataclass(frozen=True)
@@ -136,39 +157,6 @@ class QueryDependencies:
         ],
         tuple[CoverageRow, ...],
     ]
-
-
-def _empty_retrieval(
-    question: str, eligible: tuple[tuple[str, str, str], ...]
-) -> RetrievalTrace:
-    return RetrievalTrace(
-        question=question,
-        filters=("none",),
-        eligibility=eligible,
-        candidate_limit=CANDIDATE_LIMIT,
-        accepted_limit=ACCEPTED_LIMIT,
-        relevance_floor=None,
-        candidates=(),
-    )
-
-
-def _empty_generation() -> GenerationTrace:
-    return GenerationTrace(
-        facets=(),
-        supersession_notices=(),
-        draft_sentences=(),
-        cited_chunk_ids=(),
-    )
-
-
-def _empty_verification() -> VerificationTrace:
-    return VerificationTrace(
-        containment=(),
-        entailment=(),
-        removed_sentences=(),
-        coverage=(),
-        uncovered_facets=(),
-    )
 
 
 def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
@@ -240,11 +228,26 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
             EXIT_ERROR,
         )
 
-    eligible = deps.store.eligible_tuples()
-    retrieval = _empty_retrieval(question, eligible)
-    if not eligible:
+    # Filter stage: one immutable SQLite snapshot, one FilterRow per active
+    # chunk even when no filter is present (AC-4).
+    active = deps.store.active_chunks()
+    if not active:
         return _abstained_result(
-            request, freshness, retrieval, AbstentionStage.RETRIEVAL
+            request, freshness, _empty_retrieval(), AbstentionStage.RETRIEVAL
+        )
+    filter_rows = filter_descriptors(active, request.filters)
+    filter_trace = FilterTrace(
+        rows=tuple(sorted(filter_rows, key=lambda row: row.chunk_id))
+    )
+    accepted_ids = frozenset(
+        row.chunk_id for row in filter_rows if row.state == FilterState.ACCEPTED
+    )
+    if not accepted_ids:
+        return _abstained_result(
+            request,
+            freshness,
+            _retrieval_with_filter(filter_trace),
+            AbstentionStage.RETRIEVAL,
         )
 
     if deps.count_tokens(question) > MODEL_TOKEN_LIMIT:
@@ -268,7 +271,13 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
             EXIT_ERROR,
         )
 
-    # Embed the question and retrieve.
+    accepted_by_id = {
+        chunk.chunk_id: chunk for chunk in active if chunk.chunk_id in accepted_ids
+    }
+
+    # Semantic retrieval over the accepted set. Milestone 1 searches the store
+    # and keeps only accepted candidates; later milestones restrict the store
+    # query to the exact accepted ids.
     try:
         question_vector = deps.embed([question])[0]
     except Exception as exc:  # noqa: BLE001 - provider failure is a result
@@ -279,7 +288,7 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
             EXIT_ERROR,
         )
     try:
-        raw = deps.store.search(question_vector, eligible)
+        raw = deps.store.search(question_vector, deps.store.eligible_tuples())
     except Exception as exc:  # noqa: BLE001 - store failure is a result
         return _failed_result(
             request,
@@ -288,63 +297,54 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
             EXIT_ERROR,
         )
 
-    candidates: list[Candidate] = []
-    accepted: list[RetrievedChunk] = []
-    for rank, (chunk_id, distance) in enumerate(raw, start=1):
+    kept: list[tuple[ActiveChunkDescriptor, float]] = []
+    for chunk_id, distance in raw:
+        chunk = accepted_by_id.get(chunk_id)
+        if chunk is None:
+            continue
         if not is_valid_distance(distance):
             return _failed_result(
                 request,
                 freshness,
                 Failure(
-                    "store.distance",
-                    "retrieval",
-                    f"invalid distance for {chunk_id}",
+                    "store.distance", "retrieval", f"invalid distance for {chunk_id}"
                 ),
                 EXIT_ERROR,
             )
-        chunk = deps.store.chunk(chunk_id)
-        if chunk is None:
-            return _failed_result(
-                request,
-                freshness,
-                Failure(
-                    "store.chunk_missing",
-                    "retrieval",
-                    f"missing chunk {chunk_id}",
-                ),
-                EXIT_ERROR,
-            )
-        disposition = (
-            CandidateDisposition.ACCEPTED
-            if rank <= ACCEPTED_LIMIT
-            else CandidateDisposition.OUTSIDE_TOP_8
-        )
-        candidates.append(
-            Candidate(
-                chunk_id=chunk_id,
-                record_id=chunk.record_id,
-                value_path=chunk.value_path,
-                fingerprint=chunk.fingerprint,
-                ordinal=chunk.ordinal,
-                distance=distance,
-                similarity=1.0 - distance,
-                rank=rank,
-                disposition=disposition,
-                text=chunk.text,
-                provenance=chunk.sources,
-            )
-        )
-        if disposition == CandidateDisposition.ACCEPTED:
-            accepted.append(chunk)
+        kept.append((chunk, distance))
 
-    retrieval = RetrievalTrace(
-        question=question,
-        filters=("none",),
-        eligibility=eligible,
-        candidate_limit=CANDIDATE_LIMIT,
+    semantic_rows = [
+        SemanticRow(
+            chunk_id=chunk.chunk_id,
+            rank=rank,
+            distance=distance,
+            similarity=1.0 - distance,
+            disposition=(
+                SemanticDisposition.RANKED
+                if rank <= CANDIDATE_LIMIT
+                else SemanticDisposition.OUTSIDE_TOP_24
+            ),
+        )
+        for rank, (chunk, distance) in enumerate(kept, start=1)
+    ]
+    semantic_trace = SemanticTrace(
+        rows=tuple(sorted(semantic_rows, key=lambda row: row.chunk_id))
+    )
+
+    # Milestone 1 accepts the top eight semantic candidates for generation.
+    accepted_chunks = [chunk for chunk, _distance in kept[:ACCEPTED_LIMIT]]
+    diversity_trace = DiversityTrace(
+        accepted_chunk_ids=tuple(chunk.chunk_id for chunk in accepted_chunks),
         accepted_limit=ACCEPTED_LIMIT,
-        relevance_floor=None,
-        candidates=tuple(candidates),
+        record_cap=DIVERSITY_CAP,
+    )
+    retrieval = RetrievalTrace(
+        filters=filter_trace,
+        lexical=LexicalTrace(rows=()),
+        semantic=semantic_trace,
+        fusion=FusionTrace(candidates=()),
+        diversity=diversity_trace,
+        settings=_retrieval_settings(),
     )
 
     generation = _empty_generation()
@@ -365,13 +365,13 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
         cited_chunk_ids=(),
     )
 
-    accepted_texts = [chunk.text for chunk in accepted]
-    accepted_ids = [chunk.chunk_id for chunk in accepted]
-    known_ids = frozenset(chunk.chunk_id for chunk in accepted)
-    notices = _collect_notices(deps.store, accepted)
+    accepted_texts = [chunk.text for chunk in accepted_chunks]
+    accepted_ids_list = [chunk.chunk_id for chunk in accepted_chunks]
+    known_ids = frozenset(chunk.chunk_id for chunk in accepted_chunks)
+    notices = _collect_notices(deps.store, accepted_chunks)
     try:
         draft = deps.generate_answer(
-            facets, accepted_texts, accepted_ids, notices, known_ids, attempts
+            facets, accepted_texts, accepted_ids_list, notices, known_ids, attempts
         )
     except Exception as exc:  # noqa: BLE001 - provider failure is a result
         return _failed_result(
@@ -388,11 +388,11 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
     )
 
     # Verify each sentence: deterministic containment first, then entailment.
-    kept: list[DraftSentence] = []
+    kept_sentences: list[DraftSentence] = []
     containment_rows: list[tuple[str, bool]] = []
     entailment_rows: list[tuple[str, str, str]] = []
     removed: list[str] = []
-    chunk_text_by_id = {chunk.chunk_id: chunk.text for chunk in accepted}
+    chunk_text_by_id = {chunk.chunk_id: chunk.text for chunk in accepted_chunks}
     for sentence in draft:
         cited_texts = [
             chunk_text_by_id[chunk_id]
@@ -402,7 +402,7 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
         contained = deterministic_containment(sentence.text, cited_texts)
         containment_rows.append((sentence.sentence_id, contained))
         if contained:
-            kept.append(sentence)
+            kept_sentences.append(sentence)
             continue
         try:
             supported, reason = deps.entail(sentence.text, cited_texts, attempts)
@@ -421,13 +421,13 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
             )
         )
         if supported:
-            kept.append(sentence)
+            kept_sentences.append(sentence)
         else:
             removed.append(sentence.sentence_id)
 
     # Independent coverage over the original question, facets, and kept sentences.
     try:
-        coverage_rows = deps.coverage(question, facets, kept, attempts)
+        coverage_rows = deps.coverage(question, facets, kept_sentences, attempts)
     except Exception as exc:  # noqa: BLE001 - provider failure is a result
         return _failed_result(
             request,
@@ -458,14 +458,14 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
         )
 
     # Build citations by first sentence use, deduplicated by source location.
-    chunk_by_id = {chunk.chunk_id: chunk for chunk in accepted}
+    chunk_by_id = {chunk.chunk_id: chunk for chunk in accepted_chunks}
     stale_record_ids = frozenset(
         record_id
         for record_id, desired in deps.store.ledger_fingerprints().items()
         if desired is not None and deps.store.active_fingerprint(record_id) != desired
     )
     chunk_citations, chunk_sentence_ids = _allocate_citations(
-        kept, chunk_by_id, stale_record_ids, deps.resolve_source
+        kept_sentences, chunk_by_id, stale_record_ids, deps.resolve_source
     )
     try:
         manifest = deps.load_manifest()
@@ -486,7 +486,7 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
                 text=sentence.text,
                 citation_ids=chunk_sentence_ids.get(sentence.sentence_id, ()),
             )
-            for sentence in kept
+            for sentence in kept_sentences
         )
         + disclosure_sentences
     )
@@ -532,7 +532,7 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
         result=result_trace,
     )
     return QueryResult(
-        schema_version=1,
+        schema_version=2,
         state=QueryState.ANSWERED,
         exit_code=EXIT_OK,
         sentences=answer_sentences,
@@ -546,7 +546,7 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
 
 def _allocate_citations(
     sentences: Sequence[DraftSentence],
-    chunk_by_id: dict[str, RetrievedChunk],
+    chunk_by_id: dict[str, ActiveChunkDescriptor],
     stale_record_ids: frozenset[str] = frozenset(),
     resolve_source: Callable[[str], ResolutionState] | None = None,
 ) -> tuple[tuple[Citation, ...], dict[str, tuple[str, ...]]]:
@@ -562,7 +562,7 @@ def _allocate_citations(
             chunk = chunk_by_id.get(chunk_id)
             if chunk is None:
                 continue
-            for source in chunk.sources:
+            for source in chunk.provenance:
                 key = (CitationKind.CHUNK.value, chunk_id, source.path, source.section)
                 existing = seen.get(key)
                 if existing is not None:
@@ -601,7 +601,7 @@ def _unresolved(_path: str) -> ResolutionState:
 
 
 def _collect_notices(
-    store: IndexReader, accepted: Sequence[RetrievedChunk]
+    store: IndexReader, accepted: Sequence[ActiveChunkDescriptor]
 ) -> tuple[SupersessionNotice, ...]:
     """Immediate eligible successors of every retrieved predecessor record (AC-18)."""
     collected: list[SupersessionNotice] = []
@@ -682,6 +682,63 @@ def _render_disclosures(
     return tuple(sentences), tuple(citations)
 
 
+def _retrieval_settings() -> RetrievalSettings:
+    """The fixed retrieval settings recorded in every trace (AC-10)."""
+    return RetrievalSettings(
+        tokenizer_version=LEXICAL_TOKENIZER_VERSION,
+        stopword_set=STOPWORD_SET,
+        stopword_digest=STOPWORD_DIGEST,
+        bm25_variant=BM25_VARIANT,
+        bm25_parameters=BM25_PARAMETERS,
+        lexical_limit=CANDIDATE_LIMIT,
+        semantic_limit=CANDIDATE_LIMIT,
+        rrf_constant=RRF_CONSTANT,
+        accepted_limit=ACCEPTED_LIMIT,
+        diversity_cap=DIVERSITY_CAP,
+        collection_metric=COLLECTION_METRIC,
+        relevance_floor=None,
+    )
+
+
+def _retrieval_with_filter(filter_trace: FilterTrace) -> RetrievalTrace:
+    """A retrieval trace with only the filter section completed (AC-4)."""
+    return RetrievalTrace(
+        filters=filter_trace,
+        lexical=LexicalTrace(rows=()),
+        semantic=SemanticTrace(rows=()),
+        fusion=FusionTrace(candidates=()),
+        diversity=DiversityTrace(
+            accepted_chunk_ids=(),
+            accepted_limit=ACCEPTED_LIMIT,
+            record_cap=DIVERSITY_CAP,
+        ),
+        settings=_retrieval_settings(),
+    )
+
+
+def _empty_retrieval() -> RetrievalTrace:
+    return _retrieval_with_filter(FilterTrace(rows=()))
+
+
+def _empty_generation() -> GenerationTrace:
+    return GenerationTrace(
+        facets=(),
+        supersession_notices=(),
+        draft_sentences=(),
+        cited_chunk_ids=(),
+    )
+
+
+def _empty_verification() -> VerificationTrace:
+    return VerificationTrace(
+        containment=(),
+        entailment=(),
+        removed_sentences=(),
+        coverage=(),
+        uncovered_facets=(),
+    )
+
+
 def _freshness_trace(
     deps: QueryDependencies,
     stored: str | None,
@@ -745,21 +802,18 @@ def _manifest_freshness(
 
 
 def _with_stale_reason(trace: FreshnessTrace, reason: StaleReason) -> FreshnessTrace:
-    return _with_freshness(
-        FreshnessTrace(
-            state=trace.state,
-            stored_pipeline_signature=trace.stored_pipeline_signature,
-            running_pipeline_signature=trace.running_pipeline_signature,
-            records_manifest_path=trace.records_manifest_path,
-            manifest_available=trace.manifest_available,
-            start_semantic_digest=trace.start_semantic_digest,
-            end_semantic_digest=trace.end_semantic_digest,
-            start_raw_digest=trace.start_raw_digest,
-            end_raw_digest=trace.end_raw_digest,
-            fingerprints=trace.fingerprints,
-            stale_reasons=(*trace.stale_reasons, reason),
-        ),
-        trace.state,
+    return FreshnessTrace(
+        state=trace.state,
+        stored_pipeline_signature=trace.stored_pipeline_signature,
+        running_pipeline_signature=trace.running_pipeline_signature,
+        records_manifest_path=trace.records_manifest_path,
+        manifest_available=trace.manifest_available,
+        start_semantic_digest=trace.start_semantic_digest,
+        end_semantic_digest=trace.end_semantic_digest,
+        start_raw_digest=trace.start_raw_digest,
+        end_raw_digest=trace.end_raw_digest,
+        fingerprints=trace.fingerprints,
+        stale_reasons=(*trace.stale_reasons, reason),
     )
 
 
@@ -801,7 +855,7 @@ def _abstained_result(
         ),
     )
     return QueryResult(
-        schema_version=1,
+        schema_version=2,
         state=QueryState.ABSTAINED,
         exit_code=EXIT_OK,
         sentences=(),
@@ -821,7 +875,7 @@ def _failed_result(
 ) -> QueryResult:
     trace = QueryTrace(
         freshness=freshness,
-        retrieval=_empty_retrieval(request.question, ()),
+        retrieval=_empty_retrieval(),
         generation=_empty_generation(),
         verification=_empty_verification(),
         providers=(),
@@ -833,7 +887,7 @@ def _failed_result(
         ),
     )
     return QueryResult(
-        schema_version=1,
+        schema_version=2,
         state=QueryState.FAILED,
         exit_code=exit_code,
         sentences=(),

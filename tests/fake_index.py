@@ -14,6 +14,7 @@ import hashlib
 from collections.abc import Sequence
 
 from decision_memory.application.dto import (
+    ActiveChunkDescriptor,
     ChunkPlan,
     CoverageRow,
     DraftSentence,
@@ -21,7 +22,6 @@ from decision_memory.application.dto import (
     SupersessionNotice,
 )
 from decision_memory.application.pipeline import pipeline_signature
-from decision_memory.application.query import RetrievedChunk
 from decision_memory.domain.records import CanonicalDecisionRecord
 
 
@@ -51,7 +51,7 @@ class FakeIndex:
 
     def __init__(self) -> None:
         self.generation: str | None = None
-        self.chunks: dict[str, RetrievedChunk] = {}
+        self.chunks: dict[str, ActiveChunkDescriptor] = {}
         self.embeddings: dict[str, list[float]] = {}
         self.record_states: dict[str, tuple[str, str | None, str | None]] = {}
         self.manifest_meta: tuple[str | None, str | None, str | None, str | None] = (
@@ -101,16 +101,17 @@ class FakeIndex:
             if chunk.record_id == record_id
         ]
         for chunk, embedding in zip(chunks, embeddings, strict=False):
-            self.chunks[chunk.chunk_id] = RetrievedChunk(
+            self.chunks[chunk.chunk_id] = ActiveChunkDescriptor(
                 chunk_id=chunk.chunk_id,
                 record_id=chunk.record_id,
+                record_title=record.title or "",
+                record_status=record.status.value if record.status else None,
+                record_tags=tuple(sorted(record.tags)),
                 value_path=chunk.value_path,
                 fingerprint=chunk.fingerprint,
                 ordinal=chunk.ordinal,
                 text=chunk.text,
-                sources=tuple(chunk.sources),
-                record_title=record.title or "",
-                record_status=record.status.value if record.status else None,
+                provenance=tuple(chunk.sources),
             )
             self.embeddings[chunk.chunk_id] = list(embedding)
         fingerprint = chunks[0].fingerprint if chunks else None
@@ -227,6 +228,9 @@ class FakeIndex:
     ) -> tuple[SupersessionNotice, ...]:
         return tuple(self.supersession_notices_map.get(predecessor_id, ()))
 
+    def active_chunks(self) -> tuple[ActiveChunkDescriptor, ...]:
+        return tuple(sorted(self.chunks.values(), key=lambda chunk: chunk.chunk_id))
+
     def eligible_tuples(self) -> tuple[tuple[str, str, str], ...]:
         if self.empty_eligible:
             return ()
@@ -252,9 +256,6 @@ class FakeIndex:
             scored.append((chunk_id, _cosine_distance(embedding, chunk_embedding)))
         scored.sort(key=lambda pair: (pair[1], pair[0]))
         return scored[:limit]
-
-    def chunk(self, chunk_id: str) -> RetrievedChunk | None:
-        return self.chunks.get(chunk_id)
 
 
 def fake_extract_facets(question: str, attempts=None) -> tuple[Facet, ...]:
