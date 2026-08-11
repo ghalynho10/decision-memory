@@ -19,6 +19,7 @@ from decision_memory.application.dto import (
     CoverageRow,
     DraftSentence,
     Facet,
+    SemanticMatches,
     SupersessionNotice,
 )
 from decision_memory.application.pipeline import pipeline_signature
@@ -65,7 +66,8 @@ class FakeIndex:
         self.entry_digests: dict[str, str | None] = {}
         self.signature = pipeline_signature()
         self.parity_problems_list: list[str] = []
-        self.search_error: Exception | None = None
+        self.semantic_error: Exception | None = None
+        self.store_format_value = 2
         self.empty_eligible = False
 
     # -- IndexWriter -----------------------------------------------------
@@ -241,21 +243,26 @@ class FakeIndex:
                 tuples.append(candidate)
         return tuple(tuples)
 
-    def search(
+    def store_format(self) -> int | None:
+        return self.store_format_value
+
+    def semantic_search(
         self,
         embedding: Sequence[float],
-        eligible: Sequence[tuple[str, str, str]],
-        limit: int = 24,
-    ) -> list[tuple[str, float]]:
-        if self.search_error is not None:
-            raise self.search_error
+        accepted_chunk_ids: Sequence[str],
+    ) -> SemanticMatches:
+        if self.semantic_error is not None:
+            raise self.semantic_error
+        accepted = set(accepted_chunk_ids)
         scored: list[tuple[str, float]] = []
         for chunk_id, chunk_embedding in self.embeddings.items():
-            if chunk_id not in self.chunks:
-                continue
-            scored.append((chunk_id, _cosine_distance(embedding, chunk_embedding)))
+            if chunk_id in accepted and chunk_id in self.chunks:
+                scored.append((chunk_id, _cosine_distance(embedding, chunk_embedding)))
         scored.sort(key=lambda pair: (pair[1], pair[0]))
-        return scored[:limit]
+        return SemanticMatches(
+            ids=tuple(chunk_id for chunk_id, _distance in scored),
+            distances=tuple(distance for _chunk_id, distance in scored),
+        )
 
 
 def fake_extract_facets(question: str, attempts=None) -> tuple[Facet, ...]:

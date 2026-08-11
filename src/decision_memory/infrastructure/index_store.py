@@ -109,10 +109,12 @@ class SqliteChromaIndexWriter(IndexWriter):
         database, _, chroma_dir = self._generation_paths(generation_id)
         self._conn = open_store_database(database)
         create_schema(self._conn)
+        from decision_memory.application.store_format import STORE_FORMAT_VERSION
+
         self._conn.execute(
             "INSERT INTO index_metadata (id, store_format, sqlite_schema_version, "
             "generation_id, pipeline_signature) VALUES (1, ?, 1, ?, ?)",
-            ("1", generation_id, self._config_signature()),
+            (str(STORE_FORMAT_VERSION), generation_id, self._config_signature()),
         )
         self._conn.commit()
         self._chroma = _client(chroma_dir)
@@ -206,6 +208,7 @@ class SqliteChromaIndexWriter(IndexWriter):
                 chunk.fingerprint,
                 chunk.value_path,
                 chunk.ordinal,
+                chunk.chunk_id,
             )
             for chunk in chunks
         ]
@@ -469,7 +472,7 @@ class SqliteChromaIndexWriter(IndexWriter):
         ids = [str(row[0]) for row in rows]
         expected = {
             str(row[0]): locator_metadata(
-                row[1], str(row[2]), str(row[3]), row[4], row[5]
+                row[1], str(row[2]), str(row[3]), row[4], row[5], str(row[0])
             )
             for row in rows
         }

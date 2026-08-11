@@ -48,6 +48,7 @@ from decision_memory.application.dto import (
     RetrievalSettings,
     RetrievalTrace,
     SemanticDisposition,
+    SemanticMatches,
     SemanticRow,
     SemanticTrace,
     StaleReason,
@@ -64,8 +65,8 @@ from decision_memory.application.pipeline import (
     MODEL_TOKEN_LIMIT,
     pipeline_signature,
 )
+from decision_memory.application.store_format import STORE_FORMAT_VERSION
 from decision_memory.application.verification import deterministic_containment
-from decision_memory.infrastructure.chroma_store import is_valid_distance
 
 EXIT_OK = 0
 EXIT_ERROR = 1
@@ -81,6 +82,19 @@ DIVERSITY_CAP = 2
 BM25_VARIANT = "BM25Okapi"
 BM25_PARAMETERS = "k1=1.5,b=0.75"
 COLLECTION_METRIC = "cosine"
+
+# A cosine distance is valid when finite and within [0, 2]. The epsilon
+# absorbs Chroma float noise at the boundaries (a parallel vector can come
+# back as a tiny negative); the value is then clamped so traces hold a real
+# cosine distance (AC-6).
+DISTANCE_EPSILON = 1e-6
+
+
+def _valid_distance(distance: float) -> bool:
+    """Finite and within ``[0, 2]`` up to float noise (AC-6)."""
+    return (
+        distance == distance and -DISTANCE_EPSILON <= distance <= 2.0 + DISTANCE_EPSILON
+    )
 
 
 class LexicalScorer(Protocol):
@@ -102,6 +116,7 @@ class IndexReader(Protocol):
 
     def pipeline_signature(self) -> str: ...
     def generation_id(self) -> str | None: ...
+    def store_format(self) -> int | None: ...
     def parity_problems(self) -> list[str]: ...
     def active_chunks(self) -> tuple[ActiveChunkDescriptor, ...]: ...
     def eligible_tuples(self) -> tuple[tuple[str, str, str], ...]: ...
@@ -115,12 +130,11 @@ class IndexReader(Protocol):
     def supersession_notices(
         self, predecessor_id: str
     ) -> tuple[SupersessionNotice, ...]: ...
-    def search(
+    def semantic_search(
         self,
         embedding: Sequence[float],
-        eligible: Sequence[tuple[str, str, str]],
-        limit: int = CANDIDATE_LIMIT,
-    ) -> list[tuple[str, float]]: ...
+        accepted_chunk_ids: Sequence[str],
+    ) -> SemanticMatches: ...
 
 
 @dataclass(frozen=True)
@@ -185,6 +199,18 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
                 "store",
                 "store is missing an active generation (corrupt initialized "
                 "state); run ingest or rebuild",
+            ),
+            EXIT_ERROR,
+        )
+    if deps.store.store_format() != STORE_FORMAT_VERSION:
+        return _failed_result(
+            request,
+            _freshness_trace(deps, None, None),
+            Failure(
+                "store.format",
+                "store",
+                f"index store format {deps.store.store_format()} is not "
+                "supported; run ingest --rebuild",
             ),
             EXIT_ERROR,
         )
@@ -275,9 +301,9 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
         chunk.chunk_id: chunk for chunk in active if chunk.chunk_id in accepted_ids
     }
 
-    # Semantic retrieval over the accepted set. Milestone 1 searches the store
-    # and keeps only accepted candidates; later milestones restrict the store
-    # query to the exact accepted ids.
+    # Semantic retrieval over the exact accepted ids (AC-6): Chroma receives
+    # the accepted count as n_results and an $in over the accepted ids, and the
+    # application validates the returned set before local ranking.
     try:
         question_vector = deps.embed([question])[0]
     except Exception as exc:  # noqa: BLE001 - provider failure is a result
@@ -288,7 +314,9 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
             EXIT_ERROR,
         )
     try:
-        raw = deps.store.search(question_vector, deps.store.eligible_tuples())
+        matches = deps.store.semantic_search(
+            question_vector, tuple(sorted(accepted_ids))
+        )
     except Exception as exc:  # noqa: BLE001 - store failure is a result
         return _failed_result(
             request,
@@ -296,22 +324,58 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
             Failure("store.retrieval", "retrieval", _safe(exc)),
             EXIT_ERROR,
         )
+    if len(matches.ids) != len(accepted_ids) or set(matches.ids) != accepted_ids:
+        return _failed_result(
+            request,
+            freshness,
+            Failure(
+                "store.retrieval",
+                "retrieval",
+                "semantic search returned an unexpected id set",
+            ),
+            EXIT_ERROR,
+        )
+    if len(matches.distances) != len(matches.ids):
+        return _failed_result(
+            request,
+            freshness,
+            Failure(
+                "store.retrieval",
+                "retrieval",
+                "semantic distances are misaligned with chunk ids",
+            ),
+            EXIT_ERROR,
+        )
 
-    kept: list[tuple[ActiveChunkDescriptor, float]] = []
-    for chunk_id, distance in raw:
+    scored: list[tuple[ActiveChunkDescriptor, float]] = []
+    for chunk_id, raw_distance in zip(matches.ids, matches.distances, strict=True):
         chunk = accepted_by_id.get(chunk_id)
         if chunk is None:
-            continue
-        if not is_valid_distance(distance):
             return _failed_result(
                 request,
                 freshness,
                 Failure(
-                    "store.distance", "retrieval", f"invalid distance for {chunk_id}"
+                    "store.retrieval",
+                    "retrieval",
+                    "semantic search returned an id outside the accepted set",
                 ),
                 EXIT_ERROR,
             )
-        kept.append((chunk, distance))
+        if not _valid_distance(raw_distance):
+            return _failed_result(
+                request,
+                freshness,
+                Failure(
+                    "store.distance",
+                    "retrieval",
+                    f"invalid distance for {chunk_id}",
+                ),
+                EXIT_ERROR,
+            )
+        scored.append((chunk, max(0.0, min(2.0, raw_distance))))
+    # Local sort by distance ascending then chunk id; application decides the
+    # top 24 boundary, never Chroma ordering (AC-6).
+    scored.sort(key=lambda pair: (pair[1], pair[0].chunk_id))
 
     semantic_rows = [
         SemanticRow(
@@ -325,14 +389,14 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
                 else SemanticDisposition.OUTSIDE_TOP_24
             ),
         )
-        for rank, (chunk, distance) in enumerate(kept, start=1)
+        for rank, (chunk, distance) in enumerate(scored, start=1)
     ]
     semantic_trace = SemanticTrace(
         rows=tuple(sorted(semantic_rows, key=lambda row: row.chunk_id))
     )
 
-    # Milestone 1 accepts the top eight semantic candidates for generation.
-    accepted_chunks = [chunk for chunk, _distance in kept[:ACCEPTED_LIMIT]]
+    # Milestone 2 accepts the top eight semantic candidates for generation.
+    accepted_chunks = [chunk for chunk, _distance in scored[:ACCEPTED_LIMIT]]
     diversity_trace = DiversityTrace(
         accepted_chunk_ids=tuple(chunk.chunk_id for chunk in accepted_chunks),
         accepted_limit=ACCEPTED_LIMIT,

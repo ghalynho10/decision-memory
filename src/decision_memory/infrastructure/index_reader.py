@@ -16,11 +16,13 @@ from typing import Any
 from decision_memory.application.canonical import SourceReference
 from decision_memory.application.dto import (
     ActiveChunkDescriptor,
+    SemanticMatches,
     SupersessionNotice,
 )
-from decision_memory.application.query import CANDIDATE_LIMIT, IndexReader
+from decision_memory.application.query import IndexReader
 from decision_memory.infrastructure.chroma_store import (
     CHROMA_COLLECTION,
+    CHUNK_ID_KEY,
     _client,
     verify_vectors,
 )
@@ -31,6 +33,7 @@ from decision_memory.infrastructure.sqlite_store import (
 from decision_memory.infrastructure.store import (
     generation_paths,
     read_active,
+    read_format,
     read_generation_json,
 )
 
@@ -43,6 +46,9 @@ class SqliteChromaIndexReader(IndexReader):
 
     def generation_id(self) -> str | None:
         return read_active(self._store_dir)
+
+    def store_format(self) -> int | None:
+        return read_format(self._store_dir)
 
     def pipeline_signature(self) -> str:
         generation_id = self.generation_id()
@@ -69,6 +75,7 @@ class SqliteChromaIndexReader(IndexReader):
                 "fingerprint": str(row[3]),
                 "value_path": str(row[4]),
                 "ordinal": int(row[5]),
+                "chunk_id": chunk_id,
             }
         return verify_vectors(self._chroma_client(generation_id), ids, expected)
 
@@ -144,51 +151,38 @@ class SqliteChromaIndexReader(IndexReader):
         finally:
             connection.close()
 
-    def search(
+    def semantic_search(
         self,
         embedding: Sequence[float],
-        eligible: Sequence[tuple[str, str, str]],
-        limit: int = CANDIDATE_LIMIT,
-    ) -> list[tuple[str, float]]:
+        accepted_chunk_ids: Sequence[str],
+    ) -> SemanticMatches:
+        """Retrieve every accepted vector under the exact id constraint (AC-6).
+
+        Requests ``n_results`` equal to the accepted count with an ``$in`` over
+        the accepted chunk ids, so Chroma can never cap the result below the
+        accepted set. Returned ids and distances are positionally aligned.
+        """
+        accepted = list(accepted_chunk_ids)
+        if not accepted:
+            return SemanticMatches((), ())
         generation_id = self.generation_id()
         if generation_id is None:
-            return []
+            return SemanticMatches((), ())
         client = self._chroma_client(generation_id)
         try:
             collection = client.get_collection(CHROMA_COLLECTION)
         except Exception:  # noqa: BLE001 - collection absent means no result
-            return []
-        if len(eligible) == 1:
-            generation, record_id, fingerprint = eligible[0]
-            where: dict[str, Any] = {
-                "$and": [
-                    {"generation_id": generation},
-                    {"record_id": record_id},
-                    {"fingerprint": fingerprint},
-                ]
-            }
-        else:
-            where = {
-                "$or": [
-                    {
-                        "$and": [
-                            {"generation_id": generation},
-                            {"record_id": record_id},
-                            {"fingerprint": fingerprint},
-                        ]
-                    }
-                    for generation, record_id, fingerprint in eligible
-                ]
-            }
+            return SemanticMatches((), ())
+        where: dict[str, Any] = {CHUNK_ID_KEY: {"$in": accepted}}
         result = collection.query(
             query_embeddings=[list(embedding)],
-            n_results=limit,
+            n_results=len(accepted),
             where=where,
             include=["distances"],
         )
         ids = result.get("ids", [[]])[0] if result.get("ids") else []
         distances = result.get("distances", [[]])[0] if result.get("distances") else []
-        return list(zip(ids, distances, strict=False))
+        return SemanticMatches(tuple(ids), tuple(distances))
 
     def manifest_metadata(
         self,

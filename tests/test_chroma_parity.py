@@ -22,8 +22,8 @@ def test_upsert_and_verify_parity() -> None:
     client = _client()
     ids = ["ch_1", "ch_2"]
     metadatas = [
-        locator_metadata("gen-1", "DM-0001", "fp-1", "decision.chosen", 0),
-        locator_metadata("gen-1", "DM-0001", "fp-1", "why[0]", 0),
+        locator_metadata("gen-1", "DM-0001", "fp-1", "decision.chosen", 0, "ch_1"),
+        locator_metadata("gen-1", "DM-0001", "fp-1", "why[0]", 0, "ch_2"),
     ]
     embeddings = [[0.1] * 8, [0.2] * 8]
     upsert_vectors(client, ids, embeddings, metadatas)
@@ -35,7 +35,9 @@ def test_upsert_and_verify_parity() -> None:
 def test_verify_detects_missing_vector_and_metadata_mismatch() -> None:
     client = _client()
     ids = ["ch_1"]
-    metadatas = [locator_metadata("gen-1", "DM-0001", "fp-1", "decision.chosen", 0)]
+    metadatas = [
+        locator_metadata("gen-1", "DM-0001", "fp-1", "decision.chosen", 0, "ch_1")
+    ]
     upsert_vectors(client, ids, [[0.1] * 8], metadatas)
     missing = verify_vectors(
         client,
@@ -46,7 +48,11 @@ def test_verify_detects_missing_vector_and_metadata_mismatch() -> None:
     mismatch = verify_vectors(
         client,
         ["ch_1"],
-        {"ch_1": locator_metadata("other", "DM-0001", "fp-1", "decision.chosen", 0)},
+        {
+            "ch_1": locator_metadata(
+                "other", "DM-0001", "fp-1", "decision.chosen", 0, "ch_1"
+            )
+        },
     )
     assert any("metadata mismatch" in problem for problem in mismatch)
 

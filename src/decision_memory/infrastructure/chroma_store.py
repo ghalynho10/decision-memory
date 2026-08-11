@@ -21,12 +21,14 @@ from typing import Any
 CHROMA_COLLECTION = "decision_chunks_v1"
 CHROMA_DISTANCE = "cosine"
 
-# The exact metadata keys Chroma carries for one vector.
+# The exact metadata keys Chroma carries for one vector (spec 0008 AC-6 adds
+# chunk_id so semantic search can constrain by exact accepted chunk ids).
 GENERATION_KEY = "generation_id"
 RECORD_KEY = "record_id"
 FINGERPRINT_KEY = "fingerprint"
 VALUE_PATH_KEY = "value_path"
 ORDINAL_KEY = "ordinal"
+CHUNK_ID_KEY = "chunk_id"
 
 _CHROMA_METADATA_KEYS = (
     GENERATION_KEY,
@@ -34,6 +36,7 @@ _CHROMA_METADATA_KEYS = (
     FINGERPRINT_KEY,
     VALUE_PATH_KEY,
     ORDINAL_KEY,
+    CHUNK_ID_KEY,
 )
 
 
@@ -47,14 +50,16 @@ def locator_metadata(
     fingerprint: str,
     value_path: str,
     ordinal: int,
+    chunk_id: str,
 ) -> dict[str, str | int]:
-    """The exact locator metadata map for one vector."""
+    """The exact locator metadata map for one vector (AC-6)."""
     return {
         GENERATION_KEY: generation_id,
         RECORD_KEY: record_id,
         FINGERPRINT_KEY: fingerprint,
         VALUE_PATH_KEY: value_path,
         ORDINAL_KEY: ordinal,
+        CHUNK_ID_KEY: chunk_id,
     }
 
 
