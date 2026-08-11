@@ -44,6 +44,7 @@ from decision_memory.application.dto import (
     LexicalDisposition,
     LexicalRow,
     LexicalTrace,
+    PartialQueryTrace,
     ProviderAttempt,
     QueryRequest,
     QueryResult,
@@ -51,7 +52,9 @@ from decision_memory.application.dto import (
     QueryTrace,
     ResolutionState,
     ResultTrace,
+    RetrievalFailure,
     RetrievalSettings,
+    RetrievalStage,
     RetrievalTrace,
     SelectionPass,
     SemanticDisposition,
@@ -102,6 +105,27 @@ def _valid_distance(distance: float) -> bool:
     """Finite and within ``[0, 2]`` up to float noise (AC-6)."""
     return (
         distance == distance and -DISTANCE_EPSILON <= distance <= 2.0 + DISTANCE_EPSILON
+    )
+
+
+def _partial(
+    freshness: FreshnessTrace,
+    filters: FilterTrace | None,
+    lexical: LexicalTrace | None,
+    semantic: SemanticTrace | None,
+    fusion: FusionTrace | None,
+    diversity: DiversityTrace | None,
+    providers: Sequence[ProviderAttempt],
+) -> PartialQueryTrace:
+    """Build the partial trace carried by a ``RetrievalFailure`` (AC-9)."""
+    return PartialQueryTrace(
+        freshness=freshness,
+        filters=filters,
+        lexical=lexical,
+        semantic=semantic,
+        fusion=fusion,
+        diversity=diversity,
+        providers=tuple(providers),
     )
 
 
@@ -264,7 +288,13 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
 
     # Filter stage: one immutable SQLite snapshot, one FilterRow per active
     # chunk even when no filter is present (AC-4).
-    active = deps.store.active_chunks()
+    try:
+        active = deps.store.active_chunks()
+    except Exception as exc:  # noqa: BLE001 - retrieval integrity failure
+        raise RetrievalFailure(
+            RetrievalStage.FILTER,
+            _partial(freshness, None, None, None, None, None, attempts),
+        ) from exc
     if not active:
         return _abstained_result(
             request, freshness, _empty_retrieval(), AbstentionStage.RETRIEVAL
@@ -314,13 +344,11 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
         lexical_trace, ranked_lexical = _lexical_stage(
             question, accepted_by_id, deps.lexical_scorer
         )
-    except Exception as exc:  # noqa: BLE001 - scorer failure is a result
-        return _failed_result(
-            request,
-            freshness,
-            Failure("retrieval.lexical", "retrieval", _safe(exc)),
-            EXIT_ERROR,
-        )
+    except Exception as exc:  # noqa: BLE001 - retrieval integrity failure
+        raise RetrievalFailure(
+            RetrievalStage.LEXICAL,
+            _partial(freshness, filter_trace, None, None, None, None, attempts),
+        ) from exc
 
     # Semantic retrieval over the exact accepted ids (AC-6): Chroma receives
     # the accepted count as n_results and an $in over the accepted ids, and the
@@ -338,60 +366,44 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
         matches = deps.store.semantic_search(
             question_vector, tuple(sorted(accepted_ids))
         )
-    except Exception as exc:  # noqa: BLE001 - store failure is a result
-        return _failed_result(
-            request,
-            freshness,
-            Failure("store.retrieval", "retrieval", _safe(exc)),
-            EXIT_ERROR,
-        )
-    if len(matches.ids) != len(accepted_ids) or set(matches.ids) != accepted_ids:
-        return _failed_result(
-            request,
-            freshness,
-            Failure(
-                "store.retrieval",
-                "retrieval",
-                "semantic search returned an unexpected id set",
+    except Exception as exc:  # noqa: BLE001 - retrieval integrity failure
+        raise RetrievalFailure(
+            RetrievalStage.SEMANTIC,
+            _partial(
+                freshness, filter_trace, lexical_trace, None, None, None, attempts
             ),
-            EXIT_ERROR,
+        ) from exc
+    if len(matches.ids) != len(accepted_ids) or set(matches.ids) != accepted_ids:
+        raise RetrievalFailure(
+            RetrievalStage.SEMANTIC,
+            _partial(
+                freshness, filter_trace, lexical_trace, None, None, None, attempts
+            ),
         )
     if len(matches.distances) != len(matches.ids):
-        return _failed_result(
-            request,
-            freshness,
-            Failure(
-                "store.retrieval",
-                "retrieval",
-                "semantic distances are misaligned with chunk ids",
+        raise RetrievalFailure(
+            RetrievalStage.SEMANTIC,
+            _partial(
+                freshness, filter_trace, lexical_trace, None, None, None, attempts
             ),
-            EXIT_ERROR,
         )
 
     scored: list[tuple[ActiveChunkDescriptor, float]] = []
     for chunk_id, raw_distance in zip(matches.ids, matches.distances, strict=True):
         chunk = accepted_by_id.get(chunk_id)
         if chunk is None:
-            return _failed_result(
-                request,
-                freshness,
-                Failure(
-                    "store.retrieval",
-                    "retrieval",
-                    "semantic search returned an id outside the accepted set",
+            raise RetrievalFailure(
+                RetrievalStage.SEMANTIC,
+                _partial(
+                    freshness, filter_trace, lexical_trace, None, None, None, attempts
                 ),
-                EXIT_ERROR,
             )
         if not _valid_distance(raw_distance):
-            return _failed_result(
-                request,
-                freshness,
-                Failure(
-                    "store.distance",
-                    "retrieval",
-                    f"invalid distance for {chunk_id}",
+            raise RetrievalFailure(
+                RetrievalStage.SEMANTIC,
+                _partial(
+                    freshness, filter_trace, lexical_trace, None, None, None, attempts
                 ),
-                EXIT_ERROR,
             )
         scored.append((chunk, max(0.0, min(2.0, raw_distance))))
     # Local sort by distance ascending then chunk id; application decides the
@@ -424,13 +436,19 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
     # Reciprocal rank fusion over the ranked lexical and semantic union (AC-7).
     try:
         fused = _fusion_stage(ranked_lexical, ranked_semantic, accepted_by_id)
-    except Exception as exc:  # noqa: BLE001 - fusion failure is a result
-        return _failed_result(
-            request,
-            freshness,
-            Failure("retrieval.fusion", "retrieval", _safe(exc)),
-            EXIT_ERROR,
-        )
+    except Exception as exc:  # noqa: BLE001 - retrieval integrity failure
+        raise RetrievalFailure(
+            RetrievalStage.FUSION,
+            _partial(
+                freshness,
+                filter_trace,
+                lexical_trace,
+                semantic_trace,
+                None,
+                None,
+                attempts,
+            ),
+        ) from exc
     if not fused:
         # Ranked union empty after a nonempty filter result: retrieval
         # abstention, both complete traces preserved, no generation call (AC-9).
@@ -453,13 +471,19 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
     # Two pass record diversity over the fused candidates (AC-8).
     try:
         final_candidates, accepted_chunks = _diversity_stage(fused, accepted_by_id)
-    except Exception as exc:  # noqa: BLE001 - diversity failure is a result
-        return _failed_result(
-            request,
-            freshness,
-            Failure("retrieval.diversity", "retrieval", _safe(exc)),
-            EXIT_ERROR,
-        )
+    except Exception as exc:  # noqa: BLE001 - retrieval integrity failure
+        raise RetrievalFailure(
+            RetrievalStage.DIVERSITY,
+            _partial(
+                freshness,
+                filter_trace,
+                lexical_trace,
+                semantic_trace,
+                FusionTrace(candidates=tuple(fused)),
+                None,
+                attempts,
+            ),
+        ) from exc
     retrieval = RetrievalTrace(
         filters=filter_trace,
         lexical=lexical_trace,

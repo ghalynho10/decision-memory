@@ -21,6 +21,8 @@ from decision_memory.application.dto import (
     QueryFilters,
     QueryRequest,
     QueryState,
+    RetrievalFailure,
+    RetrievalStage,
     SemanticMatches,
 )
 from decision_memory.application.ingest import IngestDependencies, ingest_records
@@ -81,20 +83,22 @@ def test_semantic_mismatched_id_set_is_a_failure(tmp_path) -> None:
     index.generation = "gen-fake"
     index.chunks["ch_a"] = _chunk("ch_a")
     index.embeddings["ch_a"] = [0.5] * 8
-    result = query_index(
-        QueryRequest(
-            question="why?",
-            store_dir=Path("/fake/store"),
-            allow_stale=True,
-            filters=QueryFilters(),
-        ),
-        _query_deps(index),
-    )
-    assert result.state == QueryState.FAILED
-    assert result.exit_code == 1
-    assert result.failure is not None
-    assert result.failure.code == "store.retrieval"
-    assert "unexpected id set" in result.failure.detail
+    with pytest.raises(RetrievalFailure) as excinfo:
+        query_index(
+            QueryRequest(
+                question="why?",
+                store_dir=Path("/fake/store"),
+                allow_stale=True,
+                filters=QueryFilters(),
+            ),
+            _query_deps(index),
+        )
+    assert excinfo.value.stage == RetrievalStage.SEMANTIC
+    # The partial trace retains the completed filter and lexical sections.
+    assert excinfo.value.trace.filters is not None
+    assert excinfo.value.trace.lexical is not None
+    assert excinfo.value.trace.semantic is None
+    assert excinfo.value.trace.fusion is None
 
 
 def test_semantic_misaligned_distances_is_a_failure(tmp_path) -> None:
@@ -106,19 +110,17 @@ def test_semantic_misaligned_distances_is_a_failure(tmp_path) -> None:
     index.generation = "gen-fake"
     index.chunks["ch_a"] = _chunk("ch_a")
     index.embeddings["ch_a"] = [0.5] * 8
-    result = query_index(
-        QueryRequest(
-            question="why?",
-            store_dir=Path("/fake/store"),
-            allow_stale=True,
-            filters=QueryFilters(),
-        ),
-        _query_deps(index),
-    )
-    assert result.state == QueryState.FAILED
-    assert result.exit_code == 1
-    assert result.failure is not None
-    assert result.failure.code == "store.retrieval"
+    with pytest.raises(RetrievalFailure) as excinfo:
+        query_index(
+            QueryRequest(
+                question="why?",
+                store_dir=Path("/fake/store"),
+                allow_stale=True,
+                filters=QueryFilters(),
+            ),
+            _query_deps(index),
+        )
+    assert excinfo.value.stage == RetrievalStage.SEMANTIC
 
 
 @pytest.mark.integration
@@ -167,3 +169,71 @@ def test_real_store_is_format_two_and_semantic_search_exact(tmp_path) -> None:
         distance == distance and -1e-6 <= distance <= 2.0 + 1e-6
         for distance in matches.distances
     )
+
+
+def _real_ingest(records_dir: Path, store: Path, *, rebuild: bool) -> IngestState:
+    writer = SqliteChromaIndexWriter(store)
+    try:
+        result = ingest_records(
+            IngestRequest(
+                records_dir=records_dir,
+                store_dir=store,
+                rebuild=rebuild,
+                dry_run=False,
+            ),
+            IngestDependencies(
+                load_manifest=lambda: load_manifest(manifest_path(records_dir)),
+                read_record=record_loader(records_dir),
+                count_tokens=tiktoken_count,
+                embed=fake_embed,
+                raw_manifest_digest=lambda: raw_manifest_digest(
+                    manifest_path(records_dir)
+                ),
+                require_api_key=lambda: None,
+                store=writer,
+            ),
+        )
+    finally:
+        writer.close()
+    assert result.exit_code == 0
+    return result.state
+
+
+@pytest.mark.integration
+def test_rebuild_preserves_format_two_and_format_one_refuses_query(tmp_path) -> None:
+    """Rebuild keeps format 2 and SQLite schema 1; a format 1 store refuses."""
+    records_dir = _adapt_dm0012(tmp_path)
+    store = tmp_path / "store"
+    assert _real_ingest(records_dir, store, rebuild=False) == IngestState.COMPLETED
+    assert read_format(store) == 2
+    assert _real_ingest(records_dir, store, rebuild=True) == IngestState.COMPLETED
+    assert read_format(store) == 2
+
+    reader = SqliteChromaIndexReader(store)
+    result = query_index(
+        QueryRequest(
+            question="why?",
+            store_dir=store,
+            allow_stale=False,
+            filters=QueryFilters(),
+        ),
+        _query_deps(reader),
+    )
+    assert result.state == QueryState.ANSWERED
+
+    # A store whose FORMAT file reads 1 refuses query with a rebuild hint.
+    (store / "FORMAT").write_text("1\n", encoding="utf-8")
+    refused = query_index(
+        QueryRequest(
+            question="why?",
+            store_dir=store,
+            allow_stale=False,
+            filters=QueryFilters(),
+        ),
+        _query_deps(reader),
+    )
+    assert refused.state == QueryState.FAILED
+    assert refused.exit_code == 1
+    assert refused.failure is not None
+    assert refused.failure.code == "store.format"
+    assert "ingest --rebuild" in refused.failure.detail

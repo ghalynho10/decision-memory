@@ -41,9 +41,11 @@ from decision_memory.application.dto import (
     FreshnessState,
     IngestRequest,
     IngestResult,
+    PartialQueryTrace,
     QueryRequest,
     QueryResult,
     QueryState,
+    RetrievalFailure,
 )
 from decision_memory.application.filters import FilterUsageError, build_query_filters
 from decision_memory.application.ingest import IngestDependencies, ingest_records
@@ -787,6 +789,13 @@ def query_command(
                     coverage=coverage_verdict,
                 ),
             )
+    except RetrievalFailure as failure:
+        typer.echo(
+            f"error retrieval {failure.stage.value}: retrieval integrity failure"
+        )
+        if debug:
+            _print_partial_query_debug(failure.trace)
+        raise typer.Exit(1) from None
     except LockError:
         typer.echo("store is locked by an ingest")
         raise typer.Exit(1) from None
@@ -983,6 +992,80 @@ def _print_query_debug(result: QueryResult) -> None:
         typer.echo(f"  abstention_stage: {result.abstention_stage.value}")
     typer.echo(f"  freshness: {result.freshness.value}")
     typer.echo(f"  stale_markers: {','.join(result.trace.result.stale_markers)}")
+
+
+def _print_partial_query_debug(partial: PartialQueryTrace) -> None:
+    """Print the completed sections of a retrieval failure trace (AC-9, AC-10).
+
+    Only sections completed before the failure are rendered; the failing stage
+    and every later stage are absent rather than synthesized as empty.
+    """
+    freshness = partial.freshness
+    typer.echo("Freshness")
+    typer.echo(f"  state: {freshness.state.value}")
+    typer.echo(f"  stored_pipeline_signature: {freshness.stored_pipeline_signature}")
+    typer.echo(f"  running_pipeline_signature: {freshness.running_pipeline_signature}")
+    typer.echo(f"  records_manifest_path: {freshness.records_manifest_path}")
+    typer.echo(f"  manifest_available: {freshness.manifest_available}")
+    if freshness.stale_reasons:
+        labels = ", ".join(reason.value for reason in freshness.stale_reasons)
+        typer.echo(f"  stale_reasons: {labels}")
+    if partial.filters is not None:
+        typer.echo("Filter")
+        for filter_row in partial.filters.rows:
+            tags = ",".join(filter_row.record_tags)
+            reasons = ",".join(reason.value for reason in filter_row.exclusion_reasons)
+            typer.echo(
+                f"  {filter_row.chunk_id} {filter_row.record_id} "
+                f"status={filter_row.record_status} tags={tags} "
+                f"{filter_row.value_path} state={filter_row.state.value} "
+                f"reasons={reasons}"
+            )
+    if partial.lexical is not None:
+        typer.echo("Lexical")
+        for lex_row in partial.lexical.rows:
+            typer.echo(
+                f"  {lex_row.chunk_id} score={lex_row.score:.6f} rank={lex_row.rank} "
+                f"disposition={lex_row.disposition.value}"
+            )
+    if partial.semantic is not None:
+        typer.echo("Semantic")
+        for semantic_row in partial.semantic.rows:
+            typer.echo(
+                f"  {semantic_row.chunk_id} rank={semantic_row.rank} "
+                f"distance={semantic_row.distance:.6f} "
+                f"similarity={semantic_row.similarity:.6f} "
+                f"disposition={semantic_row.disposition.value}"
+            )
+    if partial.fusion is not None:
+        typer.echo("Fusion")
+        for candidate in partial.fusion.candidates:
+            pass_value = (
+                candidate.selection_pass.value if candidate.selection_pass else "-"
+            )
+            final_rank = (
+                candidate.final_rank if candidate.final_rank is not None else "-"
+            )
+            typer.echo(
+                f"  {candidate.chunk_id} fused_rank={candidate.fused_rank} "
+                f"fused_score={candidate.fused_score:.6f} "
+                f"lexical_rank={candidate.lexical_rank} "
+                f"semantic_rank={candidate.semantic_rank} "
+                f"breadth={candidate.breadth_disposition.value} pass={pass_value} "
+                f"final_rank={final_rank} final={candidate.final_disposition.value}"
+            )
+    if partial.diversity is not None:
+        typer.echo("Diversity")
+        typer.echo(f"  accepted_limit: {partial.diversity.accepted_limit}")
+        typer.echo(f"  record_cap: {partial.diversity.record_cap}")
+        accepted = ",".join(partial.diversity.accepted_chunk_ids)
+        typer.echo(f"  accepted: {accepted}")
+    typer.echo("Providers")
+    for attempt in partial.providers:
+        typer.echo(
+            f"  {attempt.concern} attempt={attempt.attempt_number} "
+            f"elapsed_ms={attempt.elapsed_ms} outcome={attempt.outcome.value}"
+        )
 
 
 if __name__ == "__main__":
