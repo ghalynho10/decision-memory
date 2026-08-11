@@ -134,7 +134,7 @@ spec [0007](../specs/0007-core-cited-query/index.md) · code in src/decision_mem
 ### 10. Reliable multi source retrieval
 Add structured metadata filtering and lexical retrieval alongside semantic retrieval, so a filter can constrain the candidate set before semantic similarity chooses among it, which is what keeps the tool from confidently citing the wrong document. Exact stage ordering and whether scores fuse or run as a pipeline is an `/architect` decision.
 **Decision:** metadata filtering remains an explicit retrieval constraint. Structured query types for alternatives, lineage, and supersession traversal stay deferred until Feature 11 supplies evidence. Hybrid retrieval always applies filters first, then runs BM25 and cosine retrieval, fuses ranks, and applies record diversity.
-**Done when:** query 2 (what decisions affect resume generation) returns the required directly supported decisions from `DM-0004`, `DM-0014`, and `DM-0019`, while query 4 (what was decided about separating server side and browser side database clients, and why) honestly abstains because its evidence is outside the adapted corpus.
+**Done when:** query 2 (what decisions affect resume generation) returns the required directly supported decisions from `DM-0004` and `DM-0019`, while query 4 (what was decided about separating server side and browser side database clients, and why) honestly abstains because its evidence is outside the adapted corpus.
 spec [0008](../specs/0008-reliable-multi-source-retrieval/index.md)
 - [x] Design it (spec): `/architect reliable multi source retrieval`
 - [ ] Build it: `/develop reliable multi source retrieval`

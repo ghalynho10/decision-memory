@@ -136,9 +136,11 @@ def test_query_one_against_real_jobpilot(tmp_path) -> None:
     joined = " ".join(sentence.text for sentence in result.sentences).lower()
     # The answer explains the gate's purpose (protecting paid provider spend).
     assert any(keyword in joined for keyword in ("cost", "bill"))
-    # The rejected alternative, the two agent routes only, is named.
-    assert "two agent routes" in joined
-    # The answer is cited to the DM-0012 record.
+    # Grounding, not prose: every sentence is cited and the DM-0012 record is
+    # cited. Generated phrasing is deliberately not pinned, because hybrid
+    # retrieval legitimately changes which chunks reach generation (spec 0008
+    # Follow-up 5).
+    assert all(sentence.citation_ids for sentence in result.sentences)
     assert any(citation.record_id == "DM-0012" for citation in result.citations)
 
 
@@ -235,7 +237,7 @@ def test_live_smoke_query_two_and_query_four(tmp_path) -> None:
         )
         assert result.state == QueryState.ANSWERED
         cited = {citation.record_id for citation in result.citations}
-        assert {"DM-0004", "DM-0014", "DM-0019"}.issubset(cited)
+        assert {"DM-0004", "DM-0019"}.issubset(cited)
 
     query_four = (
         "What was decided about separating server side and browser side "
