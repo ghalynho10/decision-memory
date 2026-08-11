@@ -2,6 +2,16 @@
 
 Deeper reference for people already running the tool. The [README](../../README.md) covers what this is and how to get started; this doc covers the record schema, the pipeline internals, and how to debug a bad answer.
 
+## Questions this tool answers well
+
+Questions shaped as "why", "what was decided", "what changed", and "what was rejected":
+
+- Why was X built this way?
+- What was decided about a topic?
+- What was chosen over what, and why?
+- Which decisions are still provisional?
+- What changed the earlier approach to Y?
+
 ## Canonical record
 
 One record per decision, YAML frontmatter with an optional markdown body:

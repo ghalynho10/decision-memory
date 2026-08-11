@@ -14,14 +14,22 @@ It pays off during onboarding and code review, when checking whether an earlier 
 
 ## The problem
 
-During spec-driven or agentic development, the reasoning behind a system lives in scattered places: planning documents, generated specs, commit messages, pull requests, conversations that vanish when the session ends. Months later the code tells you *what* it does. It rarely tells you why this database, this schema, this API shape, what got tried and rejected, what a given feature is standing on, or what assumptions to check first when it breaks.
+During spec-driven or agentic development, the reasoning behind a system lives in scattered places: planning documents, generated specs, commit messages, pull requests, and conversations that vanish when the session ends. Months later the code tells you *what* it does. It rarely tells you:
+
+- Why this database, this schema, this API shape?
+- What problem invalidated the original design?
+- Which alternatives were considered and rejected, and why?
+- Which decisions is this feature standing on?
+- If this breaks, which assumptions should be checked first?
+
+Codebases accumulate answers to *what*. The *why* evaporates.
 
 ## Quickstart
 
 ```bash
 uv sync
-uv run decision-memory doctor <project-path>     # check whether a built-in adapter fits
-uv run decision-memory adapt <project-path>       # turn decision specs into canonical records
+uv run decision-memory doctor <project-path>            # check whether a built-in adapter fits
+uv run decision-memory adapt <project-path>              # turn decision specs into canonical records
 uv run decision-memory ingest .decision-memory/records   # build the local query index
 uv run decision-memory query "why was the private beta gate added?"
 ```
@@ -79,7 +87,7 @@ See the [user guide](docs/reference/user-guide.md) for the canonical record sche
 - Query interface (CLI) returning answers with resolving citations, plus a debug view showing what was retrieved and why an answer was refused
 - Evaluation harness: fixed questions with known-correct sources, so retrieval changes are measured rather than guessed at
 
-**Not in v1:** capture, declarative adapters, MCP server and web UI (see Roadmap), reconstructing history from a codebase that never recorded it, cross-repo querying, auto-approving generated records without human review.
+**Not in v1:** capture, declarative adapters, a Model Context Protocol (MCP) server and web UI (see Roadmap), reconstructing history from a codebase that never recorded it, cross-repo querying, auto-approving generated records without human review.
 
 Built in Python. The CLI is one interface onto the retrieval core, not the product. The core keeps a clean query boundary so other interfaces can sit on top of it without touching retrieval logic.
 
