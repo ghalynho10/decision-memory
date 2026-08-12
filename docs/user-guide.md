@@ -108,6 +108,22 @@ A real `ingest` needs `OPENAI_API_KEY` only when the plan actually embeds a reco
 
 Run `ingest` again after `adapt` and only changed and new records are reembedded. Unchanged records are validated, not reembedded. Records removed from the manifest become tombstones. When a record fails (a tampered digest, missing provenance, or a provider error), the rest continue and the run reports the failure.
 
+### Narrowing a query with filters
+
+`query` accepts repeatable metadata filters that constrain the candidate set before retrieval, so a filter can never be silently overridden by a plausible semantic match:
+
+```bash
+uv run decision-memory query "question" --record-id DM-0012 --record-id DM-0013
+uv run decision-memory query "question" --status accepted --tag billing
+uv run decision-memory query "question" --value-path 'body[*]'
+```
+
+Values use OR within one option and AND across options. Statuses normalize to `proposed`, `accepted`, `superseded`, or `rejected`; record ids, tags, and value paths stay case sensitive. A value path is either an exact chunk path (`why[0]`) or one of the fixed selectors `decision.alternatives[*]`, `why[*]`, `consequences.positive[*]`, `consequences.negative[*]`, and `body[*]`, which match exactly one indexed leaf. A malformed filter value (an empty value, an unknown status, or a bad path) is a usage error, exit `2`. A well formed filter that matches no chunk is not an error: the query honestly abstains with `not enough evidence here` and makes no provider call. Filters apply to one query only and never persist.
+
+### Hybrid retrieval
+
+Every query first applies the filters, then runs BM25 lexical and cosine semantic retrieval over the same accepted chunks. The two rank lists are combined with reciprocal rank fusion (no raw score is compared across scales), and a two pass diversity rule keeps at most two chunks per record so an answer can cite several relevant decisions, not one dominating record. The fixed limits (24 candidates, 8 accepted, fusion constant 60, diversity cap 2) are recorded in the debug trace and can be recalibrated without rebuilding embeddings.
+
 ### Stale index warnings
 
 The index remembers the manifest it was built from. If you `adapt` again but do not re-ingest, the index is stale. `query` refuses by default and tells you to re-ingest; `query --allow-stale` reads it anyway and prints `WARNING: stale index` with the reasons. A citation backed by an older version of a record is marked `stale version`.
@@ -118,23 +134,23 @@ The store remembers the absolute corpus root as a hint, so a citation's relative
 
 ### Debug output is sensitive
 
-`query --debug` prints the full trace: retrieved chunks with their scores, extracted facets, draft sentences, verification verdicts, provider attempts, citations, and full chunk text. It may include private project data, so treat it as sensitive before pasting it into an issue.
+`query --debug` prints the full trace in a fixed order: Freshness, Filter, Lexical, Semantic, Fusion, Diversity, Settings, Facets, Draft, Verification, Providers, Citations, and Result. The retrieval sections show every active chunk, its filter state and reasons, lexical scores and ranks, semantic distances, fused scores and ranks, and the diversity decision, plus the pinned retrieval settings. It may include private project data, so treat it as sensitive before pasting it into an issue. When a retrieval integrity failure occurs (a scorer error, a missing or extra vector, a misaligned semantic response, or a nonfinite score), the command exits `1` and `--debug` renders only the sections that completed before the failure.
 
 ### Rebuild and recovery
 
-If the pipeline configuration changed (embedding model, chunker, token encoding), the index no longer matches. Normal ingest and query refuse and tell you to rebuild:
+If the pipeline configuration changed (embedding model, chunker, token encoding), the index no longer matches. The same is true when the store format changed: format 2 pins the cosine metric and stores each chunk id as vector metadata so semantic search can restrict to exactly the accepted chunks. Normal ingest and query refuse and tell you to rebuild:
 
 ```bash
 uv run decision-memory ingest <records-dir> --rebuild
 ```
 
-A rebuild stages a fresh generation, verifies it completely, then switches to it atomically. If it fails, the previous good index stays active. `--rebuild` needs only the records and their manifest, not the original corpus or an adapter.
+A rebuild stages a fresh generation, verifies it completely, then switches to it atomically. If it fails, the previous good index stays active. It recomputes derived vectors and may repeat embedding spend; the canonical records and chunk text are preserved. `--rebuild` needs only the records and their manifest, not the original corpus or an adapter. A store in an older format cannot be queried until it is rebuilt.
 
 ### Exit codes
 
 - `0` a successful ingest, an answered query, or an honest abstention
-- `1` a partial ingest, stale refusal, pipeline mismatch, provider failure, lock conflict, malformed manifest, or corrupt store
-- `2` invalid usage, including an empty question
+- `1` a partial ingest, stale refusal, pipeline mismatch, provider failure, lock conflict, malformed manifest, corrupt store, or retrieval integrity failure
+- `2` invalid usage, including an empty question or a malformed filter value
 - `3` a missing records directory or missing store path
 
 ### When an answer is wrong: the triage map
@@ -143,7 +159,7 @@ Reviewer guidance for working backward from a bad answer. It applies only after 
 
 | First failing check | Stage |
 |---|---|
-| A correct indexed chunk was not accepted | Retrieval (candidate ranks, scores, floor, dispositions) |
+| A correct indexed chunk was filtered out or not accepted | Retrieval (Filter states and reasons, Lexical scores and ranks, Semantic distances and ranks, Fusion scores, Diversity dispositions) |
 | An expected canonical value is absent or malformed in the index plan | Chunking (chunk text, boundaries, value path, provenance) |
 | Correct chunks were accepted but a draft sentence is missing or wrong | Generation (accepted chunk ids, facets, draft sentences) |
 | A supported draft was removed or a covered facet was rejected | Claim verification or abstention (sentence verdicts, uncovered facets) |

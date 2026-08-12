@@ -1,18 +1,19 @@
-"""Application: the query use case (spec 0007 AC-12, AC-15, AC-16).
+"""Application: the query use case (spec 0007 AC-12, AC-15, AC-16; spec 0008).
 
-``query_index`` reads only the local store. It verifies the pipeline
-signature and SQLite to Chroma parity, retrieves up to 24 cosine candidates
-against the SQLite supplied eligibility filter, accepts the first eight under
-the disabled null floor, extracts facets independently, generates structured
-answer sentences, verifies them by deterministic containment or model
-entailment, checks coverage, and returns a cited answer or an honest
-abstention. Provider, schema, lock, manifest, and store failures are never
-abstention. The application receives every provider and store concern as a
-narrow callable or protocol (AC-20).
+``query_index`` reads only the local store. It applies explicit metadata
+filters to an immutable ``active_chunks`` snapshot first (AC-4), so a filter
+that matches nothing abstains without any embedding or generation call. It
+then runs BM25 lexical and cosine semantic retrieval over the same accepted
+chunks, fuses their ranks with reciprocal rank fusion, applies a two pass
+record diversity rule, and passes the accepted context to the existing
+generation and verification path (AC-5 to AC-8). Provider, schema, lock,
+manifest, and store failures are never abstention. The application receives
+every provider and store concern as a narrow callable or protocol (AC-20).
 """
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Protocol
@@ -21,19 +22,29 @@ from decision_memory.application.adapter import Manifest, semantic_manifest_dige
 from decision_memory.application.canonical import SourceReference
 from decision_memory.application.dto import (
     AbstentionStage,
+    ActiveChunkDescriptor,
     AnswerSentence,
-    Candidate,
-    CandidateDisposition,
+    BreadthDisposition,
     Citation,
     CitationFreshness,
     CitationKind,
     CoverageRow,
+    DiversityTrace,
     DraftSentence,
     Facet,
     Failure,
+    FilterState,
+    FilterTrace,
+    FinalDisposition,
     FreshnessState,
     FreshnessTrace,
+    FusedCandidate,
+    FusionTrace,
     GenerationTrace,
+    LexicalDisposition,
+    LexicalRow,
+    LexicalTrace,
+    PartialQueryTrace,
     ProviderAttempt,
     QueryRequest,
     QueryResult,
@@ -41,39 +52,95 @@ from decision_memory.application.dto import (
     QueryTrace,
     ResolutionState,
     ResultTrace,
+    RetrievalFailure,
+    RetrievalSettings,
+    RetrievalStage,
     RetrievalTrace,
+    SelectionPass,
+    SemanticDisposition,
+    SemanticMatches,
+    SemanticRow,
+    SemanticTrace,
     StaleReason,
     SupersessionNotice,
     VerificationTrace,
+)
+from decision_memory.application.filters import filter_descriptors
+from decision_memory.application.lexical import (
+    LEXICAL_TOKENIZER_VERSION,
+    STOPWORD_DIGEST,
+    STOPWORD_SET,
+    tokenize,
 )
 from decision_memory.application.pipeline import (
     MODEL_TOKEN_LIMIT,
     pipeline_signature,
 )
+from decision_memory.application.store_format import STORE_FORMAT_VERSION
 from decision_memory.application.verification import deterministic_containment
-from decision_memory.infrastructure.chroma_store import is_valid_distance
 
 EXIT_OK = 0
 EXIT_ERROR = 1
 EXIT_USAGE = 2
 
+# Fixed retrieval limits and constants (spec 0008 AC-7, AC-8, AC-10). These
+# are recorded in every settings trace and do not enter the ingestion pipeline
+# signature, so Feature 11 may calibrate them without rebuilding embeddings.
 CANDIDATE_LIMIT = 24
 ACCEPTED_LIMIT = 8
+RRF_CONSTANT = 60
+DIVERSITY_CAP = 2
+BM25_VARIANT = "BM25Okapi"
+BM25_PARAMETERS = "k1=1.5,b=0.75"
+COLLECTION_METRIC = "cosine"
+
+# A cosine distance is valid when finite and within [0, 2]. The epsilon
+# absorbs Chroma float noise at the boundaries (a parallel vector can come
+# back as a tiny negative); the value is then clamped so traces hold a real
+# cosine distance (AC-6).
+DISTANCE_EPSILON = 1e-6
 
 
-@dataclass(frozen=True)
-class RetrievedChunk:
-    """A stored chunk with its record metadata, for generation and citation."""
+def _valid_distance(distance: float) -> bool:
+    """Finite and within ``[0, 2]`` up to float noise (AC-6)."""
+    return (
+        distance == distance and -DISTANCE_EPSILON <= distance <= 2.0 + DISTANCE_EPSILON
+    )
 
-    chunk_id: str
-    record_id: str
-    value_path: str
-    fingerprint: str
-    ordinal: int
-    text: str
-    sources: tuple[SourceReference, ...]
-    record_title: str
-    record_status: str | None
+
+def _partial(
+    freshness: FreshnessTrace,
+    filters: FilterTrace | None,
+    lexical: LexicalTrace | None,
+    semantic: SemanticTrace | None,
+    fusion: FusionTrace | None,
+    diversity: DiversityTrace | None,
+    providers: Sequence[ProviderAttempt],
+) -> PartialQueryTrace:
+    """Build the partial trace carried by a ``RetrievalFailure`` (AC-9)."""
+    return PartialQueryTrace(
+        freshness=freshness,
+        filters=filters,
+        lexical=lexical,
+        semantic=semantic,
+        fusion=fusion,
+        diversity=diversity,
+        providers=tuple(providers),
+    )
+
+
+class LexicalScorer(Protocol):
+    """Scores documents against query tokens, one float per document (AC-16).
+
+    Injected from infrastructure (``rank_bm25``). Document token tuples arrive
+    in chunk id order and the returned scores are positionally aligned.
+    """
+
+    def __call__(
+        self,
+        query_tokens: Sequence[str],
+        document_tokens: Sequence[Sequence[str]],
+    ) -> Sequence[float]: ...
 
 
 class IndexReader(Protocol):
@@ -81,8 +148,9 @@ class IndexReader(Protocol):
 
     def pipeline_signature(self) -> str: ...
     def generation_id(self) -> str | None: ...
+    def store_format(self) -> int | None: ...
     def parity_problems(self) -> list[str]: ...
-    def eligible_tuples(self) -> tuple[tuple[str, str, str], ...]: ...
+    def active_chunks(self) -> tuple[ActiveChunkDescriptor, ...]: ...
     def manifest_metadata(
         self,
     ) -> tuple[str | None, str | None, str | None, str | None]: ...
@@ -93,13 +161,11 @@ class IndexReader(Protocol):
     def supersession_notices(
         self, predecessor_id: str
     ) -> tuple[SupersessionNotice, ...]: ...
-    def search(
+    def semantic_search(
         self,
         embedding: Sequence[float],
-        eligible: Sequence[tuple[str, str, str]],
-        limit: int = CANDIDATE_LIMIT,
-    ) -> list[tuple[str, float]]: ...
-    def chunk(self, chunk_id: str) -> RetrievedChunk | None: ...
+        accepted_chunk_ids: Sequence[str],
+    ) -> SemanticMatches: ...
 
 
 @dataclass(frozen=True)
@@ -108,7 +174,8 @@ class QueryDependencies:
 
     store: IndexReader
     count_tokens: Callable[[str], int]
-    embed: Callable[[Sequence[str]], list[list[float]]]
+    embed: Callable[[Sequence[str], list[ProviderAttempt] | None], list[list[float]]]
+    lexical_scorer: LexicalScorer
     load_manifest: Callable[[], Manifest]
     raw_manifest_digest: Callable[[], str]
     resolve_source: Callable[[str], ResolutionState]
@@ -138,39 +205,6 @@ class QueryDependencies:
     ]
 
 
-def _empty_retrieval(
-    question: str, eligible: tuple[tuple[str, str, str], ...]
-) -> RetrievalTrace:
-    return RetrievalTrace(
-        question=question,
-        filters=("none",),
-        eligibility=eligible,
-        candidate_limit=CANDIDATE_LIMIT,
-        accepted_limit=ACCEPTED_LIMIT,
-        relevance_floor=None,
-        candidates=(),
-    )
-
-
-def _empty_generation() -> GenerationTrace:
-    return GenerationTrace(
-        facets=(),
-        supersession_notices=(),
-        draft_sentences=(),
-        cited_chunk_ids=(),
-    )
-
-
-def _empty_verification() -> VerificationTrace:
-    return VerificationTrace(
-        containment=(),
-        entailment=(),
-        removed_sentences=(),
-        coverage=(),
-        uncovered_facets=(),
-    )
-
-
 def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
     """Run one query and return the full traced result.
 
@@ -197,6 +231,18 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
                 "store",
                 "store is missing an active generation (corrupt initialized "
                 "state); run ingest or rebuild",
+            ),
+            EXIT_ERROR,
+        )
+    if deps.store.store_format() != STORE_FORMAT_VERSION:
+        return _failed_result(
+            request,
+            _freshness_trace(deps, None, None),
+            Failure(
+                "store.format",
+                "store",
+                f"index store format {deps.store.store_format()} is not "
+                "supported; run ingest --rebuild",
             ),
             EXIT_ERROR,
         )
@@ -240,11 +286,32 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
             EXIT_ERROR,
         )
 
-    eligible = deps.store.eligible_tuples()
-    retrieval = _empty_retrieval(question, eligible)
-    if not eligible:
+    # Filter stage: one immutable SQLite snapshot, one FilterRow per active
+    # chunk even when no filter is present (AC-4).
+    try:
+        active = deps.store.active_chunks()
+    except Exception as exc:  # noqa: BLE001 - retrieval integrity failure
+        raise RetrievalFailure(
+            RetrievalStage.FILTER,
+            _partial(freshness, None, None, None, None, None, attempts),
+        ) from exc
+    if not active:
         return _abstained_result(
-            request, freshness, retrieval, AbstentionStage.RETRIEVAL
+            request, freshness, _empty_retrieval(), AbstentionStage.RETRIEVAL
+        )
+    filter_rows = filter_descriptors(active, request.filters)
+    filter_trace = FilterTrace(
+        rows=tuple(sorted(filter_rows, key=lambda row: row.chunk_id))
+    )
+    accepted_ids = frozenset(
+        row.chunk_id for row in filter_rows if row.state == FilterState.ACCEPTED
+    )
+    if not accepted_ids:
+        return _abstained_result(
+            request,
+            freshness,
+            _retrieval_with_filter(filter_trace),
+            AbstentionStage.RETRIEVAL,
         )
 
     if deps.count_tokens(question) > MODEL_TOKEN_LIMIT:
@@ -268,83 +335,171 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
             EXIT_ERROR,
         )
 
-    # Embed the question and retrieve.
+    accepted_by_id = {
+        chunk.chunk_id: chunk for chunk in active if chunk.chunk_id in accepted_ids
+    }
+
+    # Lexical stage: BM25 over accepted chunk text, no provider call (AC-5).
     try:
-        question_vector = deps.embed([question])[0]
+        lexical_trace, ranked_lexical = _lexical_stage(
+            question, accepted_by_id, deps.lexical_scorer
+        )
+    except Exception as exc:  # noqa: BLE001 - retrieval integrity failure
+        raise RetrievalFailure(
+            RetrievalStage.LEXICAL,
+            _partial(freshness, filter_trace, None, None, None, None, attempts),
+        ) from exc
+
+    # Semantic retrieval over the exact accepted ids (AC-6): Chroma receives
+    # the accepted count as n_results and an $in over the accepted ids, and the
+    # application validates the returned set before local ranking.
+    try:
+        question_vector = deps.embed([question], attempts)[0]
     except Exception as exc:  # noqa: BLE001 - provider failure is a result
         return _failed_result(
             request,
             freshness,
             Failure("provider.embedding", "embedding", _safe(exc)),
             EXIT_ERROR,
+            attempts,
         )
     try:
-        raw = deps.store.search(question_vector, eligible)
-    except Exception as exc:  # noqa: BLE001 - store failure is a result
-        return _failed_result(
+        matches = deps.store.semantic_search(
+            question_vector, tuple(sorted(accepted_ids))
+        )
+    except Exception as exc:  # noqa: BLE001 - retrieval integrity failure
+        raise RetrievalFailure(
+            RetrievalStage.SEMANTIC,
+            _partial(
+                freshness, filter_trace, lexical_trace, None, None, None, attempts
+            ),
+        ) from exc
+    if len(matches.ids) != len(accepted_ids) or set(matches.ids) != accepted_ids:
+        raise RetrievalFailure(
+            RetrievalStage.SEMANTIC,
+            _partial(
+                freshness, filter_trace, lexical_trace, None, None, None, attempts
+            ),
+        )
+    if len(matches.distances) != len(matches.ids):
+        raise RetrievalFailure(
+            RetrievalStage.SEMANTIC,
+            _partial(
+                freshness, filter_trace, lexical_trace, None, None, None, attempts
+            ),
+        )
+
+    scored: list[tuple[ActiveChunkDescriptor, float]] = []
+    for chunk_id, raw_distance in zip(matches.ids, matches.distances, strict=True):
+        chunk = accepted_by_id.get(chunk_id)
+        if chunk is None:
+            raise RetrievalFailure(
+                RetrievalStage.SEMANTIC,
+                _partial(
+                    freshness, filter_trace, lexical_trace, None, None, None, attempts
+                ),
+            )
+        if not _valid_distance(raw_distance):
+            raise RetrievalFailure(
+                RetrievalStage.SEMANTIC,
+                _partial(
+                    freshness, filter_trace, lexical_trace, None, None, None, attempts
+                ),
+            )
+        scored.append((chunk, max(0.0, min(2.0, raw_distance))))
+    # Local sort by distance ascending then chunk id; application decides the
+    # top 24 boundary, never Chroma ordering (AC-6).
+    scored.sort(key=lambda pair: (pair[1], pair[0].chunk_id))
+
+    semantic_rows = [
+        SemanticRow(
+            chunk_id=chunk.chunk_id,
+            rank=rank,
+            distance=distance,
+            similarity=1.0 - distance,
+            disposition=(
+                SemanticDisposition.RANKED
+                if rank <= CANDIDATE_LIMIT
+                else SemanticDisposition.OUTSIDE_TOP_24
+            ),
+        )
+        for rank, (chunk, distance) in enumerate(scored, start=1)
+    ]
+    semantic_trace = SemanticTrace(
+        rows=tuple(sorted(semantic_rows, key=lambda row: row.chunk_id))
+    )
+    ranked_semantic = {
+        row.chunk_id: row.rank
+        for row in semantic_rows
+        if row.disposition == SemanticDisposition.RANKED
+    }
+
+    # Reciprocal rank fusion over the ranked lexical and semantic union (AC-7).
+    try:
+        fused = _fusion_stage(ranked_lexical, ranked_semantic, accepted_by_id)
+    except Exception as exc:  # noqa: BLE001 - retrieval integrity failure
+        raise RetrievalFailure(
+            RetrievalStage.FUSION,
+            _partial(
+                freshness,
+                filter_trace,
+                lexical_trace,
+                semantic_trace,
+                None,
+                None,
+                attempts,
+            ),
+        ) from exc
+    if not fused:
+        # Ranked union empty after a nonempty filter result: retrieval
+        # abstention, both complete traces preserved, no generation call (AC-9).
+        retrieval = RetrievalTrace(
+            filters=filter_trace,
+            lexical=lexical_trace,
+            semantic=semantic_trace,
+            fusion=FusionTrace(candidates=()),
+            diversity=DiversityTrace(
+                accepted_chunk_ids=(),
+                accepted_limit=ACCEPTED_LIMIT,
+                record_cap=DIVERSITY_CAP,
+            ),
+            settings=_retrieval_settings(),
+        )
+        return _abstained_result(
             request,
             freshness,
-            Failure("store.retrieval", "retrieval", _safe(exc)),
-            EXIT_ERROR,
+            retrieval,
+            AbstentionStage.RETRIEVAL,
+            attempts=attempts,
         )
 
-    candidates: list[Candidate] = []
-    accepted: list[RetrievedChunk] = []
-    for rank, (chunk_id, distance) in enumerate(raw, start=1):
-        if not is_valid_distance(distance):
-            return _failed_result(
-                request,
+    # Two pass record diversity over the fused candidates (AC-8).
+    try:
+        final_candidates, accepted_chunks = _diversity_stage(fused, accepted_by_id)
+    except Exception as exc:  # noqa: BLE001 - retrieval integrity failure
+        raise RetrievalFailure(
+            RetrievalStage.DIVERSITY,
+            _partial(
                 freshness,
-                Failure(
-                    "store.distance",
-                    "retrieval",
-                    f"invalid distance for {chunk_id}",
-                ),
-                EXIT_ERROR,
-            )
-        chunk = deps.store.chunk(chunk_id)
-        if chunk is None:
-            return _failed_result(
-                request,
-                freshness,
-                Failure(
-                    "store.chunk_missing",
-                    "retrieval",
-                    f"missing chunk {chunk_id}",
-                ),
-                EXIT_ERROR,
-            )
-        disposition = (
-            CandidateDisposition.ACCEPTED
-            if rank <= ACCEPTED_LIMIT
-            else CandidateDisposition.OUTSIDE_TOP_8
-        )
-        candidates.append(
-            Candidate(
-                chunk_id=chunk_id,
-                record_id=chunk.record_id,
-                value_path=chunk.value_path,
-                fingerprint=chunk.fingerprint,
-                ordinal=chunk.ordinal,
-                distance=distance,
-                similarity=1.0 - distance,
-                rank=rank,
-                disposition=disposition,
-                text=chunk.text,
-                provenance=chunk.sources,
-            )
-        )
-        if disposition == CandidateDisposition.ACCEPTED:
-            accepted.append(chunk)
-
+                filter_trace,
+                lexical_trace,
+                semantic_trace,
+                FusionTrace(candidates=tuple(fused)),
+                None,
+                attempts,
+            ),
+        ) from exc
     retrieval = RetrievalTrace(
-        question=question,
-        filters=("none",),
-        eligibility=eligible,
-        candidate_limit=CANDIDATE_LIMIT,
-        accepted_limit=ACCEPTED_LIMIT,
-        relevance_floor=None,
-        candidates=tuple(candidates),
+        filters=filter_trace,
+        lexical=lexical_trace,
+        semantic=semantic_trace,
+        fusion=FusionTrace(candidates=tuple(final_candidates)),
+        diversity=DiversityTrace(
+            accepted_chunk_ids=tuple(chunk.chunk_id for chunk in accepted_chunks),
+            accepted_limit=ACCEPTED_LIMIT,
+            record_cap=DIVERSITY_CAP,
+        ),
+        settings=_retrieval_settings(),
     )
 
     generation = _empty_generation()
@@ -357,6 +512,7 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
             freshness,
             Failure("provider.facets", "generation", _safe(exc)),
             EXIT_ERROR,
+            attempts,
         )
     generation = GenerationTrace(
         facets=facets,
@@ -365,13 +521,13 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
         cited_chunk_ids=(),
     )
 
-    accepted_texts = [chunk.text for chunk in accepted]
-    accepted_ids = [chunk.chunk_id for chunk in accepted]
-    known_ids = frozenset(chunk.chunk_id for chunk in accepted)
-    notices = _collect_notices(deps.store, accepted)
+    accepted_texts = [chunk.text for chunk in accepted_chunks]
+    accepted_ids_list = [chunk.chunk_id for chunk in accepted_chunks]
+    known_ids = frozenset(chunk.chunk_id for chunk in accepted_chunks)
+    notices = _collect_notices(deps.store, accepted_chunks)
     try:
         draft = deps.generate_answer(
-            facets, accepted_texts, accepted_ids, notices, known_ids, attempts
+            facets, accepted_texts, accepted_ids_list, notices, known_ids, attempts
         )
     except Exception as exc:  # noqa: BLE001 - provider failure is a result
         return _failed_result(
@@ -379,6 +535,7 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
             freshness,
             Failure("provider.answer", "generation", _safe(exc)),
             EXIT_ERROR,
+            attempts,
         )
     generation = GenerationTrace(
         facets=facets,
@@ -388,11 +545,11 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
     )
 
     # Verify each sentence: deterministic containment first, then entailment.
-    kept: list[DraftSentence] = []
+    kept_sentences: list[DraftSentence] = []
     containment_rows: list[tuple[str, bool]] = []
     entailment_rows: list[tuple[str, str, str]] = []
     removed: list[str] = []
-    chunk_text_by_id = {chunk.chunk_id: chunk.text for chunk in accepted}
+    chunk_text_by_id = {chunk.chunk_id: chunk.text for chunk in accepted_chunks}
     for sentence in draft:
         cited_texts = [
             chunk_text_by_id[chunk_id]
@@ -402,7 +559,7 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
         contained = deterministic_containment(sentence.text, cited_texts)
         containment_rows.append((sentence.sentence_id, contained))
         if contained:
-            kept.append(sentence)
+            kept_sentences.append(sentence)
             continue
         try:
             supported, reason = deps.entail(sentence.text, cited_texts, attempts)
@@ -412,6 +569,7 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
                 freshness,
                 Failure("provider.entailment", "claim_verification", _safe(exc)),
                 EXIT_ERROR,
+                attempts,
             )
         entailment_rows.append(
             (
@@ -421,19 +579,20 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
             )
         )
         if supported:
-            kept.append(sentence)
+            kept_sentences.append(sentence)
         else:
             removed.append(sentence.sentence_id)
 
     # Independent coverage over the original question, facets, and kept sentences.
     try:
-        coverage_rows = deps.coverage(question, facets, kept, attempts)
+        coverage_rows = deps.coverage(question, facets, kept_sentences, attempts)
     except Exception as exc:  # noqa: BLE001 - provider failure is a result
         return _failed_result(
             request,
             freshness,
             Failure("provider.coverage", "claim_verification", _safe(exc)),
             EXIT_ERROR,
+            attempts,
         )
     uncovered = tuple(
         facet
@@ -455,17 +614,18 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
             AbstentionStage.CLAIM_VERIFICATION,
             generation=generation,
             verification=verification,
+            attempts=attempts,
         )
 
     # Build citations by first sentence use, deduplicated by source location.
-    chunk_by_id = {chunk.chunk_id: chunk for chunk in accepted}
+    chunk_by_id = {chunk.chunk_id: chunk for chunk in accepted_chunks}
     stale_record_ids = frozenset(
         record_id
         for record_id, desired in deps.store.ledger_fingerprints().items()
         if desired is not None and deps.store.active_fingerprint(record_id) != desired
     )
     chunk_citations, chunk_sentence_ids = _allocate_citations(
-        kept, chunk_by_id, stale_record_ids, deps.resolve_source
+        kept_sentences, chunk_by_id, stale_record_ids, deps.resolve_source
     )
     try:
         manifest = deps.load_manifest()
@@ -486,7 +646,7 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
                 text=sentence.text,
                 citation_ids=chunk_sentence_ids.get(sentence.sentence_id, ()),
             )
-            for sentence in kept
+            for sentence in kept_sentences
         )
         + disclosure_sentences
     )
@@ -511,6 +671,7 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
                         "manifest changed during query; use --allow-stale to read it",
                     ),
                     EXIT_ERROR,
+                    attempts,
                 )
 
     result_trace = ResultTrace(
@@ -532,7 +693,7 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
         result=result_trace,
     )
     return QueryResult(
-        schema_version=1,
+        schema_version=2,
         state=QueryState.ANSWERED,
         exit_code=EXIT_OK,
         sentences=answer_sentences,
@@ -544,9 +705,198 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
     )
 
 
+def _lexical_stage(
+    question: str,
+    accepted_by_id: dict[str, ActiveChunkDescriptor],
+    scorer: LexicalScorer,
+) -> tuple[LexicalTrace, dict[str, int]]:
+    """BM25 over accepted chunk text, returning the trace and ranked ids (AC-5).
+
+    Dispositions use the fixed precedence: no query token intersects the chunk
+    tokens gives ``no_term_match``; a score at or below zero gives
+    ``nonpositive_score``; positive rows sort by score descending then chunk id
+    and receive ranks starting at 1, with ranks 1 through 24 ``ranked`` and
+    later positive ranks ``outside_top_24``. Only ``ranked`` rows contribute to
+    fusion.
+    """
+    ordered = sorted(accepted_by_id.values(), key=lambda chunk: chunk.chunk_id)
+    query_tokens = tokenize(question)
+    document_tokens = [tokenize(chunk.text) for chunk in ordered]
+    scores = list(scorer(query_tokens, document_tokens))
+    if len(scores) != len(ordered):
+        raise ValueError("lexical scorer returned a wrong count")
+    rows: list[LexicalRow] = []
+    positive: list[tuple[ActiveChunkDescriptor, float]] = []
+    for chunk, score, doc_tokens in zip(ordered, scores, document_tokens, strict=True):
+        if not isinstance(score, (int, float)) or not math.isfinite(score):
+            raise ValueError(f"nonfinite lexical score for {chunk.chunk_id}")
+        value = float(score)
+        if not query_tokens or not (set(query_tokens) & set(doc_tokens)):
+            rows.append(
+                LexicalRow(
+                    chunk.chunk_id, value, None, LexicalDisposition.NO_TERM_MATCH
+                )
+            )
+        elif value <= 0.0:
+            rows.append(
+                LexicalRow(
+                    chunk.chunk_id, value, None, LexicalDisposition.NONPOSITIVE_SCORE
+                )
+            )
+        else:
+            positive.append((chunk, value))
+    positive.sort(key=lambda pair: (-pair[1], pair[0].chunk_id))
+    ranked: dict[str, int] = {}
+    for rank, (chunk, score) in enumerate(positive, start=1):
+        disposition = (
+            LexicalDisposition.RANKED
+            if rank <= CANDIDATE_LIMIT
+            else LexicalDisposition.OUTSIDE_TOP_24
+        )
+        if disposition == LexicalDisposition.RANKED:
+            # Only ranked rows (ranks 1 through 24) contribute to fusion
+            # (AC-5), symmetric with the semantic stage below.
+            ranked[chunk.chunk_id] = rank
+        rows.append(LexicalRow(chunk.chunk_id, score, rank, disposition))
+    rows.sort(key=lambda row: row.chunk_id)
+    return LexicalTrace(rows=tuple(rows)), ranked
+
+
+def _fusion_stage(
+    ranked_lexical: dict[str, int],
+    ranked_semantic: dict[str, int],
+    accepted_by_id: dict[str, ActiveChunkDescriptor],
+) -> list[FusedCandidate]:
+    """Reciprocal rank fusion over the ranked union (AC-7).
+
+    For each chunk, ``fused_score`` is the sum of ``1 / (60 + rank)`` for each
+    present contribution; a missing contribution adds zero. Fused candidates
+    sort by score descending then chunk id. No raw score normalization or cross
+    scale comparison occurs. The returned candidates carry placeholder
+    diversity facts that the diversity stage replaces.
+    """
+    chunk_ids = sorted(set(ranked_lexical) | set(ranked_semantic))
+    scored: list[tuple[str, float, int | None, int | None]] = []
+    for chunk_id in chunk_ids:
+        lexical_rank = ranked_lexical.get(chunk_id)
+        semantic_rank = ranked_semantic.get(chunk_id)
+        fused = 0.0
+        if lexical_rank is not None:
+            fused += 1.0 / (RRF_CONSTANT + lexical_rank)
+        if semantic_rank is not None:
+            fused += 1.0 / (RRF_CONSTANT + semantic_rank)
+        scored.append((chunk_id, fused, lexical_rank, semantic_rank))
+    scored.sort(key=lambda item: (-item[1], item[0]))
+    candidates: list[FusedCandidate] = []
+    for fused_rank, (chunk_id, fused, lexical_rank, semantic_rank) in enumerate(
+        scored, start=1
+    ):
+        chunk = accepted_by_id[chunk_id]
+        candidates.append(
+            FusedCandidate(
+                chunk_id=chunk_id,
+                record_id=chunk.record_id,
+                value_path=chunk.value_path,
+                fingerprint=chunk.fingerprint,
+                ordinal=chunk.ordinal,
+                text=chunk.text,
+                provenance=chunk.provenance,
+                lexical_rank=lexical_rank,
+                semantic_rank=semantic_rank,
+                fused_score=fused,
+                fused_rank=fused_rank,
+                breadth_disposition=BreadthDisposition.RECORD_CAP,
+                selection_pass=None,
+                final_rank=None,
+                final_disposition=FinalDisposition.OUTSIDE_TOP_8,
+            )
+        )
+    return candidates
+
+
+def _diversity_stage(
+    candidates: Sequence[FusedCandidate],
+    accepted_by_id: dict[str, ActiveChunkDescriptor],
+) -> tuple[list[FusedCandidate], list[ActiveChunkDescriptor]]:
+    """Two pass record diversity, returning final candidates and accepts (AC-8).
+
+    The breadth pass walks fused rank from 1 upward, accepting at most two per
+    record. A candidate at the record cap is deferred with ``record_cap``. As
+    soon as eight are accepted, every unvisited candidate gets
+    ``accepted_limit_reached``. If breadth exhausts the input below eight, the
+    fill pass revisits only deferred rows in fused order and accepts them until
+    eight or exhaustion. Accepted chunks come back in final rank (append)
+    order.
+    """
+    states: list[
+        tuple[FusedCandidate, BreadthDisposition, SelectionPass | None, int | None]
+    ] = []
+    accepted_count = 0
+    record_counts: dict[str, int] = {}
+    deferred: list[int] = []
+    for candidate in candidates:
+        if accepted_count >= ACCEPTED_LIMIT:
+            states.append(
+                (candidate, BreadthDisposition.ACCEPTED_LIMIT_REACHED, None, None)
+            )
+            continue
+        record_count = record_counts.get(candidate.record_id, 0)
+        if record_count >= DIVERSITY_CAP:
+            deferred.append(len(states))
+            states.append((candidate, BreadthDisposition.RECORD_CAP, None, None))
+            continue
+        accepted_count += 1
+        record_counts[candidate.record_id] = record_count + 1
+        states.append(
+            (
+                candidate,
+                BreadthDisposition.ACCEPTED,
+                SelectionPass.BREADTH,
+                accepted_count,
+            )
+        )
+    for index in deferred:
+        if accepted_count >= ACCEPTED_LIMIT:
+            break
+        candidate, breadth, _selection_pass, _final_rank = states[index]
+        accepted_count += 1
+        states[index] = (candidate, breadth, SelectionPass.FILL, accepted_count)
+    final_candidates = [
+        FusedCandidate(
+            chunk_id=candidate.chunk_id,
+            record_id=candidate.record_id,
+            value_path=candidate.value_path,
+            fingerprint=candidate.fingerprint,
+            ordinal=candidate.ordinal,
+            text=candidate.text,
+            provenance=candidate.provenance,
+            lexical_rank=candidate.lexical_rank,
+            semantic_rank=candidate.semantic_rank,
+            fused_score=candidate.fused_score,
+            fused_rank=candidate.fused_rank,
+            breadth_disposition=breadth,
+            selection_pass=selection_pass,
+            final_rank=final_rank,
+            final_disposition=(
+                FinalDisposition.ACCEPTED
+                if final_rank is not None
+                else FinalDisposition.OUTSIDE_TOP_8
+            ),
+        )
+        for candidate, breadth, selection_pass, final_rank in states
+    ]
+    accepted = sorted(
+        (final_rank, candidate.chunk_id)
+        for candidate, _breadth, _selection_pass, final_rank in states
+        if final_rank is not None
+    )
+    accepted_chunks = [accepted_by_id[chunk_id] for _final_rank, chunk_id in accepted]
+    return final_candidates, accepted_chunks
+
+
 def _allocate_citations(
     sentences: Sequence[DraftSentence],
-    chunk_by_id: dict[str, RetrievedChunk],
+    chunk_by_id: dict[str, ActiveChunkDescriptor],
     stale_record_ids: frozenset[str] = frozenset(),
     resolve_source: Callable[[str], ResolutionState] | None = None,
 ) -> tuple[tuple[Citation, ...], dict[str, tuple[str, ...]]]:
@@ -562,7 +912,7 @@ def _allocate_citations(
             chunk = chunk_by_id.get(chunk_id)
             if chunk is None:
                 continue
-            for source in chunk.sources:
+            for source in chunk.provenance:
                 key = (CitationKind.CHUNK.value, chunk_id, source.path, source.section)
                 existing = seen.get(key)
                 if existing is not None:
@@ -601,7 +951,7 @@ def _unresolved(_path: str) -> ResolutionState:
 
 
 def _collect_notices(
-    store: IndexReader, accepted: Sequence[RetrievedChunk]
+    store: IndexReader, accepted: Sequence[ActiveChunkDescriptor]
 ) -> tuple[SupersessionNotice, ...]:
     """Immediate eligible successors of every retrieved predecessor record (AC-18)."""
     collected: list[SupersessionNotice] = []
@@ -682,6 +1032,63 @@ def _render_disclosures(
     return tuple(sentences), tuple(citations)
 
 
+def _retrieval_settings() -> RetrievalSettings:
+    """The fixed retrieval settings recorded in every trace (AC-10)."""
+    return RetrievalSettings(
+        tokenizer_version=LEXICAL_TOKENIZER_VERSION,
+        stopword_set=STOPWORD_SET,
+        stopword_digest=STOPWORD_DIGEST,
+        bm25_variant=BM25_VARIANT,
+        bm25_parameters=BM25_PARAMETERS,
+        lexical_limit=CANDIDATE_LIMIT,
+        semantic_limit=CANDIDATE_LIMIT,
+        rrf_constant=RRF_CONSTANT,
+        accepted_limit=ACCEPTED_LIMIT,
+        diversity_cap=DIVERSITY_CAP,
+        collection_metric=COLLECTION_METRIC,
+        relevance_floor=None,
+    )
+
+
+def _retrieval_with_filter(filter_trace: FilterTrace) -> RetrievalTrace:
+    """A retrieval trace with only the filter section completed (AC-4)."""
+    return RetrievalTrace(
+        filters=filter_trace,
+        lexical=LexicalTrace(rows=()),
+        semantic=SemanticTrace(rows=()),
+        fusion=FusionTrace(candidates=()),
+        diversity=DiversityTrace(
+            accepted_chunk_ids=(),
+            accepted_limit=ACCEPTED_LIMIT,
+            record_cap=DIVERSITY_CAP,
+        ),
+        settings=_retrieval_settings(),
+    )
+
+
+def _empty_retrieval() -> RetrievalTrace:
+    return _retrieval_with_filter(FilterTrace(rows=()))
+
+
+def _empty_generation() -> GenerationTrace:
+    return GenerationTrace(
+        facets=(),
+        supersession_notices=(),
+        draft_sentences=(),
+        cited_chunk_ids=(),
+    )
+
+
+def _empty_verification() -> VerificationTrace:
+    return VerificationTrace(
+        containment=(),
+        entailment=(),
+        removed_sentences=(),
+        coverage=(),
+        uncovered_facets=(),
+    )
+
+
 def _freshness_trace(
     deps: QueryDependencies,
     stored: str | None,
@@ -745,21 +1152,18 @@ def _manifest_freshness(
 
 
 def _with_stale_reason(trace: FreshnessTrace, reason: StaleReason) -> FreshnessTrace:
-    return _with_freshness(
-        FreshnessTrace(
-            state=trace.state,
-            stored_pipeline_signature=trace.stored_pipeline_signature,
-            running_pipeline_signature=trace.running_pipeline_signature,
-            records_manifest_path=trace.records_manifest_path,
-            manifest_available=trace.manifest_available,
-            start_semantic_digest=trace.start_semantic_digest,
-            end_semantic_digest=trace.end_semantic_digest,
-            start_raw_digest=trace.start_raw_digest,
-            end_raw_digest=trace.end_raw_digest,
-            fingerprints=trace.fingerprints,
-            stale_reasons=(*trace.stale_reasons, reason),
-        ),
-        trace.state,
+    return FreshnessTrace(
+        state=trace.state,
+        stored_pipeline_signature=trace.stored_pipeline_signature,
+        running_pipeline_signature=trace.running_pipeline_signature,
+        records_manifest_path=trace.records_manifest_path,
+        manifest_available=trace.manifest_available,
+        start_semantic_digest=trace.start_semantic_digest,
+        end_semantic_digest=trace.end_semantic_digest,
+        start_raw_digest=trace.start_raw_digest,
+        end_raw_digest=trace.end_raw_digest,
+        fingerprints=trace.fingerprints,
+        stale_reasons=(*trace.stale_reasons, reason),
     )
 
 
@@ -786,13 +1190,14 @@ def _abstained_result(
     stage: AbstentionStage,
     generation: GenerationTrace | None = None,
     verification: VerificationTrace | None = None,
+    attempts: list[ProviderAttempt] | None = None,
 ) -> QueryResult:
     trace = QueryTrace(
         freshness=freshness,
         retrieval=retrieval,
         generation=generation or _empty_generation(),
         verification=verification or _empty_verification(),
-        providers=(),
+        providers=tuple(attempts) if attempts else (),
         result=ResultTrace(
             state=QueryState.ABSTAINED,
             abstention_stage=stage,
@@ -801,7 +1206,7 @@ def _abstained_result(
         ),
     )
     return QueryResult(
-        schema_version=1,
+        schema_version=2,
         state=QueryState.ABSTAINED,
         exit_code=EXIT_OK,
         sentences=(),
@@ -818,13 +1223,14 @@ def _failed_result(
     freshness: FreshnessTrace,
     failure: Failure,
     exit_code: int,
+    attempts: list[ProviderAttempt] | None = None,
 ) -> QueryResult:
     trace = QueryTrace(
         freshness=freshness,
-        retrieval=_empty_retrieval(request.question, ()),
+        retrieval=_empty_retrieval(),
         generation=_empty_generation(),
         verification=_empty_verification(),
-        providers=(),
+        providers=tuple(attempts) if attempts else (),
         result=ResultTrace(
             state=QueryState.FAILED,
             abstention_stage=None,
@@ -833,7 +1239,7 @@ def _failed_result(
         ),
     )
     return QueryResult(
-        schema_version=1,
+        schema_version=2,
         state=QueryState.FAILED,
         exit_code=exit_code,
         sentences=(),

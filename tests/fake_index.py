@@ -14,19 +14,28 @@ import hashlib
 from collections.abc import Sequence
 
 from decision_memory.application.dto import (
+    ActiveChunkDescriptor,
     ChunkPlan,
     CoverageRow,
     DraftSentence,
     Facet,
+    SemanticMatches,
     SupersessionNotice,
 )
 from decision_memory.application.pipeline import pipeline_signature
-from decision_memory.application.query import RetrievedChunk
 from decision_memory.domain.records import CanonicalDecisionRecord
 
 
-def fake_embed(texts: Sequence[str]) -> list[list[float]]:
-    """A deterministic vector per text, stable across runs and processes."""
+def fake_embed(
+    texts: Sequence[str], attempts: list[object] | None = None
+) -> list[list[float]]:
+    """A deterministic vector per text, stable across runs and processes.
+
+    Accepts the optional provider-attempts list so it satisfies both
+    ``IngestDependencies.embed`` (single arg) and
+    ``QueryDependencies.embed`` (texts plus attempts); it has no real
+    provider round trip to record, so the list is left untouched.
+    """
     vectors: list[list[float]] = []
     for text in texts:
         digest = hashlib.sha256(text.encode("utf-8")).digest()
@@ -51,7 +60,7 @@ class FakeIndex:
 
     def __init__(self) -> None:
         self.generation: str | None = None
-        self.chunks: dict[str, RetrievedChunk] = {}
+        self.chunks: dict[str, ActiveChunkDescriptor] = {}
         self.embeddings: dict[str, list[float]] = {}
         self.record_states: dict[str, tuple[str, str | None, str | None]] = {}
         self.manifest_meta: tuple[str | None, str | None, str | None, str | None] = (
@@ -65,7 +74,8 @@ class FakeIndex:
         self.entry_digests: dict[str, str | None] = {}
         self.signature = pipeline_signature()
         self.parity_problems_list: list[str] = []
-        self.search_error: Exception | None = None
+        self.semantic_error: Exception | None = None
+        self.store_format_value = 2
         self.empty_eligible = False
 
     # -- IndexWriter -----------------------------------------------------
@@ -101,16 +111,17 @@ class FakeIndex:
             if chunk.record_id == record_id
         ]
         for chunk, embedding in zip(chunks, embeddings, strict=False):
-            self.chunks[chunk.chunk_id] = RetrievedChunk(
+            self.chunks[chunk.chunk_id] = ActiveChunkDescriptor(
                 chunk_id=chunk.chunk_id,
                 record_id=chunk.record_id,
+                record_title=record.title or "",
+                record_status=record.status.value if record.status else None,
+                record_tags=tuple(sorted(record.tags)),
                 value_path=chunk.value_path,
                 fingerprint=chunk.fingerprint,
                 ordinal=chunk.ordinal,
                 text=chunk.text,
-                sources=tuple(chunk.sources),
-                record_title=record.title or "",
-                record_status=record.status.value if record.status else None,
+                provenance=tuple(chunk.sources),
             )
             self.embeddings[chunk.chunk_id] = list(embedding)
         fingerprint = chunks[0].fingerprint if chunks else None
@@ -227,6 +238,9 @@ class FakeIndex:
     ) -> tuple[SupersessionNotice, ...]:
         return tuple(self.supersession_notices_map.get(predecessor_id, ()))
 
+    def active_chunks(self) -> tuple[ActiveChunkDescriptor, ...]:
+        return tuple(sorted(self.chunks.values(), key=lambda chunk: chunk.chunk_id))
+
     def eligible_tuples(self) -> tuple[tuple[str, str, str], ...]:
         if self.empty_eligible:
             return ()
@@ -237,24 +251,26 @@ class FakeIndex:
                 tuples.append(candidate)
         return tuple(tuples)
 
-    def search(
+    def store_format(self) -> int | None:
+        return self.store_format_value
+
+    def semantic_search(
         self,
         embedding: Sequence[float],
-        eligible: Sequence[tuple[str, str, str]],
-        limit: int = 24,
-    ) -> list[tuple[str, float]]:
-        if self.search_error is not None:
-            raise self.search_error
+        accepted_chunk_ids: Sequence[str],
+    ) -> SemanticMatches:
+        if self.semantic_error is not None:
+            raise self.semantic_error
+        accepted = set(accepted_chunk_ids)
         scored: list[tuple[str, float]] = []
         for chunk_id, chunk_embedding in self.embeddings.items():
-            if chunk_id not in self.chunks:
-                continue
-            scored.append((chunk_id, _cosine_distance(embedding, chunk_embedding)))
+            if chunk_id in accepted and chunk_id in self.chunks:
+                scored.append((chunk_id, _cosine_distance(embedding, chunk_embedding)))
         scored.sort(key=lambda pair: (pair[1], pair[0]))
-        return scored[:limit]
-
-    def chunk(self, chunk_id: str) -> RetrievedChunk | None:
-        return self.chunks.get(chunk_id)
+        return SemanticMatches(
+            ids=tuple(chunk_id for chunk_id, _distance in scored),
+            distances=tuple(distance for _chunk_id, distance in scored),
+        )
 
 
 def fake_extract_facets(question: str, attempts=None) -> tuple[Facet, ...]:

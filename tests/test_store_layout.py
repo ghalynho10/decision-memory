@@ -43,7 +43,7 @@ _EXPECTED_TABLES = {
 def test_format_active_and_generation_primitives(tmp_path) -> None:
     store = tmp_path / "query-index"
     write_format(store)
-    assert read_format(store) == 1
+    assert read_format(store) == 2
     generation_id = new_generation_id()
     assert generation_id == generation_id.lower()
     assert len(generation_id) == 32

@@ -22,6 +22,7 @@ from decision_memory.application.adapter import (
 from decision_memory.application.dto import (
     CitationFreshness,
     FreshnessState,
+    QueryFilters,
     QueryRequest,
     QueryState,
     StaleReason,
@@ -74,6 +75,7 @@ def test_fresh_index_answers_current(tmp_path) -> None:
             question="Why was the private beta access gate added?",
             store_dir=Path("/fake/store"),
             allow_stale=False,
+            filters=QueryFilters(),
         ),
         _query_deps(index),
     )
@@ -96,6 +98,7 @@ def test_record_added_drift_refuses_then_allow_stale(tmp_path) -> None:
             question="Why was the private beta access gate added?",
             store_dir=Path("/fake/store"),
             allow_stale=False,
+            filters=QueryFilters(),
         ),
         _query_deps(index),
     )
@@ -110,6 +113,7 @@ def test_record_added_drift_refuses_then_allow_stale(tmp_path) -> None:
             question="Why was the private beta access gate added?",
             store_dir=Path("/fake/store"),
             allow_stale=True,
+            filters=QueryFilters(),
         ),
         _query_deps(index),
     )
@@ -136,6 +140,7 @@ def test_record_changed_drift_reports_changed(tmp_path) -> None:
             question="Why was the private beta access gate added?",
             store_dir=Path("/fake/store"),
             allow_stale=True,
+            filters=QueryFilters(),
         ),
         _query_deps(index),
     )
@@ -156,6 +161,7 @@ def test_record_removed_drift_reports_removed(tmp_path) -> None:
             question="Why was the private beta access gate added?",
             store_dir=Path("/fake/store"),
             allow_stale=True,
+            filters=QueryFilters(),
         ),
         _query_deps(index),
     )
@@ -173,6 +179,7 @@ def test_unknown_manifest_is_stale(tmp_path) -> None:
             question="anything at all",
             store_dir=Path("/fake/store"),
             allow_stale=False,
+            filters=QueryFilters(),
         ),
         _query_deps(index),
     )
@@ -195,6 +202,7 @@ def test_failed_ingest_reports_failed(tmp_path) -> None:
             question="Why was the private beta access gate added?",
             store_dir=Path("/fake/store"),
             allow_stale=True,
+            filters=QueryFilters(),
         ),
         _query_deps(index),
     )
@@ -215,6 +223,7 @@ def test_failed_update_marks_citation_stale_version(tmp_path) -> None:
             question="Why was the private beta access gate added?",
             store_dir=Path("/fake/store"),
             allow_stale=True,
+            filters=QueryFilters(),
         ),
         _query_deps(index),
     )
@@ -251,6 +260,7 @@ def test_record_changed_uses_entry_digest_not_fingerprint(tmp_path) -> None:
             question="Why was the private beta access gate added?",
             store_dir=Path("/fake/store"),
             allow_stale=True,
+            filters=QueryFilters(),
         ),
         _query_deps(index),
     )

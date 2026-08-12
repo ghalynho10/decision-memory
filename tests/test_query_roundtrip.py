@@ -30,12 +30,14 @@ from decision_memory.application.dto import (
     FreshnessState,
     IngestRequest,
     IngestState,
+    QueryFilters,
     QueryRequest,
     QueryState,
     ResolutionState,
 )
 from decision_memory.application.ingest import IngestDependencies, ingest_records
 from decision_memory.application.query import QueryDependencies, query_index
+from decision_memory.infrastructure.bm25 import bm25_lexical_scorer
 from decision_memory.infrastructure.file_reader import write_record_file
 from decision_memory.infrastructure.index_reader import SqliteChromaIndexReader
 from decision_memory.infrastructure.index_store import SqliteChromaIndexWriter
@@ -81,6 +83,7 @@ def _query_deps(index: Any, **overrides: object) -> QueryDependencies:
         "store": index,
         "count_tokens": tiktoken_count,
         "embed": fake_embed,
+        "lexical_scorer": bm25_lexical_scorer,
         "load_manifest": load_stored_manifest,
         "raw_manifest_digest": stored_manifest_digest,
         "resolve_source": lambda path: (
@@ -133,6 +136,7 @@ def test_adapt_ingest_query_locks_ac11_propositions(tmp_path) -> None:
             ),
             store_dir=Path("/fake/store"),
             allow_stale=False,
+            filters=QueryFilters(),
         ),
         _query_deps(index),
     )
@@ -164,6 +168,7 @@ def test_empty_index_abstains_without_embedding(tmp_path) -> None:
             question="anything at all",
             store_dir=Path("/fake/store"),
             allow_stale=True,
+            filters=QueryFilters(),
         ),
         _query_deps(index, embed=_raise_if_called),
     )
@@ -181,7 +186,12 @@ def test_provider_failure_is_never_abstention(tmp_path) -> None:
         raise RuntimeError("provider exploded")
 
     result = query_index(
-        QueryRequest(question="why?", store_dir=Path("/fake/store"), allow_stale=False),
+        QueryRequest(
+            question="why?",
+            store_dir=Path("/fake/store"),
+            allow_stale=False,
+            filters=QueryFilters(),
+        ),
         _query_deps(index, extract_facets=failing_facets),
     )
     assert result.state == QueryState.FAILED
@@ -197,7 +207,12 @@ def test_pipeline_mismatch_refuses(tmp_path) -> None:
     _, index = _ingest(records_dir)
     index.signature = "a-different-signature"
     result = query_index(
-        QueryRequest(question="why?", store_dir=Path("/fake/store"), allow_stale=False),
+        QueryRequest(
+            question="why?",
+            store_dir=Path("/fake/store"),
+            allow_stale=False,
+            filters=QueryFilters(),
+        ),
         _query_deps(index),
     )
     assert result.state == QueryState.FAILED
@@ -215,6 +230,7 @@ def test_empty_question_is_usage(tmp_path) -> None:
             question="   \t",
             store_dir=Path("/fake/store"),
             allow_stale=False,
+            filters=QueryFilters(),
         ),
         _query_deps(index),
     )
@@ -232,6 +248,7 @@ def test_query_without_active_generation_is_corrupt_init(tmp_path) -> None:
             question="why?",
             store_dir=Path("/fake/store"),
             allow_stale=False,
+            filters=QueryFilters(),
         ),
         _query_deps(index),
     )
@@ -241,7 +258,7 @@ def test_query_without_active_generation_is_corrupt_init(tmp_path) -> None:
     assert result.failure.code == "store.uninitialized"
 
 
-def _raise_if_called(texts):
+def _raise_if_called(texts, attempts=None):
     raise AssertionError("embedding must not be called on an empty index")
 
 
@@ -291,6 +308,7 @@ def test_real_store_roundtrip_with_deterministic_embedder(tmp_path) -> None:
             ),
             store_dir=store,
             allow_stale=False,
+            filters=QueryFilters(),
         ),
         _query_deps(reader),
     )

@@ -14,14 +14,15 @@ from pathlib import Path
 from typing import Any
 
 from decision_memory.application.canonical import SourceReference
-from decision_memory.application.dto import SupersessionNotice
-from decision_memory.application.query import (
-    CANDIDATE_LIMIT,
-    IndexReader,
-    RetrievedChunk,
+from decision_memory.application.dto import (
+    ActiveChunkDescriptor,
+    SemanticMatches,
+    SupersessionNotice,
 )
+from decision_memory.application.query import IndexReader
 from decision_memory.infrastructure.chroma_store import (
     CHROMA_COLLECTION,
+    CHUNK_ID_KEY,
     _client,
     verify_vectors,
 )
@@ -32,6 +33,7 @@ from decision_memory.infrastructure.sqlite_store import (
 from decision_memory.infrastructure.store import (
     generation_paths,
     read_active,
+    read_format,
     read_generation_json,
 )
 
@@ -44,6 +46,9 @@ class SqliteChromaIndexReader(IndexReader):
 
     def generation_id(self) -> str | None:
         return read_active(self._store_dir)
+
+    def store_format(self) -> int | None:
+        return read_format(self._store_dir)
 
     def pipeline_signature(self) -> str:
         generation_id = self.generation_id()
@@ -70,6 +75,7 @@ class SqliteChromaIndexReader(IndexReader):
                 "fingerprint": str(row[3]),
                 "value_path": str(row[4]),
                 "ordinal": int(row[5]),
+                "chunk_id": chunk_id,
             }
         return verify_vectors(self._chroma_client(generation_id), ids, expected)
 
@@ -85,88 +91,98 @@ class SqliteChromaIndexReader(IndexReader):
                 tuples.append(candidate)
         return tuple(tuples)
 
-    def search(
-        self,
-        embedding: Sequence[float],
-        eligible: Sequence[tuple[str, str, str]],
-        limit: int = CANDIDATE_LIMIT,
-    ) -> list[tuple[str, float]]:
+    def active_chunks(self) -> tuple[ActiveChunkDescriptor, ...]:
+        """Every active chunk with its record metadata, chunk id sorted (AC-4, AC-16).
+
+        All reads happen in one SQLite read transaction, so the returned
+        snapshot is immutable for the query. Provenance comes from the chunk
+        source rows and tags from the record tag rows.
+        """
         generation_id = self.generation_id()
         if generation_id is None:
-            return []
+            return ()
+        connection = self._connection(generation_id)
+        try:
+            verify_schema_version(connection)
+            connection.execute("BEGIN")
+            try:
+                rows = connection.execute(
+                    "SELECT c.chunk_id, c.record_id, s.title, s.status, "
+                    "c.active_fingerprint, c.value_path, c.ordinal, c.text "
+                    "FROM chunk c "
+                    "JOIN record_snapshot s ON s.record_id = c.record_id "
+                    "ORDER BY c.chunk_id"
+                ).fetchall()
+                tag_rows = connection.execute(
+                    "SELECT record_id, tag FROM record_tag ORDER BY record_id, tag"
+                ).fetchall()
+                source_rows = connection.execute(
+                    "SELECT chunk_id, path, section FROM chunk_source "
+                    "ORDER BY chunk_id, path, section"
+                ).fetchall()
+            finally:
+                connection.execute("COMMIT")
+            tag_lists: dict[str, list[str]] = {}
+            for record_id, tag in tag_rows:
+                tag_lists.setdefault(str(record_id), []).append(str(tag))
+            source_lists: dict[str, list[SourceReference]] = {}
+            for chunk_id, path, section in source_rows:
+                source_lists.setdefault(str(chunk_id), []).append(
+                    SourceReference(str(path), str(section))
+                )
+            descriptors = [
+                ActiveChunkDescriptor(
+                    chunk_id=str(row[0]),
+                    record_id=str(row[1]),
+                    record_title=str(row[2]),
+                    record_status=str(row[3]) if row[3] is not None else None,
+                    record_tags=tuple(tag_lists.get(str(row[1]), ())),
+                    value_path=str(row[4]),
+                    fingerprint=str(row[5]),
+                    ordinal=int(row[6]),
+                    text=str(row[7]),
+                    provenance=tuple(source_lists.get(str(row[0]), ())),
+                )
+                for row in rows
+            ]
+            return tuple(
+                sorted(descriptors, key=lambda descriptor: descriptor.chunk_id)
+            )
+        finally:
+            connection.close()
+
+    def semantic_search(
+        self,
+        embedding: Sequence[float],
+        accepted_chunk_ids: Sequence[str],
+    ) -> SemanticMatches:
+        """Retrieve every accepted vector under the exact id constraint (AC-6).
+
+        Requests ``n_results`` equal to the accepted count with an ``$in`` over
+        the accepted chunk ids, so Chroma can never cap the result below the
+        accepted set. Returned ids and distances are positionally aligned.
+        """
+        accepted = list(accepted_chunk_ids)
+        if not accepted:
+            return SemanticMatches((), ())
+        generation_id = self.generation_id()
+        if generation_id is None:
+            return SemanticMatches((), ())
         client = self._chroma_client(generation_id)
         try:
             collection = client.get_collection(CHROMA_COLLECTION)
         except Exception:  # noqa: BLE001 - collection absent means no result
-            return []
-        if len(eligible) == 1:
-            generation, record_id, fingerprint = eligible[0]
-            where: dict[str, Any] = {
-                "$and": [
-                    {"generation_id": generation},
-                    {"record_id": record_id},
-                    {"fingerprint": fingerprint},
-                ]
-            }
-        else:
-            where = {
-                "$or": [
-                    {
-                        "$and": [
-                            {"generation_id": generation},
-                            {"record_id": record_id},
-                            {"fingerprint": fingerprint},
-                        ]
-                    }
-                    for generation, record_id, fingerprint in eligible
-                ]
-            }
+            return SemanticMatches((), ())
+        where: dict[str, Any] = {CHUNK_ID_KEY: {"$in": accepted}}
         result = collection.query(
             query_embeddings=[list(embedding)],
-            n_results=limit,
+            n_results=len(accepted),
             where=where,
             include=["distances"],
         )
         ids = result.get("ids", [[]])[0] if result.get("ids") else []
         distances = result.get("distances", [[]])[0] if result.get("distances") else []
-        return list(zip(ids, distances, strict=False))
-
-    def chunk(self, chunk_id: str) -> RetrievedChunk | None:
-        generation_id = self.generation_id()
-        if generation_id is None:
-            return None
-        connection = self._connection(generation_id)
-        try:
-            row = connection.execute(
-                "SELECT c.chunk_id, c.generation_id, c.record_id, "
-                "c.active_fingerprint, c.value_path, c.ordinal, c.text, "
-                "s.title, s.status "
-                "FROM chunk c JOIN record_snapshot s ON s.record_id = c.record_id "
-                "WHERE c.chunk_id = ?",
-                (chunk_id,),
-            ).fetchone()
-            if row is None:
-                return None
-            sources = tuple(
-                SourceReference(path=item[0], section=item[1])
-                for item in connection.execute(
-                    "SELECT path, section FROM chunk_source WHERE chunk_id = ?",
-                    (chunk_id,),
-                ).fetchall()
-            )
-            return RetrievedChunk(
-                chunk_id=row[0],
-                record_id=row[2],
-                value_path=row[4],
-                fingerprint=row[3],
-                ordinal=row[5],
-                text=row[6],
-                sources=sources,
-                record_title=row[7],
-                record_status=row[8],
-            )
-        finally:
-            connection.close()
+        return SemanticMatches(tuple(ids), tuple(distances))
 
     def manifest_metadata(
         self,

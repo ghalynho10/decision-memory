@@ -28,6 +28,7 @@ from decision_memory.application.dto import (
     CitationKind,
     IngestRequest,
     IngestState,
+    QueryFilters,
     QueryRequest,
     QueryState,
     ResolutionState,
@@ -180,6 +181,7 @@ def test_query_renders_deterministic_disclosure(tmp_path) -> None:
             question="Why was the private beta access gate added?",
             store_dir=Path("/fake/store"),
             allow_stale=False,
+            filters=QueryFilters(),
         ),
         _query_deps(index),
     )

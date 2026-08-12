@@ -20,7 +20,7 @@ _You are in charge. Every box below is a suggestion, not a gate: run any, skip a
 | 7 | Adapter conformance suite and `test-adapter` | Foundation | done |
 | 8 | Built-in ADR adapters | Foundation | planned |
 | 9 | Core cited query | Slice 1 | done |
-| 10 | Reliable multi source retrieval | Slice 2 | planned |
+| 10 | Reliable multi source retrieval | Slice 2 | done |
 | 11 | Proven correctness (evaluation harness) | Slice 3 | planned |
 | 12 | Flat single file spec support | V2 | planned |
 | 13 | Declarative adapters | V2 | planned |
@@ -131,11 +131,21 @@ spec [0007](../specs/0007-core-cited-query/index.md) · code in src/decision_mem
 
 ## Slice 2: Reliable multi source retrieval
 
-### 10. Reliable multi source retrieval · needs a decision
+### 10. Reliable multi source retrieval
 Add structured metadata filtering and lexical retrieval alongside semantic retrieval, so a filter can constrain the candidate set before semantic similarity chooses among it, which is what keeps the tool from confidently citing the wrong document. Exact stage ordering and whether scores fuse or run as a pipeline is an `/architect` decision.
-**Carry into the spec (does filtering enable structured queries?):** the `/architect` decision must also answer whether metadata filtering stays a retrieval constraint or enables structured query types (for example rejected alternatives across records, or lineage and supersession across records). The deeper query types sit on that answer; decide it with feature 11 evidence rather than by default.
-**Done when:** query 2 (what decisions affect resume generation) and query 4 (what was decided about separating server side and browser side database clients, and why) return correctly sourced answers, not merely plausible ones.
-- [ ] Design it (spec): `/architect reliable multi source retrieval`
+**Decision:** metadata filtering remains an explicit retrieval constraint. Structured query types for alternatives, lineage, and supersession traversal stay deferred until Feature 11 supplies evidence. Hybrid retrieval always applies filters first, then runs BM25 and cosine retrieval, fuses ranks, and applies record diversity.
+**Done when:** query 2 (what decisions affect resume generation) returns the required directly supported decisions from `DM-0004` and `DM-0019`, while query 4 (what was decided about separating server side and browser side database clients, and why) honestly abstains because its evidence is outside the adapted corpus.
+spec [0008](../specs/0008-reliable-multi-source-retrieval/index.md)
+- [x] Design it (spec): `/architect reliable multi source retrieval`
+- [x] Build it: `/develop reliable multi source retrieval`
+  - [x] Typed filters, immutable SQLite snapshot, and complete filter trace (AC-1 to AC-4, AC-10, AC-16)
+  - [x] Store format `2`, immutable cosine Chroma, and exact deterministic semantic eligibility (AC-6, AC-9, AC-12)
+  - [x] Versioned BM25, reciprocal rank fusion, and two pass diversity producing the multi record answer (AC-5 to AC-13, AC-16)
+  - [x] Complete debug trace, documentation, deterministic coverage, and ten live smoke runs (AC-9 to AC-17)
+- [x] Verify it: `/check verify reliable multi source retrieval` (gates 1-6 pass with cited evidence; live smoke gates 7-8 fail on the Feature 11 verification gap, 2026-08-11)
+- [x] Test it: `/test reliable multi source retrieval` (438 unit + 14 integration passing; durable retrieval behavior locked: closed enums, ordering rules, AC-5 precedence, two pass diversity, tokenizer/digest, failure boundaries; live AC-15 smoke gates excluded and still failing per Feature 11, 2026-08-11)
+
+**Status caveat (2026-08-11):** retrieval work is complete and verified; the two live acceptance gates (query 2 `DM-0004` coverage 0 of 5 in the post fix re run, query 4 abstention 5 of 5 answered) fail on a verification layer gap carried into Feature 11 as three items (query 4 fabrication, query 5 expected abstention, query 2 `DM-0004` coverage omission). This feature does not declare AC-15 passed.
 
 ## Slice 3: Proven correctness (evaluation harness)
 

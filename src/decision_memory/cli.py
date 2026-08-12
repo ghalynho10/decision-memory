@@ -41,14 +41,18 @@ from decision_memory.application.dto import (
     FreshnessState,
     IngestRequest,
     IngestResult,
+    PartialQueryTrace,
     QueryRequest,
     QueryResult,
     QueryState,
+    RetrievalFailure,
 )
+from decision_memory.application.filters import FilterUsageError, build_query_filters
 from decision_memory.application.ingest import IngestDependencies, ingest_records
 from decision_memory.application.query import QueryDependencies, query_index
 from decision_memory.application.settings import SettingsError, resolve_runtime_settings
 from decision_memory.application.validation_service import validate_file
+from decision_memory.infrastructure.bm25 import bm25_lexical_scorer
 from decision_memory.infrastructure.conformance_fixtures import conformance_fixture_port
 from decision_memory.infrastructure.conformance_manifest import (
     ConformanceManifestError,
@@ -706,6 +710,22 @@ def query_command(
         bool,
         typer.Option("--debug", help="Print the full query trace"),
     ] = False,
+    record_id: Annotated[
+        list[str] | None,
+        typer.Option("--record-id", help="Restrict to a record id; repeatable"),
+    ] = None,
+    status: Annotated[
+        list[str] | None,
+        typer.Option("--status", help="Restrict to a status; repeatable"),
+    ] = None,
+    tag: Annotated[
+        list[str] | None,
+        typer.Option("--tag", help="Restrict to a tag; repeatable"),
+    ] = None,
+    value_path: Annotated[
+        list[str] | None,
+        typer.Option("--value-path", help="Restrict to a value path; repeatable"),
+    ] = None,
 ) -> None:
     """Ask a question and get a cited answer from the index."""
     config = _project_config()
@@ -713,6 +733,16 @@ def query_command(
     if not store_dir.exists():
         typer.echo(f"store directory does not exist: {store_dir}")
         raise typer.Exit(3)
+    try:
+        filters = build_query_filters(
+            record_ids=record_id or (),
+            statuses=status or (),
+            tags=tag or (),
+            value_paths=value_path or (),
+        )
+    except FilterUsageError as exc:
+        typer.echo(f"error usage filters: {exc}")
+        raise typer.Exit(2) from None
     reader = SqliteChromaIndexReader(store_dir)
 
     def _stored_manifest_path() -> Path | None:
@@ -741,11 +771,13 @@ def query_command(
                     question=question,
                     store_dir=store_dir,
                     allow_stale=allow_stale,
+                    filters=filters,
                 ),
                 QueryDependencies(
                     store=reader,
                     count_tokens=tiktoken_count,
                     embed=embed_texts,
+                    lexical_scorer=bm25_lexical_scorer,
                     load_manifest=_load_stored_manifest,
                     raw_manifest_digest=_stored_manifest_raw_digest,
                     resolve_source=lambda path: resolve_source_path(
@@ -757,6 +789,13 @@ def query_command(
                     coverage=coverage_verdict,
                 ),
             )
+    except RetrievalFailure as failure:
+        typer.echo(
+            f"error retrieval {failure.stage.value}: retrieval integrity failure"
+        )
+        if debug:
+            _print_partial_query_debug(failure.trace)
+        raise typer.Exit(1) from None
     except LockError:
         typer.echo("store is locked by an ingest")
         raise typer.Exit(1) from None
@@ -840,7 +879,7 @@ def _print_query_report(outcome: QueryResult, debug: bool) -> None:
 
 
 def _print_query_debug(result: QueryResult) -> None:
-    """Print the fixed debug sections in order (spec 0007 AC-13)."""
+    """Print the fixed debug sections in order (spec 0008 AC-10)."""
     trace = result.trace
     typer.echo("Freshness")
     typer.echo(f"  state: {trace.freshness.state.value}")
@@ -857,21 +896,60 @@ def _print_query_debug(result: QueryResult) -> None:
     if trace.freshness.stale_reasons:
         labels = ", ".join(reason.value for reason in trace.freshness.stale_reasons)
         typer.echo(f"  stale_reasons: {labels}")
-    typer.echo("Retrieval")
-    typer.echo(f"  question: {trace.retrieval.question}")
-    typer.echo(f"  filters: {','.join(trace.retrieval.filters)}")
-    typer.echo(f"  candidate_limit: {trace.retrieval.candidate_limit}")
-    typer.echo(f"  accepted_limit: {trace.retrieval.accepted_limit}")
-    typer.echo(f"  relevance_floor: {trace.retrieval.relevance_floor}")
-    for candidate in trace.retrieval.candidates:
+    typer.echo("Filter")
+    for filter_row in trace.retrieval.filters.rows:
+        tags = ",".join(filter_row.record_tags)
+        reasons = ",".join(reason.value for reason in filter_row.exclusion_reasons)
         typer.echo(
-            f"  candidate {candidate.chunk_id} {candidate.record_id} "
-            f"distance={candidate.distance:.6f} similarity={candidate.similarity:.6f} "
-            f"rank={candidate.rank} disposition={candidate.disposition.value}"
+            f"  {filter_row.chunk_id} {filter_row.record_id} "
+            f"status={filter_row.record_status} tags={tags} "
+            f"{filter_row.value_path} state={filter_row.state.value} "
+            f"reasons={reasons}"
         )
-        typer.echo("  chunk text begin")
-        typer.echo(candidate.text)
-        typer.echo("  chunk text end")
+    typer.echo("Lexical")
+    for lex_row in trace.retrieval.lexical.rows:
+        typer.echo(
+            f"  {lex_row.chunk_id} score={lex_row.score:.6f} rank={lex_row.rank} "
+            f"disposition={lex_row.disposition.value}"
+        )
+    typer.echo("Semantic")
+    for semantic_row in trace.retrieval.semantic.rows:
+        typer.echo(
+            f"  {semantic_row.chunk_id} rank={semantic_row.rank} "
+            f"distance={semantic_row.distance:.6f} "
+            f"similarity={semantic_row.similarity:.6f} "
+            f"disposition={semantic_row.disposition.value}"
+        )
+    typer.echo("Fusion")
+    for candidate in trace.retrieval.fusion.candidates:
+        pass_value = candidate.selection_pass.value if candidate.selection_pass else "-"
+        final_rank = candidate.final_rank if candidate.final_rank is not None else "-"
+        typer.echo(
+            f"  {candidate.chunk_id} fused_rank={candidate.fused_rank} "
+            f"fused_score={candidate.fused_score:.6f} "
+            f"lexical_rank={candidate.lexical_rank} "
+            f"semantic_rank={candidate.semantic_rank} "
+            f"breadth={candidate.breadth_disposition.value} pass={pass_value} "
+            f"final_rank={final_rank} final={candidate.final_disposition.value}"
+        )
+    typer.echo("Diversity")
+    typer.echo(f"  accepted_limit: {trace.retrieval.diversity.accepted_limit}")
+    typer.echo(f"  record_cap: {trace.retrieval.diversity.record_cap}")
+    accepted = ",".join(trace.retrieval.diversity.accepted_chunk_ids)
+    typer.echo(f"  accepted: {accepted}")
+    typer.echo("Settings")
+    settings = trace.retrieval.settings
+    typer.echo(f"  tokenizer: {settings.tokenizer_version}")
+    typer.echo(f"  stopword_set: {settings.stopword_set}")
+    typer.echo(f"  stopword_digest: {settings.stopword_digest}")
+    typer.echo(f"  bm25: {settings.bm25_variant} ({settings.bm25_parameters})")
+    typer.echo(f"  lexical_limit: {settings.lexical_limit}")
+    typer.echo(f"  semantic_limit: {settings.semantic_limit}")
+    typer.echo(f"  rrf_constant: {settings.rrf_constant}")
+    typer.echo(f"  accepted_limit: {settings.accepted_limit}")
+    typer.echo(f"  diversity_cap: {settings.diversity_cap}")
+    typer.echo(f"  collection_metric: {settings.collection_metric}")
+    typer.echo(f"  relevance_floor: {settings.relevance_floor}")
     typer.echo("Facets")
     for facet in trace.generation.facets:
         typer.echo(f"  {facet.facet_id}: {facet.text}")
@@ -886,9 +964,11 @@ def _print_query_debug(result: QueryResult) -> None:
         typer.echo(f"  {sentence_id} entailment={verdict} reason={reason}")
     for removed_id in trace.verification.removed_sentences:
         typer.echo(f"  removed {removed_id}")
-    for row in trace.verification.coverage:
-        markers = ",".join(row.sentence_ids)
-        typer.echo(f"  {row.facet_id} covered={row.covered} [{markers}]")
+    for coverage_row in trace.verification.coverage:
+        markers = ",".join(coverage_row.sentence_ids)
+        typer.echo(
+            f"  {coverage_row.facet_id} covered={coverage_row.covered} [{markers}]"
+        )
     for facet in trace.verification.uncovered_facets:
         typer.echo(f"  uncovered {facet.facet_id}: {facet.text}")
     typer.echo("Providers")
@@ -912,6 +992,80 @@ def _print_query_debug(result: QueryResult) -> None:
         typer.echo(f"  abstention_stage: {result.abstention_stage.value}")
     typer.echo(f"  freshness: {result.freshness.value}")
     typer.echo(f"  stale_markers: {','.join(result.trace.result.stale_markers)}")
+
+
+def _print_partial_query_debug(partial: PartialQueryTrace) -> None:
+    """Print the completed sections of a retrieval failure trace (AC-9, AC-10).
+
+    Only sections completed before the failure are rendered; the failing stage
+    and every later stage are absent rather than synthesized as empty.
+    """
+    freshness = partial.freshness
+    typer.echo("Freshness")
+    typer.echo(f"  state: {freshness.state.value}")
+    typer.echo(f"  stored_pipeline_signature: {freshness.stored_pipeline_signature}")
+    typer.echo(f"  running_pipeline_signature: {freshness.running_pipeline_signature}")
+    typer.echo(f"  records_manifest_path: {freshness.records_manifest_path}")
+    typer.echo(f"  manifest_available: {freshness.manifest_available}")
+    if freshness.stale_reasons:
+        labels = ", ".join(reason.value for reason in freshness.stale_reasons)
+        typer.echo(f"  stale_reasons: {labels}")
+    if partial.filters is not None:
+        typer.echo("Filter")
+        for filter_row in partial.filters.rows:
+            tags = ",".join(filter_row.record_tags)
+            reasons = ",".join(reason.value for reason in filter_row.exclusion_reasons)
+            typer.echo(
+                f"  {filter_row.chunk_id} {filter_row.record_id} "
+                f"status={filter_row.record_status} tags={tags} "
+                f"{filter_row.value_path} state={filter_row.state.value} "
+                f"reasons={reasons}"
+            )
+    if partial.lexical is not None:
+        typer.echo("Lexical")
+        for lex_row in partial.lexical.rows:
+            typer.echo(
+                f"  {lex_row.chunk_id} score={lex_row.score:.6f} rank={lex_row.rank} "
+                f"disposition={lex_row.disposition.value}"
+            )
+    if partial.semantic is not None:
+        typer.echo("Semantic")
+        for semantic_row in partial.semantic.rows:
+            typer.echo(
+                f"  {semantic_row.chunk_id} rank={semantic_row.rank} "
+                f"distance={semantic_row.distance:.6f} "
+                f"similarity={semantic_row.similarity:.6f} "
+                f"disposition={semantic_row.disposition.value}"
+            )
+    if partial.fusion is not None:
+        typer.echo("Fusion")
+        for candidate in partial.fusion.candidates:
+            pass_value = (
+                candidate.selection_pass.value if candidate.selection_pass else "-"
+            )
+            final_rank = (
+                candidate.final_rank if candidate.final_rank is not None else "-"
+            )
+            typer.echo(
+                f"  {candidate.chunk_id} fused_rank={candidate.fused_rank} "
+                f"fused_score={candidate.fused_score:.6f} "
+                f"lexical_rank={candidate.lexical_rank} "
+                f"semantic_rank={candidate.semantic_rank} "
+                f"breadth={candidate.breadth_disposition.value} pass={pass_value} "
+                f"final_rank={final_rank} final={candidate.final_disposition.value}"
+            )
+    if partial.diversity is not None:
+        typer.echo("Diversity")
+        typer.echo(f"  accepted_limit: {partial.diversity.accepted_limit}")
+        typer.echo(f"  record_cap: {partial.diversity.record_cap}")
+        accepted = ",".join(partial.diversity.accepted_chunk_ids)
+        typer.echo(f"  accepted: {accepted}")
+    typer.echo("Providers")
+    for attempt in partial.providers:
+        typer.echo(
+            f"  {attempt.concern} attempt={attempt.attempt_number} "
+            f"elapsed_ms={attempt.elapsed_ms} outcome={attempt.outcome.value}"
+        )
 
 
 if __name__ == "__main__":

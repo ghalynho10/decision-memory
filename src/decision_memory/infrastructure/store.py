@@ -1,6 +1,6 @@
 """Infrastructure: the versioned store layout and generations (spec 0007).
 
-The store format version is 1 with a fixed layout:
+The store format version is 2 (spec 0008 AC-12) with a fixed layout:
 
 .. code-block:: text
 
@@ -35,8 +35,7 @@ from decision_memory.application.pipeline import (
     PipelineConfig,
     pipeline_signature,
 )
-
-STORE_FORMAT_VERSION = 1
+from decision_memory.application.store_format import STORE_FORMAT_VERSION
 
 FORMAT_FILENAME = "FORMAT"
 ACTIVE_FILENAME = "ACTIVE"
