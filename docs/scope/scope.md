@@ -177,7 +177,7 @@ spec [0010](../specs/0010-abstention-verification-reliability/index.md) · code 
   - [x] Remove parent restoration and enforce the accepted context citation boundary (AC-1, AC-4, AC-5, AC-8)
   - [x] Add exact decomposition outcomes and the lexical guard contract (AC-6, AC-7, AC-10, AC-11)
   - [x] Tighten canonical facet coverage and classify query 4 failures by stage (AC-2, AC-4, AC-12)
-  - [ ] Replace the affected tests and complete two live `--runs 3` batches (AC-1 to AC-12)
+  - [ ] Replace the whole response lexical guard with the per sub claim guard, then replace the affected tests and complete two live `--runs 3` batches (AC-1 to AC-12) (code and tests done; the two live batches ran and fail AC-2, AC-3, AC-9, see spec 0010 `verify.md`)
 - [ ] Verify it: `/check verify abstention verification reliability`
 - [ ] Test it: `/test abstention verification reliability`
 
