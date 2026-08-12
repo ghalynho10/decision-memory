@@ -330,6 +330,36 @@ def test_no_kept_sentences_skips_coverage_call() -> None:
     assert result.trace.verification.uncovered_facets == facets
 
 
+def test_abstained_public_output_is_empty_while_trace_keeps_rows() -> None:
+    """An abstention at claim verification exposes no public sentences or
+    citations while the trace keeps the verification rows (AC-4, AC-12)."""
+    chunks = {"ch_a": "The board met to discuss the merger on Tuesday."}
+    draft = (
+        DraftSentence(
+            "S1",
+            "The board approved the merger, and the board made a secret plan.",
+            ("ch_a",),
+        ),
+    )
+    result = _run(
+        chunks,
+        draft,
+        decompose=lambda s, c, a=None: (
+            "The board approved the merger.",
+            "The board made a secret plan.",
+        ),
+        entail=lambda s, c, a=None: (False, "not supported"),
+        question="merger",
+    )
+    assert result.state == QueryState.ABSTAINED
+    assert result.abstention_stage.value == "claim_verification"
+    assert result.sentences == ()
+    assert result.citations == ()
+    # The trace keeps the verification detail.
+    assert len(result.trace.verification.decomposed) == 2
+    assert result.trace.verification.coverage
+
+
 # ---------------------------------------------------------------------------
 # AC-5: verbatim sentences never pay a decomposition call.
 # ---------------------------------------------------------------------------
@@ -564,6 +594,37 @@ def test_decomposition_provider_failure_fails_the_query() -> None:
     assert result.abstention_stage is None
     assert result.failure is not None
     assert result.failure.code == "provider.decompose"
+    assert result.failure.stage == "claim_verification"
+
+
+def test_coverage_provider_failure_fails_the_query() -> None:
+    """A raising coverage call returns a failed query with a provider
+    failure trace at claim verification (AC-7, AC-12)."""
+    chunks = {"ch_a": "The board approved the merger on Tuesday."}
+    draft = (
+        DraftSentence(
+            "S1",
+            "The board approved the merger on Tuesday, and the board stayed late.",
+            ("ch_a",),
+        ),
+    )
+
+    def _boom(question, facets, sentences, a=None):
+        raise RuntimeError("provider exploded")
+
+    result = _run(
+        chunks,
+        draft,
+        decompose=lambda s, c, a=None: ("The board approved the merger on Tuesday.",),
+        entail=lambda s, c, a=None: (True, "direct support"),
+        coverage=_boom,
+        question="merger",
+    )
+    assert result.state == QueryState.FAILED
+    assert result.exit_code == 1
+    assert result.abstention_stage is None
+    assert result.failure is not None
+    assert result.failure.code == "provider.coverage"
     assert result.failure.stage == "claim_verification"
 
 

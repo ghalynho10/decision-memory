@@ -12,6 +12,7 @@ import pytest
 from decision_memory.application.dto import Facet
 from decision_memory.infrastructure.openai_generation import (
     ANSWER_SYSTEM_PROMPT,
+    COVERAGE_SYSTEM_PROMPT,
     FACETS_SYSTEM_PROMPT,
     GenerationError,
     _coverage_schema,
@@ -302,3 +303,12 @@ def test_answer_prompt_instructs_s_ids_and_bracket_chunk_ids() -> None:
     nothing valid (regression)."""
     assert "S1, S2" in ANSWER_SYSTEM_PROMPT
     assert "brackets" in ANSWER_SYSTEM_PROMPT
+
+
+def test_coverage_prompt_instructs_directness() -> None:
+    """The coverage prompt must require a sentence to directly state the
+    answer and forbid a reason, context, consequence, premise, or anaphoric
+    fragment from covering a decision facet (spec 0010 AC-4, AC-12)."""
+    assert "directly states its answer" in COVERAGE_SYSTEM_PROMPT
+    assert "Do not combine sentences" in COVERAGE_SYSTEM_PROMPT
+    assert "does not state a decision" in COVERAGE_SYSTEM_PROMPT
