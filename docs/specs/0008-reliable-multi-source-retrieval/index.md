@@ -304,7 +304,8 @@ The project uses Skateboard delivery. The first milestone adds a complete explic
 3. [ ] Revisit full FilterTrace display only when a larger real corpus proves linear debug output is impractical. Keep the structured trace complete unless evidence supports another contract.
 4. [ ] Structured query types for rejected alternatives, lineage, and supersession traversal remain deferred until the evaluation harness shows a need.
 5. [ ] Reground the feature 9 live query 1 test (`test_query_one_against_real_jobpilot`) to assert the cited record and its structured content instead of generated prose: the current `"two agent routes" in joined` assertion pins model paraphrase, which hybrid retrieval can legitimately change. Separate from this oracle correction; reground it, do not loosen it.
-6. [ ] Query 4 abstention is not reliably achievable under hybrid: the claim verification layer passes an adjacent evidence fabrication (verified five of five answered, 2026-08-11). Route the fix to `/debug` (entailment verdict strictness) or Feature 11 (relevance floor). Feature 10 cannot be marked done until query 4 abstains per AC-15.
+6. [ ] Query 4 abstention is deferred to Feature 11 (decision recorded in rationale "Relevance floor decision"): the relevance floor stays `None`, query 4 stays a known blocker, and feature 10 stays in progress until AC-15 passes. Do not calibrate a floor from the three measured distances.
+7. [ ] Feature 11 must address the sub sentence verification gap as its own problem (see rationale "Verification unit gap"): a sentence that fuses a fabricated decision with a verbatim evidence clause defeats both containment and entailment; the relevance floor makes the symptom correlate away but does not close the gap.
 
 ## Rationale
 
