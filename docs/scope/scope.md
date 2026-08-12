@@ -21,7 +21,7 @@ _You are in charge. Every box below is a suggestion, not a gate: run any, skip a
 | 8 | Built-in ADR adapters | Foundation | planned |
 | 9 | Core cited query | Slice 1 | done |
 | 10 | Reliable multi source retrieval | Slice 2 | done |
-| 11 | Proven correctness (evaluation harness) | Slice 3 | in-progress |
+| 11 | Proven correctness (evaluation harness) | Slice 3 | done |
 | 12 | Flat single file spec support | V2 | planned |
 | 13 | Declarative adapters | V2 | planned |
 | 14 | MCP server interface | V2 | planned |
@@ -151,11 +151,13 @@ spec [0008](../specs/0008-reliable-multi-source-retrieval/index.md)
 
 ## Slice 3: Proven correctness (evaluation harness)
 
-### 11. Proven correctness (evaluation harness)
+### 11. Proven correctness (evaluation harness) · done
 The five defining queries as fixtures with known correct sources, plus two further assertions: one whose correct answer requires the rationale summary specifically and cannot be answered from the why list alone, and one that edits a `rationale.md`, re ingests, and confirms the record's chunks updated. The questions and assertions are already fully specified; this feature builds the harness, it does not design one.
 **Done when:** query 3 (which decisions are still provisional rather than ratified), query 5 (what changed the original approach to storing uploaded files, expected to return no evidence in v1), and both extra assertions pass or fail legibly against JobPilot's real corpus.
 code in src/decision_memory/
 - [x] Build it: `/develop proven correctness (evaluation harness)`
+
+**Status (2026-08-12):** the harness is built, verified live, and unit locked; the `evaluate` command runs all eight fixtures in fixed order, reports per fixture pass or fail plus the rate across `--runs N`, and exits 0, 1, 2, or 3. It also caught and locked a real `active_chunks` column swap fix. The two fixtures still failing live are feature 10 carry-ins, not harness defects: query 5 (`DM-0002` answered instead of abstain) is stable, query 2 (`DM-0004` coverage) is intermittent, and query 4 abstention is a measured coin flip (corrected above); the harness measures and reports them, it does not patch them. Verified with `/check verify` and `/test` (456 unit passing).
 
 ## Slice 4: Presentation
 
