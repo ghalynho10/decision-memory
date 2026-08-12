@@ -33,11 +33,20 @@ Run against the real JobPilot corpus with live providers:
 uv run --env-file .env decision-memory evaluate /Users/ghaly/Documents/Work/Personal/job_pilot --runs 3
 ```
 
-- [ ] Batch 1: query 4 extracts separate decision and reason facets, drops the fabricated decision, leaves the decision facet uncovered, and abstains 3 of 3. For any failure, record `facet_extraction`, `coverage_directness`, or `query_state` from the existing trace -> AC-2, AC-12
-- [ ] Batch 1: query 5 abstains 3 of 3 -> AC-3
-- [ ] Batch 2: query 4 extracts separate decision and reason facets, drops the fabricated decision, leaves the decision facet uncovered, and abstains 3 of 3. For any failure, record `facet_extraction`, `coverage_directness`, or `query_state` from the existing trace -> AC-2, AC-12
-- [ ] Batch 2: query 5 abstains 3 of 3 -> AC-3
-- [ ] The other fixtures do not newly fail in the same two batches: query 3, assertion rationale summary, assertion unverifiable claim, and assertion incremental reingest -> AC-9
+- [x] Batch 1: query 4 abstains 3 of 3 -> AC-2, AC-12 (2026-08-12)
+- [x] Batch 1: query 5 abstains 3 of 3 -> AC-3 (2026-08-12)
+- [x] Batch 2: query 4 abstains 3 of 3 -> AC-2, AC-12 (2026-08-12)
+- [x] Batch 2: query 5 abstains 3 of 3 -> AC-3 (2026-08-12)
+- [ ] The other fixtures do not newly fail in the same two batches: query 3, assertion rationale summary, assertion unverifiable claim, and assertion incremental reingest -> AC-9 (FAILS: query 3 and the rationale summary assertion abstain 0 of 6, see Live findings)
+
+**Live findings (2026-08-12, milestone 5, two `--runs 3` batches):**
+
+Query 4 abstains 6 of 6 and query 5 abstains 6 of 6, so AC-2 and AC-3 pass: the fused fabrication no longer survives, and the decision facet stays uncovered. AC-9 does not pass: query 3 and the rationale summary assertion abstain in all six runs each, and their traces show two distinct spec level causes, not a fixture level hiccup.
+
+- Query 3 abstains because strict directness coverage leaves a facet uncovered. The decomposition splits S1 into S1.1 ("still provisional", covers the provisional facet) and S1.2 ("the decision needs to be made for scope feature 1"), and the fixed directness rule refuses to cover the "not ratified" facet from a fragment that does not state it. Coverage cannot combine fragments, so the generated answer does not directly state every facet.
+- The rationale summary assertion abstains because the AC-11 lexical multiset matcher rejects the decomposition of the long answer sentences (`rejected_decomposition ... disposition=lexical_guard`, counts 6 and 8), so no kept sentences remain and the deterministic uncovered rows apply.
+
+Both are the spec's own strict mechanisms (strict coverage, exact lexical guard) working as written; the AC-9 expectation that the other fixtures would keep passing does not hold under them. Resolving this is an acceptance criteria decision for `/architect`, not a code patch here: weakening either guard would undo the query 4 and query 5 fix.
 
 **Caveat:** AC-1 proves the weld fix deterministically. Query 4's live trace confirms the fabricated decision is dropped. Its 6 of 6 abstention gate tests the separate complete answer contract, including the uncovered decision facet. It is a smoke gate, not a measured rate. AC-9 is also a smoke check, since three runs cannot separate a real regression from fixture variance such as query 1 at 1 of 3.
 
