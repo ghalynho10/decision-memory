@@ -12,9 +12,12 @@ import math
 from decision_memory.application.dto import (
     ActiveChunkDescriptor,
     BreadthDisposition,
+    FilterExclusionReason,
+    FilterState,
     FinalDisposition,
     FusedCandidate,
     LexicalDisposition,
+    RetrievalStage,
     SelectionPass,
     SemanticDisposition,
 )
@@ -310,3 +313,144 @@ def test_query_diversity_accepts_multiple_records(tmp_path) -> None:
     accepted = result.trace.retrieval.diversity.accepted_chunk_ids
     assert set(accepted) == {"ch_a", "ch_b", "ch_c"}
     assert len({chunk_id for chunk_id in accepted}) == 3
+
+
+def test_closed_enums_pin_exact_members() -> None:
+    """The closed retrieval enums are a contract; adding a member is a change."""
+    assert {m.name: m.value for m in FilterState} == {
+        "ACCEPTED": "accepted",
+        "EXCLUDED": "excluded",
+    }
+    assert {m.name: m.value for m in FilterExclusionReason} == {
+        "RECORD_ID": "record_id",
+        "STATUS": "status",
+        "TAG": "tag",
+        "VALUE_PATH": "value_path",
+    }
+    assert {m.name: m.value for m in LexicalDisposition} == {
+        "NO_TERM_MATCH": "no_term_match",
+        "NONPOSITIVE_SCORE": "nonpositive_score",
+        "RANKED": "ranked",
+        "OUTSIDE_TOP_24": "outside_top_24",
+    }
+    assert {m.name: m.value for m in SemanticDisposition} == {
+        "RANKED": "ranked",
+        "OUTSIDE_TOP_24": "outside_top_24",
+    }
+    assert {m.name: m.value for m in BreadthDisposition} == {
+        "ACCEPTED": "accepted",
+        "RECORD_CAP": "record_cap",
+        "ACCEPTED_LIMIT_REACHED": "accepted_limit_reached",
+    }
+    assert {m.name: m.value for m in SelectionPass} == {
+        "BREADTH": "breadth",
+        "FILL": "fill",
+    }
+    assert {m.name: m.value for m in FinalDisposition} == {
+        "ACCEPTED": "accepted",
+        "OUTSIDE_TOP_8": "outside_top_8",
+    }
+    assert {m.name: m.value for m in RetrievalStage} == {
+        "FILTER": "filter",
+        "LEXICAL": "lexical",
+        "SEMANTIC": "semantic",
+        "FUSION": "fusion",
+        "DIVERSITY": "diversity",
+    }
+
+
+def test_lexical_ranks_score_desc_then_chunk_id_with_precedence() -> None:
+    class ScriptedScorer:
+        def __init__(self, scores: list[float]) -> None:
+            self.scores = scores
+
+        def __call__(self, query_tokens, document_tokens):
+            return list(self.scores)
+
+    accepted_by_id = {
+        "a": _desc("a", "DM-0001", "server alpha"),
+        "b": _desc("b", "DM-0002", "server beta"),
+        "c": _desc("c", "DM-0003", "server gamma"),
+        "d": _desc("d", "DM-0004", "unrelated zzz"),
+    }
+    # Scores arrive in chunk id order. Chunk d scores highest but shares no
+    # token with the question, so the AC-5 precedence makes it no_term_match.
+    trace, ranked = _lexical_stage(
+        "server", accepted_by_id, ScriptedScorer([0.5, 0.5, 0.2, 9.0])
+    )
+    assert ranked == {"a": 1, "b": 2, "c": 3}
+    by_id = {row.chunk_id: row for row in trace.rows}
+    assert by_id["d"].disposition == LexicalDisposition.NO_TERM_MATCH
+    assert by_id["d"].rank is None
+    # Positive rows sort by score descending, then chunk id for the tie: the
+    # two 0.5 chunks order a then b, before the 0.2 chunk.
+    assert (by_id["a"].score, by_id["a"].rank) == (0.5, 1)
+    assert (by_id["b"].score, by_id["b"].rank) == (0.5, 2)
+    assert (by_id["c"].score, by_id["c"].rank) == (0.2, 3)
+
+
+def test_lexical_outside_top_24_positive_rows_remain_visible() -> None:
+    # Each chunk carries one unique term, so every BM25 score stays positive.
+    # A query term present in every document would give a negative idf instead.
+    accepted_by_id = {
+        f"c{i:02d}": _desc(f"c{i:02d}", f"DM-{i:04d}", f"alpha{i:02d}")
+        for i in range(1, 27)
+    }
+    question = " ".join(f"alpha{i:02d}" for i in range(1, 27))
+    trace, ranked = _lexical_stage(question, accepted_by_id, bm25_lexical_scorer)
+    rows = trace.rows
+    assert len(rows) == 26
+    ranked_rows = [row for row in rows if row.disposition == LexicalDisposition.RANKED]
+    outside = [
+        row for row in rows if row.disposition == LexicalDisposition.OUTSIDE_TOP_24
+    ]
+    assert len(ranked_rows) == 24
+    assert len(outside) == 2
+    assert {row.rank for row in outside} == {25, 26}
+    assert len(ranked) == 24
+    # Every positive row stays visible in the trace, chunk id sorted (AC-10).
+    assert [row.chunk_id for row in rows] == sorted(row.chunk_id for row in rows)
+
+
+def test_semantic_stage_sorts_locally_by_distance_then_chunk_id(tmp_path) -> None:
+    from pathlib import Path
+
+    from fake_index import FakeIndex
+    from test_query_roundtrip import _query_deps
+
+    from decision_memory.application.dto import (
+        QueryFilters,
+        QueryRequest,
+        SemanticMatches,
+    )
+    from decision_memory.application.query import query_index
+
+    class ScrambledIndex(FakeIndex):
+        def semantic_search(self, embedding, accepted_chunk_ids):
+            # Return matches out of order to prove the application re sorts.
+            return SemanticMatches(("ch_a", "ch_c", "ch_b"), (0.9, 0.1, 0.1))
+
+    index = ScrambledIndex()
+    index.generation = "gen-fake"
+    for chunk_id in ("ch_a", "ch_b", "ch_c"):
+        index.chunks[chunk_id] = _desc(chunk_id, "DM-0012", "server side text")
+        index.embeddings[chunk_id] = [0.5] * 8
+    result = query_index(
+        QueryRequest(
+            question="server side",
+            store_dir=Path("/fake/store"),
+            allow_stale=True,
+            filters=QueryFilters(),
+        ),
+        _query_deps(index),
+    )
+    rows = result.trace.retrieval.semantic.rows
+    by_id = {row.chunk_id: row for row in rows}
+    # The application ranks by distance ascending then chunk id (AC-6): the
+    # two 0.1 chunks order ch_b then ch_c, ahead of the 0.9 chunk.
+    assert (by_id["ch_b"].rank, by_id["ch_b"].distance) == (1, 0.1)
+    assert (by_id["ch_c"].rank, by_id["ch_c"].distance) == (2, 0.1)
+    assert (by_id["ch_a"].rank, by_id["ch_a"].distance) == (3, 0.9)
+    assert all(row.disposition == SemanticDisposition.RANKED for row in rows)
+    # Semantic rows appear chunk id sorted in the trace (AC-10).
+    assert [row.chunk_id for row in rows] == ["ch_a", "ch_b", "ch_c"]

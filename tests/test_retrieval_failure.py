@@ -27,6 +27,7 @@ from decision_memory.application.dto import (
     QueryRequest,
     RetrievalFailure,
     RetrievalStage,
+    SemanticMatches,
 )
 from decision_memory.application.query import query_index
 
@@ -144,3 +145,72 @@ def test_cli_retrieval_failure_without_debug_prints_error_only(
     assert result.exit_code == 1
     assert "error retrieval fusion" in result.output
     assert "Filter" not in result.output
+
+
+def test_semantic_out_of_range_distance_is_a_failure(tmp_path) -> None:
+    class BrokenIndex(FakeIndex):
+        def semantic_search(self, embedding, accepted_chunk_ids):
+            return SemanticMatches(("ch_a",), (3.0,))
+
+    index = BrokenIndex()
+    index.generation = "gen-fake"
+    index.chunks["ch_a"] = _chunk("ch_a")
+    index.embeddings["ch_a"] = [0.5] * 8
+    with pytest.raises(RetrievalFailure) as excinfo:
+        query_index(
+            QueryRequest(
+                question="why?",
+                store_dir=Path("/fake/store"),
+                allow_stale=True,
+                filters=QueryFilters(),
+            ),
+            _query_deps(index),
+        )
+    assert excinfo.value.stage == RetrievalStage.SEMANTIC
+    assert excinfo.value.trace.filters is not None
+    assert excinfo.value.trace.lexical is not None
+    assert excinfo.value.trace.semantic is None
+
+
+def test_semantic_nonfinite_distance_is_a_failure(tmp_path) -> None:
+    class BrokenIndex(FakeIndex):
+        def semantic_search(self, embedding, accepted_chunk_ids):
+            return SemanticMatches(("ch_a",), (float("nan"),))
+
+    index = BrokenIndex()
+    index.generation = "gen-fake"
+    index.chunks["ch_a"] = _chunk("ch_a")
+    index.embeddings["ch_a"] = [0.5] * 8
+    with pytest.raises(RetrievalFailure) as excinfo:
+        query_index(
+            QueryRequest(
+                question="why?",
+                store_dir=Path("/fake/store"),
+                allow_stale=True,
+                filters=QueryFilters(),
+            ),
+            _query_deps(index),
+        )
+    assert excinfo.value.stage == RetrievalStage.SEMANTIC
+
+
+def test_semantic_duplicate_id_is_a_failure(tmp_path) -> None:
+    class BrokenIndex(FakeIndex):
+        def semantic_search(self, embedding, accepted_chunk_ids):
+            return SemanticMatches(("ch_a", "ch_a"), (0.5, 0.5))
+
+    index = BrokenIndex()
+    index.generation = "gen-fake"
+    index.chunks["ch_a"] = _chunk("ch_a")
+    index.embeddings["ch_a"] = [0.5] * 8
+    with pytest.raises(RetrievalFailure) as excinfo:
+        query_index(
+            QueryRequest(
+                question="why?",
+                store_dir=Path("/fake/store"),
+                allow_stale=True,
+                filters=QueryFilters(),
+            ),
+            _query_deps(index),
+        )
+    assert excinfo.value.stage == RetrievalStage.SEMANTIC

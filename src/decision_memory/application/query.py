@@ -737,19 +737,16 @@ def _lexical_stage(
     positive.sort(key=lambda pair: (-pair[1], pair[0].chunk_id))
     ranked: dict[str, int] = {}
     for rank, (chunk, score) in enumerate(positive, start=1):
-        ranked[chunk.chunk_id] = rank
-        rows.append(
-            LexicalRow(
-                chunk.chunk_id,
-                score,
-                rank,
-                (
-                    LexicalDisposition.RANKED
-                    if rank <= CANDIDATE_LIMIT
-                    else LexicalDisposition.OUTSIDE_TOP_24
-                ),
-            )
+        disposition = (
+            LexicalDisposition.RANKED
+            if rank <= CANDIDATE_LIMIT
+            else LexicalDisposition.OUTSIDE_TOP_24
         )
+        if disposition == LexicalDisposition.RANKED:
+            # Only ranked rows (ranks 1 through 24) contribute to fusion
+            # (AC-5), symmetric with the semantic stage below.
+            ranked[chunk.chunk_id] = rank
+        rows.append(LexicalRow(chunk.chunk_id, score, rank, disposition))
     rows.sort(key=lambda row: row.chunk_id)
     return LexicalTrace(rows=tuple(rows)), ranked
 
