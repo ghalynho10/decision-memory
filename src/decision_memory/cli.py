@@ -1002,6 +1002,11 @@ def _print_query_debug(result: QueryResult) -> None:
             f"  rejected_decomposition {rejected.sentence_id} "
             f"count={rejected.returned_count} disposition={rejected.disposition}"
         )
+    for dropped in trace.verification.dropped_sub_claims:
+        typer.echo(
+            f"  dropped_sub_claim {dropped.sub_claim_id} ({dropped.sentence_id}) "
+            f"disposition={dropped.disposition}"
+        )
     for sentence_id, missing_ids in trace.verification.missing_chunk_refs:
         markers = ",".join(missing_ids)
         typer.echo(f"  missing_chunk_refs {sentence_id} [{markers}]")

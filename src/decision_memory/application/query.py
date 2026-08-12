@@ -31,6 +31,7 @@ from decision_memory.application.dto import (
     CoverageRow,
     DiversityTrace,
     DraftSentence,
+    DroppedSubClaim,
     Facet,
     Failure,
     FilterState,
@@ -80,7 +81,7 @@ from decision_memory.application.pipeline import (
 )
 from decision_memory.application.store_format import STORE_FORMAT_VERSION
 from decision_memory.application.verification import (
-    decompose_disposition,
+    classify_decomposition,
     deterministic_containment,
 )
 
@@ -573,6 +574,7 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
     decomposed_rows: list[SubClaim] = []
     empty_decompositions: list[str] = []
     rejected_decompositions: list[RejectedDecomposition] = []
+    dropped_sub_claims: list[DroppedSubClaim] = []
     missing_chunk_refs: list[tuple[str, tuple[str, ...]]] = []
     chunk_text_by_id = {chunk.chunk_id: chunk.text for chunk in accepted_chunks}
     for sentence in draft:
@@ -624,23 +626,36 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
             empty_decompositions.append(sentence.sentence_id)
             removed.append(sentence.sentence_id)
             continue
-        disposition = decompose_disposition(sub_claim_texts, sentence.text)
-        if disposition is not None:
-            # Rejected nonempty response: a closed rejection disposition.
-            # Rejected claim text is never recorded (AC-6, AC-11).
+        outcome = classify_decomposition(sub_claim_texts, sentence.text)
+        if outcome.rejection is not None:
+            # Rejected nonempty response: a closed rejection disposition. A
+            # wholesale rejection writes no dropped sub claim rows, so one
+            # event is never counted twice, and rejected claim text is never
+            # recorded (AC-6, AC-11).
             rejected_decompositions.append(
                 RejectedDecomposition(
-                    sentence.sentence_id, len(sub_claim_texts), disposition
+                    sentence.sentence_id, len(sub_claim_texts), outcome.rejection
                 )
             )
             removed.append(sentence.sentence_id)
             continue
-        # Accepted response: every sub claim is unique under normalization,
-        # so ids never skip; verify each alone in provider order (AC-6).
+        # Accepted response: the lexical guard dropped each violating sub
+        # claim on its own, and every remaining sub claim keeps its provider
+        # position, so an accepted id skips only where a drop accounts for it
+        # (AC-6, AC-11).
+        for position in outcome.dropped:
+            dropped_sub_claims.append(
+                DroppedSubClaim(
+                    f"{sentence.sentence_id}.{position + 1}",
+                    sentence.sentence_id,
+                    "lexical_guard",
+                )
+            )
+        # Verify each accepted sub claim alone, in provider order (AC-6).
         rows: list[SubClaim] = []
         fragments: list[DraftSentence] = []
-        for index, text in enumerate(sub_claim_texts):
-            sub_claim_id = f"{sentence.sentence_id}.{index + 1}"
+        for position, text in outcome.accepted:
+            sub_claim_id = f"{sentence.sentence_id}.{position + 1}"
             matching_ids = tuple(
                 chunk_id
                 for chunk_id in available_ids
@@ -692,9 +707,9 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
             # claim is grounded (AC-1, AC-4).
             kept_sentences.extend(fragments)
         else:
-            # Every sub claim unsupported: the sentence is fully removed. The
-            # kept=False rows above distinguish this from an empty
-            # decomposition (AC-6).
+            # Every accepted sub claim unsupported: the sentence is fully
+            # removed. The kept=False rows above distinguish this from an
+            # empty decomposition, and from a lexical drop (AC-6).
             removed.append(sentence.sentence_id)
 
     # Independent coverage over the original question, the unchanged
@@ -731,6 +746,7 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
         decomposed=tuple(decomposed_rows),
         empty_decompositions=tuple(empty_decompositions),
         rejected_decompositions=tuple(rejected_decompositions),
+        dropped_sub_claims=tuple(dropped_sub_claims),
         missing_chunk_refs=tuple(missing_chunk_refs),
     )
     if uncovered:
@@ -1216,6 +1232,7 @@ def _empty_verification() -> VerificationTrace:
         decomposed=(),
         empty_decompositions=(),
         rejected_decompositions=(),
+        dropped_sub_claims=(),
         missing_chunk_refs=(),
     )
 

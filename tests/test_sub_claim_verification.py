@@ -21,17 +21,20 @@ from decision_memory.application.dto import (
     ActiveChunkDescriptor,
     CoverageRow,
     DraftSentence,
+    DroppedSubClaim,
     QueryFilters,
     QueryRequest,
     QueryResult,
     QueryState,
     RejectedDecomposition,
+    VerificationTrace,
 )
 from decision_memory.application.query import query_index
 from decision_memory.application.verification import (
     MAX_SUB_CLAIMS,
-    decompose_disposition,
-    decomposition_is_near_subset,
+    classify_decomposition,
+    sentence_tokens,
+    sub_claim_is_lexical_subset,
 )
 from decision_memory.infrastructure.openai_generation import (
     GenerationError,
@@ -416,16 +419,17 @@ def test_contained_parent_narrows_to_available_citations() -> None:
 
 
 # ---------------------------------------------------------------------------
-# AC-11 and AC-6: the contract guardrail rejects a violating nonempty
-# response with a closed disposition, never verified as written; a genuine
+# AC-11 and AC-6: the guardrail drops a violating sub claim on its own and
+# rejects the whole response only when no sub claim is acceptable; a genuine
 # empty response stays a distinct signal.
 # ---------------------------------------------------------------------------
 
 
-def test_invented_decomposition_is_rejected_by_the_lexical_guard() -> None:
-    """A sub claim introducing content absent from the parent sentence is
-    rejected with the closed lexical guard disposition, distinct from a
-    genuine empty response (AC-11, AC-6)."""
+def test_invented_sub_claim_is_dropped_while_the_clean_one_proceeds() -> None:
+    """A sub claim introducing content absent from the parent is dropped as an
+    individual, and the clean sub claim in the same response still verifies
+    and emits. The drop is recorded without its text and never becomes a
+    whole response rejection (AC-11, AC-6)."""
     chunks = {"ch_a": "The board approved the merger on Tuesday."}
     draft = (
         DraftSentence(
@@ -444,10 +448,80 @@ def test_invented_decomposition_is_rejected_by_the_lexical_guard() -> None:
         entail=_no_call,
         question="merger",
     )
+    assert result.state == QueryState.ANSWERED
+    assert result.trace.verification.dropped_sub_claims == (
+        DroppedSubClaim("S1.2", "S1", "lexical_guard"),
+    )
+    # A wholesale rejection is not also recorded: one event, one row.
+    assert result.trace.verification.rejected_decompositions == ()
+    assert result.trace.verification.empty_decompositions == ()
+    assert tuple(row.sub_claim_id for row in result.trace.verification.decomposed) == (
+        "S1.1",
+    )
+    assert result.trace.verification.removed_sentences == ()
+    assert not any("yacht" in sentence.text for sentence in result.sentences)
+
+
+def test_dropped_sub_claim_keeps_its_provider_position_in_its_id() -> None:
+    """A dropped sub claim keeps the id of the position it held, so the
+    accepted ids skip only where the drop signal accounts for them
+    (AC-6, AC-11)."""
+    chunks = {"ch_a": "The board approved the merger on Tuesday."}
+    draft = (
+        DraftSentence(
+            "S1",
+            "The board approved the merger on Tuesday, and the board stayed late.",
+            ("ch_a",),
+        ),
+    )
+    result = _run(
+        chunks,
+        draft,
+        decompose=lambda s, c, a=None: (
+            "The board bought a yacht.",
+            "The board approved the merger on Tuesday.",
+            "the board stayed late",
+        ),
+        entail=lambda text, evidence, attempts=None: (True, "supported"),
+        question="merger",
+    )
+    assert result.state == QueryState.ANSWERED
+    assert result.trace.verification.dropped_sub_claims == (
+        DroppedSubClaim("S1.1", "S1", "lexical_guard"),
+    )
+    assert tuple(row.sub_claim_id for row in result.trace.verification.decomposed) == (
+        "S1.2",
+        "S1.3",
+    )
+
+
+def test_no_acceptable_sub_claim_rejects_the_whole_response() -> None:
+    """When the lexical guard finds no acceptable sub claim, the response is
+    rejected wholesale with the closed disposition and writes no per sub claim
+    drop rows, so one event is never counted twice (AC-6, AC-11)."""
+    chunks = {"ch_a": "The board approved the merger on Tuesday."}
+    draft = (
+        DraftSentence(
+            "S1",
+            "The board approved the merger on Tuesday, and the board stayed late.",
+            ("ch_a",),
+        ),
+    )
+    result = _run(
+        chunks,
+        draft,
+        decompose=lambda s, c, a=None: (
+            "The board bought a yacht.",
+            "The board hired a pilot.",
+        ),
+        entail=_no_call,
+        question="merger",
+    )
     assert result.state == QueryState.ABSTAINED
     assert result.trace.verification.rejected_decompositions == (
         RejectedDecomposition("S1", 2, "lexical_guard"),
     )
+    assert result.trace.verification.dropped_sub_claims == ()
     assert result.trace.verification.empty_decompositions == ()
     assert result.trace.verification.decomposed == ()
     assert result.trace.verification.removed_sentences == ("S1",)
@@ -773,11 +847,21 @@ def test_schema_version_stays_two_and_trace_fields_resolve() -> None:
     # Old fields still resolve.
     assert verification.containment
     assert verification.removed_sentences == ()
-    # New fields resolve and are the additive signal.
+    # All five new fields resolve and are the additive signal.
     assert verification.decomposed
     assert verification.empty_decompositions == ()
     assert verification.rejected_decompositions == ()
+    assert verification.dropped_sub_claims == ()
     assert verification.missing_chunk_refs == ()
+    # An older constructor call, naming none of the five, remains valid.
+    older = VerificationTrace(
+        containment=(),
+        entailment=(),
+        removed_sentences=(),
+        coverage=(),
+        uncovered_facets=(),
+    )
+    assert older.dropped_sub_claims == ()
 
 
 # ---------------------------------------------------------------------------
@@ -785,70 +869,138 @@ def test_schema_version_stays_two_and_trace_fields_resolve() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_near_subset_contract_check() -> None:
-    """The near subset rule is deterministic and catches invented content."""
+def _guard(sub_claim: str, parent: str) -> bool:
+    """Whether one sub claim passes the per sub claim lexical guard."""
+    parent_counts: dict[str, int] = {}
+    for token in sentence_tokens(parent):
+        parent_counts[token] = parent_counts.get(token, 0) + 1
+    return sub_claim_is_lexical_subset(sentence_tokens(sub_claim), parent_counts)
+
+
+def test_lexical_guard_accepts_a_subset_and_rejects_invented_content() -> None:
+    """The guard is deterministic per sub claim: a subset of the parent passes
+    and invented content fails (AC-11)."""
     parent = "The board approved the merger on Tuesday."
-    assert decomposition_is_near_subset(
-        ("The board approved the merger.", "the merger on Tuesday"), parent
-    )
-    assert not decomposition_is_near_subset(
-        ("The board approved the merger.", "The board bought a yacht."), parent
-    )
-    assert not decomposition_is_near_subset(("The board approved",), "")
-
-
-def test_near_subset_lexical_tolerance_and_limits() -> None:
-    """The matcher allows one inflection suffix and one added grammar token
-    each, but rejects a new content token (AC-11)."""
-    parent = "The board refetches the merger file."
-    # refetch / refetches and file / files match through the suffix rule.
-    assert decomposition_is_near_subset(("The board refetch the merger file.",), parent)
-    assert decomposition_is_near_subset(
-        ("The board refetches the merger files.",), parent
-    )
-    # Each grammar token may be added at most once without a parent match.
-    assert decomposition_is_near_subset(
-        ("The board refetch a merger file and that which the.",), parent
-    )
-    # A second added instance of the same grammar token is rejected.
-    assert not decomposition_is_near_subset(
-        ("The board refetch a merger file and a.",), parent
-    )
-    # A new content token is rejected.
-    assert not decomposition_is_near_subset(
-        ("The board refetches the merger yacht.",), parent
-    )
-
-
-def test_near_subset_makes_no_semantic_guarantee() -> None:
-    """The matcher is lexical only: dropped negation and reversed order pass
-    it, so only individually verified fragments may emit (AC-11, AC-1)."""
-    parent = "The board did not approve the merger."
-    assert decomposition_is_near_subset(("The board approve the merger.",), parent)
-    assert decomposition_is_near_subset(("the merger approve the board",), parent)
-
-
-def test_decompose_disposition_classification() -> None:
-    """The classifier returns None for an accepted response and one closed
-    rejection disposition otherwise (AC-6, AC-11)."""
-    parent = "The board approved the merger on Tuesday."
-    assert decompose_disposition(("The board approved the merger.",), parent) is None
-    assert decompose_disposition(("x",) * (MAX_SUB_CLAIMS + 1), parent) == "over_cap"
-    assert (
-        decompose_disposition(
-            ("The board approved the merger.", "THE board APPROVED the merger."),
-            parent,
-        )
-        == "duplicate"
-    )
-    assert decompose_disposition(("The board bought a yacht.",), parent) == (
+    assert _guard("The board approved the merger.", parent)
+    assert _guard("the merger on Tuesday", parent)
+    assert not _guard("The board bought a yacht.", parent)
+    # An empty parent has no token to match, so nothing is acceptable.
+    assert classify_decomposition(("The board approved",), "").rejection == (
         "lexical_guard"
     )
+
+
+def test_lexical_guard_stem_rules() -> None:
+    """Each of the five stem rules matches, and the three character floor is
+    measured on the untransformed token (AC-11)."""
+    # Plain suffix, both directions.
+    assert _guard("The board refetch the file.", "The board refetches the file.")
+    assert _guard("The board refetches the files.", "The board refetch the file.")
+    assert _guard("The team add a note.", "The team adding a note.")
+    # A dropped final e plus ed or ing: use / using.
+    assert _guard("The team use the store.", "The team using the store.")
+    assert _guard("The team used the store.", "The team use the store.")
+    # A repeated final character plus ed or ing: ship / shipped.
+    assert _guard("The team ship the slice.", "The team shipped the slice.")
+    assert _guard("The team shipping the slice.", "The team ship the slice.")
+    # A final y traded for i plus es or ed: rely / relies.
+    assert _guard("The team rely on the gate.", "The team relies on the gate.")
+    assert _guard("The team relied on the gate.", "The team rely on the gate.")
+    # The floor: a two character token never matches by stem.
+    assert not _guard("The team go the slice.", "The team goes the slice.")
+    # Exact equality carries no floor: a short parent token still matches
+    # itself, since it is not new vocabulary.
+    assert _guard("the db clients", "Keep the db clients together.")
+
+
+def test_lexical_guard_function_word_allowance() -> None:
+    """At most two function word tokens may be added per sub claim, counted as
+    instances, and a function word never matches by stem (AC-11)."""
+    parent = "The board refetches the merger file."
+    # Two added function word instances pass.
+    assert _guard("The board refetches the merger file is not.", parent)
+    # A third added instance fails, whatever the words are.
+    assert not _guard("The board refetches the merger file is not there.", parent)
+    # Two instances of the same function word count as two.
+    assert not _guard("The board refetches a merger file and a and.", parent)
+    # A word outside the closed set is content and must find a parent match.
+    assert not _guard("The board refetches the merger file whilst.", parent)
+    # A function word never matches by stem: the parent `not` cannot stand in
+    # for the content token `notes`, which has no other parent match.
+    assert not _guard("The board notes the merger.", "The board did not merger.")
+
+
+def test_lexical_guard_makes_no_semantic_guarantee() -> None:
+    """The guard is lexical only: dropped negation and reversed order pass it,
+    so only individually verified fragments may emit (AC-11, AC-1)."""
+    parent = "The board did not approve the merger."
+    assert _guard("The board approve the merger.", parent)
+    assert _guard("the merger approve the board", parent)
+
+
+def test_classify_decomposition_whole_response_checks_run_first() -> None:
+    """Over cap and duplicate are whole response rejections classified before
+    the per sub claim guard runs (AC-6, AC-11)."""
+    parent = "The board approved the merger on Tuesday."
+    accepted = classify_decomposition(("The board approved the merger.",), parent)
+    assert accepted.rejection is None
+    assert accepted.accepted == ((0, "The board approved the merger."),)
+    assert accepted.dropped == ()
+    # Over cap is classified before the guard, even though every row here
+    # would also fail the guard on its own.
+    over_cap = classify_decomposition(("a yacht",) * (MAX_SUB_CLAIMS + 1), parent)
+    assert over_cap.rejection == "over_cap"
+    assert over_cap.accepted == () and over_cap.dropped == ()
+    # Duplicate is classified before the guard, and before the cap only in the
+    # sense that the cap already passed.
+    duplicate = classify_decomposition(
+        ("The board approved the merger.", "THE board APPROVED the merger."),
+        parent,
+    )
+    assert duplicate.rejection == "duplicate"
+    assert duplicate.accepted == () and duplicate.dropped == ()
+    # A partially violating response is accepted with the violator dropped.
+    partial = classify_decomposition(
+        ("The board bought a yacht.", "The board approved the merger."), parent
+    )
+    assert partial.rejection is None
+    assert partial.accepted == ((1, "The board approved the merger."),)
+    assert partial.dropped == (0,)
 
 
 def test_debug_trace_renders_rejected_decomposition(capsys) -> None:
     """The debug trace shows a rejected decomposition's sentence, count, and
     disposition, never its rejected text (AC-6)."""
+    from decision_memory.cli import _print_query_debug
+
+    chunks = {"ch_a": "The board approved the merger on Tuesday."}
+    draft = (
+        DraftSentence(
+            "S1",
+            "The board approved the merger on Tuesday, and the board stayed late.",
+            ("ch_a",),
+        ),
+    )
+    result = _run(
+        chunks,
+        draft,
+        decompose=lambda s, c, a=None: (
+            "The board bought a yacht.",
+            "The board hired a pilot.",
+        ),
+        entail=_no_call,
+        question="merger",
+    )
+    _print_query_debug(result)
+    out = capsys.readouterr().out
+    assert "rejected_decomposition S1 count=2 disposition=lexical_guard" in out
+    assert "yacht" not in out
+    assert "pilot" not in out
+
+
+def test_debug_trace_renders_dropped_sub_claim(capsys) -> None:
+    """The debug trace shows a dropped sub claim's id, parent, and closed
+    disposition, never its dropped text (AC-6)."""
     from decision_memory.cli import _print_query_debug
 
     chunks = {"ch_a": "The board approved the merger on Tuesday."}
@@ -871,5 +1023,5 @@ def test_debug_trace_renders_rejected_decomposition(capsys) -> None:
     )
     _print_query_debug(result)
     out = capsys.readouterr().out
-    assert "rejected_decomposition S1 count=2 disposition=lexical_guard" in out
+    assert "dropped_sub_claim S1.2 (S1) disposition=lexical_guard" in out
     assert "yacht" not in out

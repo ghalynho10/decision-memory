@@ -591,14 +591,32 @@ class RejectedDecomposition:
 
 
 @dataclass(frozen=True)
+class DroppedSubClaim:
+    """One individually dropped sub claim, held only in the trace (spec 0010).
+
+    A sub claim the lexical guard dropped on its own while at least one other
+    sub claim in the same response survived. ``disposition`` is the one closed
+    value ``lexical_guard`` (spec 0010 AC-6). ``sub_claim_id`` keeps the
+    position the sub claim held in the provider response, so the accepted ids
+    skip only where a drop accounts for them. Dropped claim text is never
+    recorded.
+    """
+
+    sub_claim_id: str
+    sentence_id: str
+    disposition: str
+
+
+@dataclass(frozen=True)
 class VerificationTrace:
     """The verification decision for one query (AC-15, spec 0010).
 
-    The four trailing fields are the additive spec 0010 signal: which
+    The five trailing fields are the additive spec 0010 signal: which
     sentences were decomposed, which decompositions came back empty, which
-    nonempty decompositions were rejected and why, and which parent chunk ids
-    retrieval did not surface. They default to empty tuples so an older
-    constructor call remains valid (AC-10).
+    nonempty decompositions were rejected and why, which sub claims the
+    lexical guard dropped on their own, and which parent chunk ids retrieval
+    did not surface. They default to empty tuples so an older constructor
+    call remains valid (AC-10).
     """
 
     containment: tuple[tuple[str, bool], ...]
@@ -609,6 +627,7 @@ class VerificationTrace:
     decomposed: tuple[SubClaim, ...] = ()
     empty_decompositions: tuple[str, ...] = ()
     rejected_decompositions: tuple[RejectedDecomposition, ...] = ()
+    dropped_sub_claims: tuple[DroppedSubClaim, ...] = ()
     missing_chunk_refs: tuple[tuple[str, tuple[str, ...]], ...] = ()
 
 
