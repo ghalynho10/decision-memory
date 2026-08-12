@@ -16,12 +16,17 @@ narrow port. It imports no Typer, Pydantic, OpenAI, or Chroma (AC-18).
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Protocol
 
-from decision_memory.application.dto import QueryResult, QueryState, RetrievalFailure
+from decision_memory.application.dto import (
+    Facet,
+    QueryResult,
+    QueryState,
+    RetrievalFailure,
+)
 
 # The five defining queries (mvp.md, specs 0007 and 0008) with their exact
 # wording, and the two further assertions (mvp.md) plus the claim level
@@ -87,7 +92,10 @@ class EvaluationFixture:
 
     A query fixture carries ``question`` and ``oracle``. A re ingest fixture
     carries ``reingest_record_id`` and the corpus relative path of the
-    ``rationale.md`` to edit.
+    ``rationale.md`` to edit. ``classify_failure`` optionally names a
+    callable that reads a failing result's existing trace and returns a
+    short stage diagnosis appended to the failure detail (the query 4 live
+    gate uses it, spec 0010 AC-12).
     """
 
     id: str
@@ -96,6 +104,7 @@ class EvaluationFixture:
     oracle: QueryOracle | None = None
     reingest_record_id: str | None = None
     reingest_rationale_relpath: str | None = None
+    classify_failure: Callable[[QueryResult], str | None] | None = None
 
     def __post_init__(self) -> None:
         """Enforce the per kind required fields at construction time.
@@ -184,6 +193,53 @@ class EvaluationPort(Protocol):
     ) -> ReingestEvidence: ...
 
 
+def _facet_is_reason(facet: Facet) -> bool:
+    """Whether a facet asks why, the reason side of query 4 (AC-12).
+
+    A decision facet ("what was decided ...") is not a reason facet. A
+    merged facet that folds the why into the question counts as reason, so
+    "no non-reason facet exists" detects the merged shape.
+    """
+    text = facet.text.casefold()
+    return "why" in text or "reason" in text
+
+
+def classify_query4_failure(result: QueryResult) -> str | None:
+    """Classify a failing query 4 gate from the existing trace (AC-12).
+
+    Reads GenerationTrace.facets, the coverage rows, and the result state in
+    order, using no new trace field. Returns None when the trace is
+    consistent (separate decision and reason facets, the decision facet
+    uncovered, the query abstained), or one closed disposition:
+    ``facet_extraction`` (no separate decision and reason facets),
+    ``coverage_directness`` (separate facets but the decision facet was
+    wrongly covered), or ``query_state`` (separate facets, the decision
+    facet uncovered, yet the result answered). A failed result is none of
+    these stages and returns None.
+    """
+    if result.state == QueryState.FAILED:
+        return None
+    facets = result.trace.generation.facets
+    decision_facets = [facet for facet in facets if not _facet_is_reason(facet)]
+    reason_facets = [facet for facet in facets if _facet_is_reason(facet)]
+    if not decision_facets or not reason_facets:
+        return "facet_extraction"
+    decision_id = decision_facets[0].facet_id
+    decision_row = next(
+        (
+            row
+            for row in result.trace.verification.coverage
+            if row.facet_id == decision_id
+        ),
+        None,
+    )
+    if decision_row is not None and decision_row.covered:
+        return "coverage_directness"
+    if result.state == QueryState.ANSWERED:
+        return "query_state"
+    return None
+
+
 # The fixed battery: the five defining queries, the rationale summary
 # assertion, the unverifiable claim fixture, and the incremental re ingest
 # assertion, in report order.
@@ -221,6 +277,7 @@ EVALUATION_FIXTURES: tuple[EvaluationFixture, ...] = (
         kind=FixtureKind.QUERY,
         question=QUERY_FOUR,
         oracle=QueryOracle(expected_state=QueryState.ABSTAINED),
+        classify_failure=classify_query4_failure,
     ),
     EvaluationFixture(
         id="query-5-uploaded-files",
@@ -335,6 +392,10 @@ def _run_query_fixture(
             )
         else:
             ok, detail = _satisfies(result, fixture.oracle, proposed)
+            if not ok and fixture.classify_failure is not None:
+                stage = fixture.classify_failure(result)
+                if stage:
+                    detail = f"{detail}; query4 stage: {stage}"
         if ok:
             passed += 1
         elif not first_failing_detail:

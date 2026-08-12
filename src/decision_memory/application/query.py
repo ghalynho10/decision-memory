@@ -697,16 +697,25 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
             # decomposition (AC-6).
             removed.append(sentence.sentence_id)
 
-    # Independent coverage over the original question, facets, and kept sentences.
-    try:
-        coverage_rows = deps.coverage(question, facets, kept_sentences, attempts)
-    except Exception as exc:  # noqa: BLE001 - provider failure is a result
-        return _failed_result(
-            request,
-            freshness,
-            Failure("provider.coverage", "claim_verification", _safe(exc)),
-            EXIT_ERROR,
-            attempts,
+    # Independent coverage over the original question, the unchanged
+    # canonical facet tuple, and the kept sentences. With no kept sentences,
+    # every facet is deterministically uncovered and no coverage call is
+    # made (spec 0010 AC-12).
+    if kept_sentences:
+        try:
+            coverage_rows = deps.coverage(question, facets, kept_sentences, attempts)
+        except Exception as exc:  # noqa: BLE001 - provider failure is a result
+            return _failed_result(
+                request,
+                freshness,
+                Failure("provider.coverage", "claim_verification", _safe(exc)),
+                EXIT_ERROR,
+                attempts,
+            )
+    else:
+        coverage_rows = tuple(
+            CoverageRow(facet.facet_id, False, "no kept answer sentence", ())
+            for facet in facets
         )
     uncovered = tuple(
         facet

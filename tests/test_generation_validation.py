@@ -130,12 +130,13 @@ def test_validate_coverage_requires_one_row_per_facet() -> None:
         "reason": "no",
         "sentence_ids": [],
     }
-    rows = validate_coverage({"rows": [row_one, row_two]}, facets)
+    rows = validate_coverage({"rows": [row_one, row_two]}, facets, ("S1",))
     assert len(rows) == 2
     with pytest.raises(GenerationError):
         validate_coverage(
             {"rows": [{"facet_id": "F1", "covered": True, "reason": "yes"}]},
             facets,
+            ("S1",),
         )
     with pytest.raises(GenerationError):
         validate_coverage(
@@ -146,12 +147,109 @@ def test_validate_coverage_requires_one_row_per_facet() -> None:
                 ]
             },
             facets,
+            ("S1",),
         )
     with pytest.raises(GenerationError):
         validate_coverage(
             {"rows": [{"facet_id": "F9", "covered": True, "reason": "yes"}]},
             facets,
+            ("S1",),
         )
+
+
+def test_validate_coverage_enforces_order_and_sentence_references() -> None:
+    """Coverage rows must be in canonical facet order, and sentence ids must
+    be known, unique, in kept order, and present only on covered rows
+    (spec 0010 AC-12)."""
+    facets = (Facet(facet_id="F1", text="a"), Facet(facet_id="F2", text="b"))
+    known = ("S1", "S2")
+    valid = [
+        {
+            "facet_id": "F1",
+            "covered": True,
+            "reason": "yes",
+            "sentence_ids": ["S1", "S2"],
+        },
+        {"facet_id": "F2", "covered": False, "reason": "no", "sentence_ids": []},
+    ]
+    assert len(validate_coverage({"rows": valid}, facets, known)) == 2
+
+    def reject(rows: list[dict]) -> None:
+        with pytest.raises(GenerationError):
+            validate_coverage({"rows": rows}, facets, known)
+
+    # Facet rows out of canonical order are rejected.
+    reject(
+        [
+            {"facet_id": "F2", "covered": False, "reason": "no", "sentence_ids": []},
+            {
+                "facet_id": "F1",
+                "covered": True,
+                "reason": "yes",
+                "sentence_ids": ["S1"],
+            },
+        ]
+    )
+    # An unknown sentence id is rejected.
+    reject(
+        [
+            {
+                "facet_id": "F1",
+                "covered": True,
+                "reason": "yes",
+                "sentence_ids": ["S9"],
+            },
+            {"facet_id": "F2", "covered": False, "reason": "no", "sentence_ids": []},
+        ]
+    )
+    # A repeated sentence id is rejected.
+    reject(
+        [
+            {
+                "facet_id": "F1",
+                "covered": True,
+                "reason": "yes",
+                "sentence_ids": ["S1", "S1"],
+            },
+            {"facet_id": "F2", "covered": False, "reason": "no", "sentence_ids": []},
+        ]
+    )
+    # Sentence ids out of kept order are rejected.
+    reject(
+        [
+            {
+                "facet_id": "F1",
+                "covered": True,
+                "reason": "yes",
+                "sentence_ids": ["S2", "S1"],
+            },
+            {"facet_id": "F2", "covered": False, "reason": "no", "sentence_ids": []},
+        ]
+    )
+    # A covered row with no sentence id is rejected.
+    reject(
+        [
+            {"facet_id": "F1", "covered": True, "reason": "yes", "sentence_ids": []},
+            {"facet_id": "F2", "covered": False, "reason": "no", "sentence_ids": []},
+        ]
+    )
+    # An uncovered row with sentence ids is rejected.
+    reject(
+        [
+            {
+                "facet_id": "F1",
+                "covered": True,
+                "reason": "yes",
+                "sentence_ids": ["S1"],
+            },
+            {
+                "facet_id": "F2",
+                "covered": False,
+                "reason": "no",
+                "sentence_ids": ["S2"],
+            },
+        ]
+    )
 
 
 def _assert_strict_object(schema: object, path: str) -> None:

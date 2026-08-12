@@ -18,7 +18,9 @@ from decision_memory.application.dto import (
     Citation,
     CitationFreshness,
     CitationKind,
+    CoverageRow,
     DiversityTrace,
+    Facet,
     FilterTrace,
     FreshnessState,
     FreshnessTrace,
@@ -46,6 +48,7 @@ from decision_memory.application.evaluation import (
     ProposedRecords,
     QueryOracle,
     ReingestEvidence,
+    classify_query4_failure,
     run_evaluation,
 )
 
@@ -157,6 +160,57 @@ def _result(
             AbstentionStage.RETRIEVAL if state == QueryState.ABSTAINED else None
         ),
         trace=_empty_trace(state),
+        failure=None,
+    )
+
+
+def _coverage_result(
+    facets: tuple[Facet, ...],
+    coverage: tuple[CoverageRow, ...],
+    state: QueryState,
+) -> QueryResult:
+    """A query result carrying specific facets and coverage rows in its trace."""
+    base = _empty_trace(state)
+    trace = QueryTrace(
+        freshness=base.freshness,
+        retrieval=base.retrieval,
+        generation=GenerationTrace(
+            facets=facets,
+            supersession_notices=(),
+            draft_sentences=(),
+            cited_chunk_ids=(),
+        ),
+        verification=VerificationTrace(
+            containment=(),
+            entailment=(),
+            removed_sentences=(),
+            coverage=coverage,
+            uncovered_facets=tuple(
+                facet
+                for facet, row in zip(facets, coverage, strict=False)
+                if not row.covered
+            ),
+            decomposed=(),
+            empty_decompositions=(),
+            rejected_decompositions=(),
+            missing_chunk_refs=(),
+        ),
+        providers=(),
+        result=base.result,
+    )
+    return QueryResult(
+        schema_version=2,
+        state=state,
+        exit_code=0,
+        sentences=(),
+        citations=(),
+        freshness=FreshnessState.CURRENT,
+        abstention_stage=(
+            AbstentionStage.CLAIM_VERIFICATION
+            if state == QueryState.ABSTAINED
+            else None
+        ),
+        trace=trace,
         failure=None,
     )
 
@@ -666,3 +720,76 @@ def test_full_battery_exit_code_zero_only_when_all_pass() -> None:
     assert outcome.passed == len(EVALUATION_FIXTURES)
     assert outcome.failed == 0
     assert outcome.exit_code == 0
+
+
+# ---------------------------------------------------------------------------
+# Query 4 failure classification (spec 0010 AC-12)
+# ---------------------------------------------------------------------------
+
+
+_QUERY4_FACETS = (
+    Facet(
+        "F1",
+        "What was decided about separating server side and browser side "
+        "database clients?",
+    ),
+    Facet("F2", "Why were the database clients separated?"),
+)
+
+
+def test_classify_query4_merged_facet_reports_facet_extraction() -> None:
+    merged = (
+        Facet(
+            "F1",
+            "What was decided about separating server side and browser side "
+            "database clients, and why?",
+        ),
+    )
+    result = _coverage_result(merged, (), QueryState.ANSWERED)
+    assert classify_query4_failure(result) == "facet_extraction"
+
+
+def test_classify_query4_wrongly_covered_decision_reports_coverage_directness() -> None:
+    coverage = (
+        CoverageRow("F1", True, "a grounded reason", ("S1.1",)),
+        CoverageRow("F2", True, "a reason", ("S1.1",)),
+    )
+    result = _coverage_result(_QUERY4_FACETS, coverage, QueryState.ANSWERED)
+    assert classify_query4_failure(result) == "coverage_directness"
+
+
+def test_classify_query4_uncovered_decision_answered_reports_query_state() -> None:
+    coverage = (
+        CoverageRow("F1", False, "no kept answer sentence", ()),
+        CoverageRow("F2", True, "a reason", ("S1.1",)),
+    )
+    result = _coverage_result(_QUERY4_FACETS, coverage, QueryState.ANSWERED)
+    assert classify_query4_failure(result) == "query_state"
+
+
+def test_classify_query4_consistent_abstention_is_none() -> None:
+    coverage = (
+        CoverageRow("F1", False, "no kept answer sentence", ()),
+        CoverageRow("F2", False, "no kept answer sentence", ()),
+    )
+    result = _coverage_result(_QUERY4_FACETS, coverage, QueryState.ABSTAINED)
+    assert classify_query4_failure(result) is None
+
+
+def test_classify_query4_failed_state_is_none() -> None:
+    result = _coverage_result((), (), QueryState.FAILED)
+    assert classify_query4_failure(result) is None
+
+
+def test_query4_fixture_failure_detail_names_the_stage() -> None:
+    """A failing query 4 fixture report names the diagnosed stage (AC-12)."""
+    fixture = next(f for f in EVALUATION_FIXTURES if f.id == "query-4-db-clients")
+    coverage = (
+        CoverageRow("F1", True, "a grounded reason", ("S1.1",)),
+        CoverageRow("F2", True, "a reason", ("S1.1",)),
+    )
+    result = _coverage_result(_QUERY4_FACETS, coverage, QueryState.ANSWERED)
+    port = FakePort(results={fixture.question or "": result})
+    outcome = run_evaluation((fixture,), port)
+    assert outcome.failed == 1
+    assert "query4 stage: coverage_directness" in outcome.checks[0].detail

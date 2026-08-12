@@ -74,6 +74,7 @@ def _run(
     *,
     decompose,
     entail,
+    coverage=_cover_all,
     question: str = "merger engineer",
 ) -> QueryResult:
     """Run the full pipeline over a controlled accepted context."""
@@ -94,7 +95,7 @@ def _run(
             generate_answer=lambda *_args, **_kwargs: sentences,
             decompose=decompose,
             entail=entail,
-            coverage=_cover_all,
+            coverage=coverage,
         ),
     )
     accepted = set(result.trace.retrieval.diversity.accepted_chunk_ids)
@@ -295,6 +296,38 @@ def test_all_sub_claims_unsupported_abstains_and_differs_from_empty() -> None:
     rows = result.trace.verification.decomposed
     assert len(rows) == 2
     assert all(row.kept is False for row in rows)
+
+
+def test_no_kept_sentences_skips_coverage_call() -> None:
+    """With no kept sentences, every canonical facet gets a deterministic
+    uncovered row and the coverage provider is never called (AC-12)."""
+    chunks = {"ch_a": "The board met to discuss the merger on Tuesday."}
+    draft = (
+        DraftSentence(
+            "S1",
+            "The board approved the merger, and the board made a secret plan.",
+            ("ch_a",),
+        ),
+    )
+    result = _run(
+        chunks,
+        draft,
+        decompose=lambda s, c, a=None: (
+            "The board approved the merger.",
+            "The board made a secret plan.",
+        ),
+        entail=lambda s, c, a=None: (False, "not supported"),
+        coverage=_no_call,
+        question="merger",
+    )
+    assert result.state == QueryState.ABSTAINED
+    facets = result.trace.generation.facets
+    assert facets
+    assert result.trace.verification.coverage == tuple(
+        CoverageRow(facet.facet_id, False, "no kept answer sentence", ())
+        for facet in facets
+    )
+    assert result.trace.verification.uncovered_facets == facets
 
 
 # ---------------------------------------------------------------------------

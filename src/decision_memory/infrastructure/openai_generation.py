@@ -62,6 +62,16 @@ DECOMPOSE_SYSTEM_PROMPT = (
     "sentence. If the sentence is already a single atomic claim, return it "
     "as one sub claim."
 )
+# The fixed directness instruction for facet coverage (spec 0010 AC-12): one
+# sentence must directly state the answer; a reason, context, consequence,
+# premise, or anaphoric fragment does not state a decision.
+COVERAGE_SYSTEM_PROMPT = (
+    "For each facet, decide whether one provided answer sentence directly "
+    "states its answer. Judge only what that sentence says. Do not combine "
+    "sentences. A reason, context, consequence, premise, or anaphoric "
+    "fragment does not state a decision. One sentence may support several "
+    "facets only when it directly answers each one."
+)
 
 MAX_FACETS = 8
 MAX_SENTENCES = 12
@@ -328,9 +338,17 @@ def validate_verdict(payload: dict[str, Any]) -> tuple[bool, str]:
 
 
 def validate_coverage(
-    payload: dict[str, Any], fixed_facets: tuple[Facet, ...]
+    payload: dict[str, Any],
+    fixed_facets: tuple[Facet, ...],
+    known_sentence_ids: tuple[str, ...],
 ) -> tuple[CoverageRow, ...]:
-    """Validate a CoverageVerdict payload: one row per fixed facet exactly."""
+    """Validate a CoverageVerdict payload: one row per fixed facet exactly.
+
+    Rows must appear in canonical facet order. Supporting sentence ids must
+    be known kept sentence ids, unique, and in kept order. A covered row
+    must name at least one sentence; an uncovered row must name none (spec
+    0010 AC-12).
+    """
     rows = payload.get("rows")
     if not isinstance(rows, list):
         raise GenerationError("coverage verdict is missing rows")
@@ -338,16 +356,21 @@ def validate_coverage(
         raise GenerationError(
             f"coverage must contain one row per facet ({len(fixed_facets)})"
         )
-    fixed_by_id = {facet.facet_id: facet for facet in fixed_facets}
+    known_set = frozenset(known_sentence_ids)
+    known_order = {
+        sentence_id: index for index, sentence_id in enumerate(known_sentence_ids)
+    }
     covered: list[CoverageRow] = []
-    for item in rows:
+    for index, item in enumerate(rows):
+        expected_facet = fixed_facets[index]
         if not isinstance(item, dict):
-            raise GenerationError("a coverage row is not an object")
+            raise GenerationError(f"coverage row {index} is not an object")
         facet_id = item.get("facet_id")
-        if not isinstance(facet_id, str) or facet_id not in fixed_by_id:
-            raise GenerationError(f"coverage row names unknown facet {facet_id!r}")
-        if any(row.facet_id == facet_id for row in covered):
-            raise GenerationError(f"duplicate coverage row for {facet_id}")
+        if not isinstance(facet_id, str) or facet_id != expected_facet.facet_id:
+            raise GenerationError(
+                f"coverage row {index} is out of order or names unknown "
+                f"facet {facet_id!r}"
+            )
         is_covered = item.get("covered")
         reason = item.get("reason")
         if not isinstance(is_covered, bool):
@@ -359,6 +382,22 @@ def validate_coverage(
             isinstance(sentence_id, str) for sentence_id in sentence_ids_raw
         ):
             raise GenerationError(f"coverage row {facet_id} has invalid sentence ids")
+        if len(set(sentence_ids_raw)) != len(sentence_ids_raw):
+            raise GenerationError(f"coverage row {facet_id} repeats a sentence id")
+        for sentence_id in sentence_ids_raw:
+            if sentence_id not in known_set:
+                raise GenerationError(
+                    f"coverage row {facet_id} names unknown sentence {sentence_id!r}"
+                )
+        positions = [known_order[sentence_id] for sentence_id in sentence_ids_raw]
+        if positions != sorted(positions):
+            raise GenerationError(
+                f"coverage row {facet_id} sentence ids are not in kept order"
+            )
+        if is_covered and not sentence_ids_raw:
+            raise GenerationError(f"covered row {facet_id} names no sentence")
+        if not is_covered and sentence_ids_raw:
+            raise GenerationError(f"uncovered row {facet_id} names sentences")
         covered.append(
             CoverageRow(
                 facet_id=facet_id,
@@ -545,20 +584,18 @@ def coverage_verdict(
     sentences: Sequence[DraftSentence],
     attempts: list[ProviderAttempt] | None = None,
 ) -> tuple[CoverageRow, ...]:
-    """Whether the remaining sentences cover each fixed facet (AC-15)."""
+    """Whether the remaining sentences directly answer each fixed facet.
+
+    Uses the facet extraction and answer model with the fixed directness
+    instruction (spec 0010 AC-12): one sentence must directly state the
+    answer; a reason, context, consequence, premise, or anaphoric fragment
+    does not state a decision.
+    """
     sentence_text = "\n".join(
         f"{sentence.sentence_id}: {sentence.text}" for sentence in sentences
     )
     messages = [
-        {
-            "role": "system",
-            "content": (
-                "For each facet decide whether the provided answer sentences "
-                "cover it. Return exactly one row per facet, in the order "
-                "given, with the supporting sentence ids when covered. A "
-                "facet is covered only when a sentence directly answers it."
-            ),
-        },
+        {"role": "system", "content": COVERAGE_SYSTEM_PROMPT},
         {
             "role": "user",
             "content": (
@@ -574,11 +611,15 @@ def coverage_verdict(
             "coverage",
             messages,
             _coverage_schema(),
-            MODEL_ENTAILMENT_COVERAGE,
+            MODEL_FACETS_AND_ANSWER,
             attempts,
         )
         try:
-            return validate_coverage(payload, tuple(facets))
+            return validate_coverage(
+                payload,
+                tuple(facets),
+                tuple(sentence.sentence_id for sentence in sentences),
+            )
         except GenerationError as exc:
             messages.append(
                 {
