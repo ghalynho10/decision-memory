@@ -134,7 +134,7 @@ Every run must:
 
 The evidence is outside the adapted corpus. A cited answer is a failure, not a partial pass.
 
-**Gate status (2026-08-11):** failing — 5 of 5 runs returned a cited answer (DM-0007, DM-0008, and DM-0012 across runs) instead of abstaining. This is the known, documented blocker (rationale "Query 4 verification finding", "Verification unit gap", "Relevance floor decision"; index.md Follow-up 6, 7, 8). Deferred to Feature 11; this gate is not declared passed.
+**Gate status (2026-08-11):** failing — 5 of 5 runs returned a cited answer (DM-0007, DM-0008, and DM-0012 across runs) instead of abstaining. This is the known, documented blocker (rationale "Query 4 verification finding", "Verification unit gap", "Relevance floor decision"; index.md Follow-up 6, 7, 8). Carried to Feature 11; this gate ran and failed and is not declared passed.
 
 ## Evidence to record
 

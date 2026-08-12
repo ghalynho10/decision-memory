@@ -1,8 +1,8 @@
 # 0008. Reliable multi source retrieval
 
 **Date**: 2026-08-11
-**Status**: Accepted
-**Status note (2026-08-11)**: The retrieval work in this feature's own scope (filters, hybrid ranking, store format 2, trace, integrity boundaries) is complete and verified: `/check verify` gates 1 to 6 pass with cited evidence. The two live acceptance gates fail on the verification layer and are deferred to Feature 11 as three carry ins (query 4 fabrication, query 5 expected abstention, query 2 DM-0004 coverage omission). This is NOT a declaration that AC-15 passed.
+**Status**: Accepted (AC-13/14/15 fail — verification gap carried to Feature 11)
+**Status note (2026-08-11)**: The retrieval work in this feature's own scope (filters, hybrid ranking, store format 2, trace, integrity boundaries) is complete and verified: `/check verify` gates 1 to 6 pass with cited evidence. The two live acceptance gates ran and failed — AC-13/14/15 are not met — and the failure is carried to Feature 11 as three items (query 4 fabrication, query 5 expected abstention, query 2 DM-0004 coverage omission). This is NOT a declaration that AC-15 passed.
 
 ## Summary
 
@@ -305,7 +305,7 @@ The project uses Skateboard delivery. The first milestone adds a complete explic
 3. [ ] Revisit full FilterTrace display only when a larger real corpus proves linear debug output is impractical. Keep the structured trace complete unless evidence supports another contract.
 4. [ ] Structured query types for rejected alternatives, lineage, and supersession traversal remain deferred until the evaluation harness shows a need.
 5. [ ] Reground the feature 9 live query 1 test (`test_query_one_against_real_jobpilot`) to assert the cited record and its structured content instead of generated prose: the current `"two agent routes" in joined` assertion pins model paraphrase, which hybrid retrieval can legitimately change. Separate from this oracle correction; reground it, do not loosen it.
-6. [ ] Query 4 abstention is deferred to Feature 11 (decision recorded in rationale "Relevance floor decision"): the relevance floor stays `None` and query 4 stays a known blocker. Feature 10 is landed with the AC-15 live gates deferred to Feature 11 (see the status note) rather than held open; do not calibrate a floor from the three measured distances.
+6. [ ] Query 4 abstention is deferred to Feature 11 (decision recorded in rationale "Relevance floor decision"): the relevance floor stays `None` and query 4 stays a known blocker. Feature 10 is landed with the AC-15 live gates having run and failed, carried to Feature 11 (see the status note) rather than held open; do not calibrate a floor from the three measured distances.
 7. [ ] Feature 11 must address the sub sentence verification gap as its own problem (see rationale "Verification unit gap"): a sentence that fuses a fabricated decision with a verbatim evidence clause defeats both containment and entailment; the relevance floor makes the symptom correlate away but does not close the gap.
 8. [ ] Feature 11 carries three items from this feature's live gates: the query 4 fabrication (item 6), the query 5 expected abstention (item 1), and the query 2 `DM-0004` coverage omission observed in the 2026-08-11 verify run (cited in 3 of 5 runs although the record was in the diversity accepted context). The query 2 omission is the same verification gap class as query 4, not a retrieval bug.
 9. [ ] The 5 of 5 to 3 of 5 query 2 result between runs validates AC-15's own caveat that a five run smoke gate is not a reliability estimate. Feature 11's harness should measure the rate across runs rather than assume five consecutive passes hold.

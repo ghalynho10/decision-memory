@@ -143,7 +143,7 @@ spec [0008](../specs/0008-reliable-multi-source-retrieval/index.md)
   - [x] Versioned BM25, reciprocal rank fusion, and two pass diversity producing the multi record answer (AC-5 to AC-13, AC-16)
   - [x] Complete debug trace, documentation, deterministic coverage, and ten live smoke runs (AC-9 to AC-17)
 - [x] Verify it: `/check verify reliable multi source retrieval` (gates 1-6 pass with cited evidence; live smoke gates 7-8 fail on the Feature 11 verification gap, 2026-08-11)
-- [x] Test it: `/test reliable multi source retrieval` (suite written and green during build; 431 unit + 14 integration passing, AC-traced, 2026-08-11)
+- [ ] Test it: `/test reliable multi source retrieval` (not run; the in-build suite is green — 431 unit + 14 integration — but that is not a substitute for the step, 2026-08-11)
 
 **Status caveat (2026-08-11):** retrieval work is complete and verified; the two live acceptance gates (query 2 `DM-0004` coverage 3 of 5, query 4 abstention 5 of 5 answered) fail on a verification layer gap carried into Feature 11 as three items (query 4 fabrication, query 5 expected abstention, query 2 `DM-0004` coverage omission). This feature does not declare AC-15 passed.
 
