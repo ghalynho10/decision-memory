@@ -145,7 +145,7 @@ spec [0008](../specs/0008-reliable-multi-source-retrieval/index.md)
 - [x] Verify it: `/check verify reliable multi source retrieval` (gates 1-6 pass with cited evidence; live smoke gates 7-8 fail on the Feature 11 verification gap, 2026-08-11)
 - [x] Test it: `/test reliable multi source retrieval` (438 unit + 14 integration passing; durable retrieval behavior locked: closed enums, ordering rules, AC-5 precedence, two pass diversity, tokenizer/digest, failure boundaries; live AC-15 smoke gates excluded and still failing per Feature 11, 2026-08-11)
 
-**Status caveat (2026-08-11):** retrieval work is complete and verified; the two live acceptance gates (query 2 `DM-0004` coverage 3 of 5, query 4 abstention 5 of 5 answered) fail on a verification layer gap carried into Feature 11 as three items (query 4 fabrication, query 5 expected abstention, query 2 `DM-0004` coverage omission). This feature does not declare AC-15 passed.
+**Status caveat (2026-08-11):** retrieval work is complete and verified; the two live acceptance gates (query 2 `DM-0004` coverage 0 of 5 in the post fix re run, query 4 abstention 5 of 5 answered) fail on a verification layer gap carried into Feature 11 as three items (query 4 fabrication, query 5 expected abstention, query 2 `DM-0004` coverage omission). This feature does not declare AC-15 passed.
 
 ## Slice 3: Proven correctness (evaluation harness)
 

@@ -115,7 +115,7 @@ Every run must:
 
 Any unsupported cited answer blocks completion.
 
-**Gate status (2026-08-11):** failing on the Feature 11 verification gap. 5 of 5 runs returned `answered`/exit 0 and cited `DM-0019`, but `DM-0004` was cited in only 3 of 5 (runs 3 and 5 omitted it although `DM-0004` chunks were in the diversity accepted context). This is a generation/verification coverage omission, the same class as the query 4 fabrication. Carried into Feature 11 as the query 2 DM-0004 coverage item. This gate is not declared passed.
+**Gate status (2026-08-11):** failing on the Feature 11 verification gap. 5 of 5 runs returned `answered`/exit 0 and cited `DM-0019`, but `DM-0004` was cited in only 3 of 5 runs before the AC-5 fusion boundary fix, and in 0 of 5 runs in the post fix re run. `DM-0004` chunks stayed in the diversity accepted context in both samples, so the miss is generation/verification coverage, the same class as the query 4 fabrication. The movement confirms the omission is sensitive to the retrieved context, not a retrieval defect. Carried into Feature 11 as the query 2 DM-0004 coverage item. This gate is not declared passed.
 
 ### 8. Live query 4 smoke gate
 
@@ -134,7 +134,7 @@ Every run must:
 
 The evidence is outside the adapted corpus. A cited answer is a failure, not a partial pass.
 
-**Gate status (2026-08-11):** failing — 5 of 5 runs returned a cited answer (DM-0007, DM-0008, and DM-0012 across runs) instead of abstaining. This is the known, documented blocker (rationale "Query 4 verification finding", "Verification unit gap", "Relevance floor decision"; index.md Follow-up 6, 7, 8). Carried to Feature 11; this gate ran and failed and is not declared passed.
+**Gate status (2026-08-11):** failing — 5 of 5 runs returned a cited answer instead of abstaining (DM-0007 and DM-0008 in every run of the post fix re run; DM-0012 also appeared in some pre fix runs). This is the known, documented blocker (rationale "Query 4 verification finding", "Verification unit gap", "Relevance floor decision"; index.md Follow-up 6, 7, 8). Carried to Feature 11; this gate ran and failed and is not declared passed.
 
 ## Evidence to record
 

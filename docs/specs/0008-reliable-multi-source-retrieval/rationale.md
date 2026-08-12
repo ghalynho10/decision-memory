@@ -34,8 +34,8 @@ The verification layer also has observed intermittent abstentions on supported q
 
 The two live smoke gates failed on the verification layer, not on retrieval:
 
-- **Query 2 (5 runs):** every run `answered`/exit 0 and cited `DM-0019`, but `DM-0004` was cited in only 3 of 5 runs. Runs 3 and 5 omitted the on demand generation point even though `DM-0004` chunks were in the diversity accepted context, so the miss is generation/verification coverage, not retrieval. The previous session's 5 of 5 was a favorable sample; the 5 of 5 to 3 of 5 swing validates AC-15's own caveat that a smoke gate is not a reliability estimate, within days of writing it.
-- **Query 4 (5 runs):** all five returned a cited answer (DM-0007, DM-0008, and DM-0012 across runs) instead of abstaining, confirming the known blocker recorded above. Deferred to Feature 11.
+- **Query 2 (5 runs):** every run `answered`/exit 0 and cited `DM-0019`, but `DM-0004` was cited in only 3 of 5 runs, and in 0 of 5 runs after the AC-5 fusion boundary fix changed the accepted context (commit c6fae4b). `DM-0004` chunks stayed in the diversity accepted context in both samples, so the miss is generation/verification coverage, not retrieval. The previous session's 5 of 5 was a favorable sample; the 5 of 5 to 3 of 5 to 0 of 5 path validates AC-15's own caveat that a smoke gate is not a reliability estimate, within days of writing it.
+- **Query 4 (5 runs):** all five returned a cited answer instead of abstaining (DM-0007 and DM-0008 in every post fix run), confirming the known blocker recorded above. Deferred to Feature 11.
 
 Landing decision: Feature 10's own scope is complete and verified, so it is landed rather than held open. The two live acceptance gates are not declared passed; they are carried into Feature 11 as three items (query 4 fabrication, query 5 expected abstention, query 2 `DM-0004` coverage omission). This does not change AC-15 or the oracles, and does not make the unsupported query 4 answer acceptable.
 
