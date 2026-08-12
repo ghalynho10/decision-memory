@@ -2,21 +2,28 @@
 
 _Steps derived from spec 0010 acceptance criteria. `/check verify` runs these; `/test` locks the durable ones. The code landed in `/develop abstention verification reliability`; the live gates are the remaining acceptance work._
 
-## Local checks (deterministic, already implemented and passing)
+## Local checks
 
-- [x] `uv run pytest tests/test_sub_claim_verification.py` → the whole deterministic suite -> AC-1, AC-4, AC-5, AC-6, AC-7, AC-8, AC-10, AC-11
-- [x] A synthetic fused clause splits into a verbatim sub claim (kept, narrowed) and an invented sub claim (dropped), and coverage decides -> AC-1, AC-4
-- [x] Two sub claims verbatim in different chunks each cite only its own chunk; when every sub claim is kept the original sentence is re emitted unchanged -> AC-4
-- [x] An entailment grounded sub claim keeps the parent's full cited set -> AC-4
-- [x] A fully verbatim sentence never pays a decomposition call -> AC-5
-- [x] The trace shows the split, each sub claim text and verdict, and distinguishes an empty decomposition from sub claims that were all unsupported -> AC-6
-- [x] A decomposition introducing content absent from the parent, or over the cap of 8, is discarded as an empty decomposition -> AC-6, AC-11
-- [x] A provider failure during decomposition fails the query with `provider.decompose`; a malformed decomposition payload is rejected at the provider boundary -> AC-7
-- [x] A sentence citing no accepted chunk is dropped and counted; partial missing verifies against the present subset -> AC-8
-- [x] `schema_version` stays 2 and the additive trace fields resolve -> AC-10
-- [x] `uv run pytest` unit suite green -> quality gate
-- [x] `uv run pytest -m integration` green -> quality gate (live tests updated for the new decompose dependency)
-- [x] Ruff, format, strict mypy, and build clean -> quality gate
+The first implementation passed its earlier checks. The cross check changed the contract, so every local gate below must run again against the corrected behavior.
+
+- [ ] Explicit fabrication and decomposition omission both emit verified fragments only, never the parent -> AC-1, AC-4
+- [ ] Fragment ids and ordering are parent order, then provider sub claim order -> AC-4
+- [ ] Whole containment, decomposition, entailment, and output use only available citations; missing ids remain trace only -> AC-8
+- [ ] Containment narrows to matching available ids; entailment keeps all available ids in parent order -> AC-4, AC-8
+- [ ] Genuine empty, rejected over cap, rejected duplicate, rejected lexical guard, and all unsupported accepted rows remain distinct in trace -> AC-6, AC-11
+- [ ] The lexical multiset matcher follows the exact normalization and suffix rules; adversarial deletion and reordering tests document that it makes no semantic guarantee -> AC-11
+- [ ] A fully contained sentence skips decomposition, and no available evidence skips every provider -> AC-5, AC-8
+- [ ] Decomposition and coverage schema failure gets one repair, then the correct provider failure at `claim_verification` -> AC-7, AC-12
+- [ ] The canonical facet tuple is reused unchanged; coverage rows are complete and ordered; invalid facet or sentence references fail -> AC-12
+- [ ] Query 4 diagnostic fixtures distinguish a merged facet (`facet_extraction`), separate facets with a wrongly covered decision (`coverage_directness`), and an uncovered decision with an answered result (`query_state`) using existing trace fields -> AC-2, AC-12
+- [ ] No kept sentences creates deterministic uncovered rows without a coverage call -> AC-12
+- [ ] Directness cases forbid reason as decision, cross sentence composition, unrelated text, and anaphoric fragments -> AC-4, AC-12
+- [ ] Abstained public output has no sentences or citations, while trace keeps verification detail -> AC-4, AC-12
+- [ ] `schema_version` stays 2 and all four additive fields resolve -> AC-10
+- [ ] `uv run pytest tests/test_sub_claim_verification.py` passes -> focused suite
+- [ ] `uv run pytest` passes -> unit quality gate
+- [ ] `uv run pytest -m integration` passes -> integration quality gate
+- [ ] Ruff, format, strict mypy, and build pass -> quality gate
 
 ## Live acceptance (run twice, two separate `--runs 3` batches)
 
@@ -26,28 +33,37 @@ Run against the real JobPilot corpus with live providers:
 uv run --env-file .env decision-memory evaluate /Users/ghaly/Documents/Work/Personal/job_pilot --runs 3
 ```
 
-- [ ] Batch 1: query 4 abstains 3 of 3 -> AC-2
+- [ ] Batch 1: query 4 extracts separate decision and reason facets, drops the fabricated decision, leaves the decision facet uncovered, and abstains 3 of 3. For any failure, record `facet_extraction`, `coverage_directness`, or `query_state` from the existing trace -> AC-2, AC-12
 - [ ] Batch 1: query 5 abstains 3 of 3 -> AC-3
-- [ ] Batch 2: query 4 abstains 3 of 3 -> AC-2
+- [ ] Batch 2: query 4 extracts separate decision and reason facets, drops the fabricated decision, leaves the decision facet uncovered, and abstains 3 of 3. For any failure, record `facet_extraction`, `coverage_directness`, or `query_state` from the existing trace -> AC-2, AC-12
 - [ ] Batch 2: query 5 abstains 3 of 3 -> AC-3
 - [ ] The other fixtures do not newly fail in the same two batches: query 3, assertion rationale summary, assertion unverifiable claim, and assertion incremental reingest -> AC-9
 
-**Caveat:** 6 of 6 is strong evidence the weld no longer passes, not a measured abstention rate. A true rate needs more runs. Likewise, AC-9 is a smoke check over two `--runs 3` batches, not a rate comparison; three runs cannot separate a real regression from the fixture level variance the baseline itself shows (query 1 at 1 of 3).
+**Caveat:** AC-1 proves the weld fix deterministically. Query 4's live trace confirms the fabricated decision is dropped. Its 6 of 6 abstention gate tests the separate complete answer contract, including the uncovered decision facet. It is a smoke gate, not a measured rate. AC-9 is also a smoke check, since three runs cannot separate a real regression from fixture variance such as query 1 at 1 of 3.
 
 ## Acceptance-criteria coverage
 
-- AC-1 covered by the fused clause test (`test_fused_clause_is_split_and_invented_decision_dropped`)
-- AC-2 covered by live batch 1 and batch 2 query 4
+- AC-1 covered by explicit fabrication and omission attack tests
+- AC-2 covered by both live query 4 batches, including facet extraction, dropped fabrication, and uncovered decision facet
 - AC-3 covered by live batch 1 and batch 2 query 5
-- AC-4 covered by the narrowing, breadth, and all kept re emit tests
+- AC-4 covered by fragment only output, stable identity, citation precision, directness, and abstention surface tests
 - AC-5 covered by `test_verbatim_sentence_skips_decomposition_call`
-- AC-6 covered by the trace, empty vs all unsupported, under split, and debug render tests
+- AC-6 covered by accepted, genuine empty, rejected, all unsupported, and debug render tests
 - AC-7 covered by `test_decomposition_provider_failure_fails_the_query` and the validator tests
-- AC-8 covered by the full and partial missing ref tests
+- AC-8 covered by the accepted context boundary and output citation tests
 - AC-9 covered by the two live batches
 - AC-10 covered by `test_schema_version_stays_two_and_trace_fields_resolve`
-- AC-11 covered by the invented content and over cap discard tests
+- AC-11 covered by exact matcher, cap, duplicate, lexical rejection, and adversarial semantic limitation tests
+- AC-12 covered by canonical facet reuse, empty kept set, prompt, complete row validation, directness fixtures, diagnostic classification, and live query 4 checks
 
 ## Baseline (2026-08-12, before this feature)
 
 Query 4 answered 3 of 3, query 5 answered 3 of 3, query 2 passed 3 of 3 with `DM-0004` cited, query 1 went 1 of 3 on a provider failed state. Compare against the acceptance runs above.
+
+## Diagnostic after the first implementation
+
+Three answering query 4 runs split S1 cleanly. The fabricated decision sub claim was unsupported and dropped every time. Coverage still marked the decision facet covered from grounded reason fragments. Other runs abstained only because the near subset check rejected harmless inflection or grammar changes. This is why coverage is fixed before the near subset tolerance.
+
+## Cross check correction
+
+The first implementation restored a decomposed parent when every returned sub claim was kept. A provider could omit the fabricated clause, return only grounded claims, and make that rule restore the fabrication. The corrected contract never emits a decomposed parent. The omission attack is now a required deterministic regression test.

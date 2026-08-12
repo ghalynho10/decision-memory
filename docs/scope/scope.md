@@ -167,17 +167,17 @@ code in src/decision_memory/
 **Status (2026-08-12, re-verified after four `/check review` rounds):** the harness is built, verified live, and test locked; the `evaluate` command runs all eight fixtures in fixed order, reports per fixture pass or fail plus the rate across `--runs N`, and exits 0, 1, 2, or 3. It also caught a real `active_chunks` column swap bug, regression locked by an integration marked test (not unit; that test does not run on the push gate, see `verify.md`). The two fixtures still failing live are feature 10 carry-ins, not harness defects: query 5 (`DM-0002` answered instead of abstain) is stable, query 4 abstention is a measured coin flip; the harness measures and reports them, it does not patch them. Query 1 and the rationale summary assertion were re-verified live 3/3 after a review round tightened their oracle to require citation co-location. Verified with `/check verify` and `/test` (486 unit passing).
 
 ### 16. Abstention verification reliability
-Close the sub sentence verification gap spec 0008 named and feature 11 measured live: a sentence that fuses a fabricated decision with a verbatim evidence clause can pass both the containment and entailment checks, so query 4 and query 5 answer instead of honestly abstaining, and query 2's `DM-0004` coverage stays intermittent. The relevance floor correlates the symptom away without closing the gap (spec 0008 rationale, "Verification unit gap"). Feature 11 measured and reported this; it did not patch it.
-**Done when:** query 4 and query 5 abstain reliably, not a stochastic coin flip, and query 2 cites `DM-0004` consistently, confirmed across repeated live `evaluate --runs` batches.
-**Carried from:** spec 0008 Follow-up items 1, 6, 7, 8, 9; spec 0009 `verify.md` known state, 2026-08-12. Structured query types for alternatives, lineage, and supersession traversal (spec 0008 Follow-up item 4) stay deferred: the evidence feature 11 supplied points at this verification gap, not a missing query type.
+Close the sub sentence verification gap spec 0008 named and feature 11 measured live. A fused sentence must be verified and emitted only as atomic sub claims, so output formatting cannot restore a fabricated parent sentence. Coverage must also distinguish a stated decision from grounded reasons. The relevance floor correlates the symptom away without closing either gap.
+**Done when:** query 4 and query 5 abstain in both repeated live batches. Query 4 must extract separate decision and reason facets, drop the fabricated decision, leave the decision facet uncovered, and classify any failure as facet extraction, coverage directness, or query state from the existing trace.
+**Carried from:** spec 0008 Follow-up items 1, 6, 7, 8, 9; spec 0009 `verify.md` known state; the 2026-08-12 `/debug` finding; the spec 0010 cross check. Query 2 citation completeness and structured query types stay deferred as separate decisions.
 spec [0010](../specs/0010-abstention-verification-reliability/index.md) · code in src/decision_memory/
 - [x] Design it (spec): `/architect abstention verification reliability`
 - [ ] Build it: `/develop abstention verification reliability`
-  - [x] Add the decomposition provider call and its contract guardrail (near-subset check, cap 8) (AC-6, AC-7, AC-11)
-  - [x] Wire sub claim verification into `query.py`: decompose, verify each sub claim, narrow containment grounded citations, re-emit fully grounded sentences, feed the existing coverage check (AC-1, AC-4, AC-5, AC-6, AC-8)
-  - [x] Extend `VerificationTrace` and the debug trace rendering with the additive fields (AC-6, AC-10)
-  - [x] Add the deterministic unit test suite (AC-1, AC-4 to AC-8, AC-10, AC-11)
-  - [ ] Live acceptance: two `--runs 3` batches against the real JobPilot corpus (AC-2, AC-3, AC-9)
+  - [x] Add the initial decomposition provider, per sub claim verification, and trace path (AC-5 to AC-8, AC-10)
+  - [x] Remove parent restoration and enforce the accepted context citation boundary (AC-1, AC-4, AC-5, AC-8)
+  - [ ] Add exact decomposition outcomes and the lexical guard contract (AC-6, AC-7, AC-10, AC-11)
+  - [ ] Tighten canonical facet coverage and classify query 4 failures by stage (AC-2, AC-4, AC-12)
+  - [ ] Replace the affected tests and complete two live `--runs 3` batches (AC-1 to AC-12)
 - [ ] Verify it: `/check verify abstention verification reliability`
 - [ ] Test it: `/test abstention verification reliability`
 
