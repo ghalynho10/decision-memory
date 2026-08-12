@@ -315,8 +315,8 @@ def fake_decompose(sentence_text, chunk_texts, attempts=None) -> tuple[str, ...]
     """An under split: the whole sentence as a single sub claim.
 
     Combined with ``fake_entail`` returning supported, every non verbatim
-    sentence is fully kept and re emitted unchanged, so the fakes preserve
-    the pre spec 0010 answer behavior.
+    sentence survives as one fragment carrying a sub claim id. The parent
+    sentence is never re emitted after decomposition (spec 0010 AC-4).
     """
     return (sentence_text,)
 

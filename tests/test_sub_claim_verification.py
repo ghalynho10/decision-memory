@@ -166,10 +166,41 @@ def test_fused_clause_is_split_and_invented_decision_dropped() -> None:
     assert rows[1].reason == "not supported"
 
 
-def test_two_contained_sub_claims_narrow_independently_and_reemit() -> None:
+def test_omission_attack_never_restores_the_parent() -> None:
+    """A decomposition that omits the fabricated clause entirely still emits
+    only the returned sub claims; the parent, which would hide the omission,
+    is never restored (AC-1, AC-4)."""
+    chunks = {
+        "ch_a": "The board approved the merger on Tuesday.",
+        "ch_b": "The board hired a chief engineer in March.",
+    }
+    original = (
+        "The board approved the merger on Tuesday, and the board accepted "
+        "a bribe to rush it."
+    )
+    draft = (DraftSentence("S1", original, ("ch_a", "ch_b")),)
+    result = _run(
+        chunks,
+        draft,
+        # The decomposition drops the fabricated clause entirely and returns
+        # only the grounded clause, which is fully supported on its own.
+        decompose=lambda s, c, a=None: ("The board approved the merger on Tuesday.",),
+        entail=lambda s, c, a=None: (True, "direct support"),
+    )
+    assert result.state == QueryState.ANSWERED
+    # Only the returned fragment is emitted; the parent sentence text never
+    # reappears in the answer, so the omitted fabrication stays dropped.
+    assert [sentence.text for sentence in result.sentences] == [
+        "The board approved the merger on Tuesday."
+    ]
+    assert not any("bribe" in sentence.text for sentence in result.sentences)
+    assert result.sentences[0].sentence_id == "S1.1"
+
+
+def test_all_kept_sub_claims_emit_fragments_not_the_parent() -> None:
     """Two sub claims verbatim in different chunks each cite only its own
-    chunk, and because every sub claim is kept the original sentence is
-    re emitted unchanged (AC-4)."""
+    chunk, and even when every sub claim is kept the parent sentence is never
+    re emitted: the fragments become the answer sentences (AC-1, AC-4)."""
     chunks = {
         "ch_a": "The board approved the merger on Tuesday.",
         "ch_b": "The board hired a chief engineer in March.",
@@ -189,9 +220,12 @@ def test_two_contained_sub_claims_narrow_independently_and_reemit() -> None:
         entail=_no_call,
     )
     assert result.state == QueryState.ANSWERED
-    # Every sub claim kept: the original sentence is re emitted, not the
-    # fragments.
-    assert [sentence.text for sentence in result.sentences] == [original]
+    # Every sub claim kept, but the parent is never restored: the fragments
+    # are emitted as answer sentences with sub claim ids (AC-4).
+    assert [(sentence.sentence_id, sentence.text) for sentence in result.sentences] == [
+        ("S1.1", "The board approved the merger on Tuesday."),
+        ("S1.2", "The board hired a chief engineer in March."),
+    ]
     rows = result.trace.verification.decomposed
     assert [(row.sub_claim_id, row.citations) for row in rows] == [
         ("S1.1", ("ch_a",)),
@@ -202,8 +236,10 @@ def test_two_contained_sub_claims_narrow_independently_and_reemit() -> None:
 
 
 def test_entailment_grounded_sub_claim_keeps_full_cited_set() -> None:
-    """An entailment grounded sub claim keeps the parent's full cited set,
-    since entailment names no supporting chunk (AC-4)."""
+    """An entailment grounded sub claim keeps the parent's full available
+    cited set, since entailment names no supporting chunk; the missing id
+    boundary is locked by ``test_partial_missing_verifies_against_present_
+    subset`` (AC-4, AC-8)."""
     chunks = {
         "ch_a": "The board approved the merger on Tuesday.",
         "ch_b": "The board hired a chief engineer in March.",
@@ -285,6 +321,33 @@ def test_verbatim_sentence_skips_decomposition_call() -> None:
     assert result.trace.verification.decomposed == ()
     assert result.trace.verification.empty_decompositions == ()
     assert result.trace.verification.missing_chunk_refs == ()
+
+
+def test_contained_parent_narrows_to_available_citations() -> None:
+    """A whole contained sentence that also cites a missing chunk is kept
+    without decomposition but narrowed to its available citations only; the
+    missing id never reaches an output citation (AC-5, AC-8)."""
+    chunks = {"ch_a": "The board approved the merger on Tuesday."}
+    draft = (
+        DraftSentence(
+            "S1",
+            "The board approved the merger on Tuesday.",
+            ("ch_a", "ch_missing"),
+        ),
+    )
+    result = _run(
+        chunks,
+        draft,
+        decompose=_no_call,
+        entail=_no_call,
+        question="merger",
+    )
+    assert result.state == QueryState.ANSWERED
+    assert result.trace.verification.missing_chunk_refs == (("S1", ("ch_missing",)),)
+    # The whole sentence is contained, so it is kept without decomposition,
+    # but narrowed to the available citation (AC-8).
+    assert [sentence.sentence_id for sentence in result.sentences] == ["S1"]
+    assert _cited_chunk_ids(result, result.sentences[0]) == ("ch_a",)
 
 
 # ---------------------------------------------------------------------------
@@ -387,7 +450,11 @@ def test_under_split_is_visible_in_the_trace() -> None:
     assert [(row.sub_claim_id, row.text, row.kept) for row in rows] == [
         ("S1.1", original, True)
     ]
-    assert [sentence.text for sentence in result.sentences] == [original]
+    # The under split emits the single fragment with its sub claim id; the
+    # parent sentence id is never restored (AC-4).
+    assert [(sentence.sentence_id, sentence.text) for sentence in result.sentences] == [
+        ("S1.1", original)
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -497,8 +564,15 @@ def test_partial_missing_verifies_against_present_subset() -> None:
     )
     assert result.state == QueryState.ANSWERED
     assert result.trace.verification.missing_chunk_refs == (("S1", ("ch_missing",)),)
+    rows = result.trace.verification.decomposed
     # The verbatim sub claim still narrows to the present chunk.
-    assert result.trace.verification.decomposed[0].citations == ("ch_a",)
+    assert rows[0].citations == ("ch_a",)
+    # The entailment grounded fragment cites only available ids: the missing
+    # id is trace only and never reaches a trace or output citation (AC-8).
+    assert rows[1].entailment == "supported"
+    assert rows[1].citations == ("ch_a",)
+    assert [sentence.sentence_id for sentence in result.sentences] == ["S1.1", "S1.2"]
+    assert _cited_chunk_ids(result, result.sentences[1]) == ("ch_a",)
 
 
 # ---------------------------------------------------------------------------

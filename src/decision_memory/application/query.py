@@ -555,11 +555,16 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
 
     # Verify each sentence: whole containment shortcut, then sub claim
     # decomposition and per sub claim verification (spec 0010). A sentence
-    # that is verbatim in one of its cited chunks is kept untouched and never
-    # pays a decomposition call (AC-5). Any other sentence is decomposed into
+    # that is verbatim in one of its available cited chunks is kept and never
+    # pays a decomposition call (AC-5). Before any containment or provider
+    # call, the parent citation ids are deduplicated in parent order and split
+    # into available and missing citations: every containment, decomposition,
+    # entailment, and output citation uses only the available ids, and a
+    # missing id is trace only (AC-8). Any other sentence is decomposed into
     # atomic sub claims and each sub claim is verified alone, so a verbatim
     # borrowed clause can no longer hide an invented decision inside the same
-    # sentence (AC-1, AC-4).
+    # sentence. A decomposed parent is never restored; only individually
+    # verified fragments are emitted (AC-1, AC-4).
     kept_sentences: list[DraftSentence] = []
     containment_rows: list[tuple[str, bool]] = []
     entailment_rows: list[tuple[str, str, str]] = []
@@ -569,29 +574,37 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
     missing_chunk_refs: list[tuple[str, tuple[str, ...]]] = []
     chunk_text_by_id = {chunk.chunk_id: chunk.text for chunk in accepted_chunks}
     for sentence in draft:
-        present_ids = [
-            chunk_id for chunk_id in sentence.chunk_ids if chunk_id in chunk_text_by_id
-        ]
+        # Deduplicate parent citation ids in parent order (first occurrence),
+        # then partition into available and missing (AC-8).
+        deduped_ids: list[str] = []
+        for chunk_id in sentence.chunk_ids:
+            if chunk_id not in deduped_ids:
+                deduped_ids.append(chunk_id)
+        available_ids = tuple(
+            chunk_id for chunk_id in deduped_ids if chunk_id in chunk_text_by_id
+        )
         missing_ids = tuple(
-            chunk_id
-            for chunk_id in sentence.chunk_ids
-            if chunk_id not in chunk_text_by_id
+            chunk_id for chunk_id in deduped_ids if chunk_id not in chunk_text_by_id
         )
         if missing_ids:
             missing_chunk_refs.append((sentence.sentence_id, missing_ids))
-        present_texts = [chunk_text_by_id[chunk_id] for chunk_id in present_ids]
-        contained = deterministic_containment(sentence.text, present_texts)
+        available_texts = [chunk_text_by_id[chunk_id] for chunk_id in available_ids]
+        contained = deterministic_containment(sentence.text, available_texts)
         containment_rows.append((sentence.sentence_id, contained))
         if contained:
-            kept_sentences.append(sentence)
+            # Whole sentence contained: keep the parent, narrowed to its
+            # available citations only (AC-5, AC-8).
+            kept_sentences.append(
+                DraftSentence(sentence.sentence_id, sentence.text, available_ids)
+            )
             continue
-        if not present_texts:
+        if not available_texts:
             # Verified against empty evidence: never supported (AC-8). The
             # missing refs are already recorded above.
             removed.append(sentence.sentence_id)
             continue
         try:
-            sub_claim_texts = deps.decompose(sentence.text, present_texts, attempts)
+            sub_claim_texts = deps.decompose(sentence.text, available_texts, attempts)
         except Exception as exc:  # noqa: BLE001 - provider failure is a result
             return _failed_result(
                 request,
@@ -622,7 +635,7 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
             sub_claim_id = f"{sentence.sentence_id}.{index + 1}"
             matching_ids = tuple(
                 chunk_id
-                for chunk_id in present_ids
+                for chunk_id in available_ids
                 if deterministic_containment(text, [chunk_text_by_id[chunk_id]])
             )
             if matching_ids:
@@ -641,7 +654,7 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
                 fragments.append(DraftSentence(sub_claim_id, text, matching_ids))
                 continue
             try:
-                supported, reason = deps.entail(text, present_texts, attempts)
+                supported, reason = deps.entail(text, available_texts, attempts)
             except Exception as exc:  # noqa: BLE001 - provider failure is a result
                 return _failed_result(
                     request,
@@ -659,18 +672,16 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
                     entailment="supported" if supported else "unsupported",
                     reason=reason,
                     kept=supported,
-                    citations=sentence.chunk_ids,
+                    citations=available_ids,
                 )
             )
             if supported:
-                fragments.append(DraftSentence(sub_claim_id, text, sentence.chunk_ids))
+                fragments.append(DraftSentence(sub_claim_id, text, available_ids))
         decomposed_rows.extend(rows)
-        if len(fragments) == len(unique_texts):
-            # Every sub claim kept: re-emit the original sentence unchanged
-            # instead of the fragments (spec 0010).
-            kept_sentences.append(sentence)
-        elif fragments:
-            # Some sub claims kept: the kept fragments become answer units.
+        if fragments:
+            # Only individually verified fragments are emitted. A decomposed
+            # parent sentence is never restored, even when every returned sub
+            # claim is grounded (AC-1, AC-4).
             kept_sentences.extend(fragments)
         else:
             # Every sub claim unsupported: the sentence is fully removed. The
