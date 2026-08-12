@@ -136,12 +136,17 @@ def test_query_one_against_real_jobpilot(tmp_path) -> None:
     joined = " ".join(sentence.text for sentence in result.sentences).lower()
     # The answer explains the gate's purpose (protecting paid provider spend).
     assert any(keyword in joined for keyword in ("cost", "bill"))
-    # Grounding, not prose: every sentence is cited and the DM-0012 record is
-    # cited. Generated phrasing is deliberately not pinned, because hybrid
-    # retrieval legitimately changes which chunks reach generation (spec 0008
-    # Follow-up 5).
+    # Grounding, not prose (spec 0008 Follow-up 5): every sentence is cited,
+    # and the citation resolves to DM-0012's rejected-alternative chunk, not
+    # just anywhere in DM-0012. Generated phrasing is deliberately not pinned,
+    # because hybrid retrieval legitimately changes which chunks reach
+    # generation.
     assert all(sentence.citation_ids for sentence in result.sentences)
-    assert any(citation.record_id == "DM-0012" for citation in result.citations)
+    assert any(
+        citation.record_id == "DM-0012"
+        and citation.value_path.startswith("decision.alternatives[")
+        for citation in result.citations
+    )
 
 
 @pytest.mark.skipif(

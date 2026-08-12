@@ -26,8 +26,16 @@ from decision_memory.application.pipeline import pipeline_signature
 from decision_memory.domain.records import CanonicalDecisionRecord
 
 
-def fake_embed(texts: Sequence[str]) -> list[list[float]]:
-    """A deterministic vector per text, stable across runs and processes."""
+def fake_embed(
+    texts: Sequence[str], attempts: list[object] | None = None
+) -> list[list[float]]:
+    """A deterministic vector per text, stable across runs and processes.
+
+    Accepts the optional provider-attempts list so it satisfies both
+    ``IngestDependencies.embed`` (single arg) and
+    ``QueryDependencies.embed`` (texts plus attempts); it has no real
+    provider round trip to record, so the list is left untouched.
+    """
     vectors: list[list[float]] = []
     for text in texts:
         digest = hashlib.sha256(text.encode("utf-8")).digest()

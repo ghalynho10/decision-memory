@@ -258,7 +258,7 @@ def test_query_without_active_generation_is_corrupt_init(tmp_path) -> None:
     assert result.failure.code == "store.uninitialized"
 
 
-def _raise_if_called(texts):
+def _raise_if_called(texts, attempts=None):
     raise AssertionError("embedding must not be called on an empty index")
 
 

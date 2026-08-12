@@ -54,7 +54,7 @@ def _chunk(
     )
 
 
-def _raise_if_called(texts):
+def _raise_if_called(texts, attempts=None):
     raise AssertionError("embedding must not be called on an empty filter")
 
 

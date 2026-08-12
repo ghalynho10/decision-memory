@@ -238,15 +238,68 @@ def test_diversity_fill_pass_accepts_deferred() -> None:
 
 
 def test_semantic_disposition_ranks_and_outside_top_24() -> None:
-    from decision_memory.application.dto import SemanticRow
+    """AC-6, critical scenario 6: with 26 rows tied at identical distance, the
+    application picks the top 24 by local chunk id order, never store order,
+    and the choice is stable regardless of the order chunks are returned in.
+    """
+    from pathlib import Path
 
-    rows = [
-        SemanticRow(f"c{i}", rank, 0.5, 0.5, SemanticDisposition.RANKED)
-        for i, rank in enumerate(range(1, 26), start=1)
-    ]
-    rows.append(SemanticRow("c26", 26, 0.5, 0.5, SemanticDisposition.OUTSIDE_TOP_24))
-    assert [row for row in rows if row.disposition == SemanticDisposition.RANKED]
-    assert rows[-1].disposition == SemanticDisposition.OUTSIDE_TOP_24
+    from fake_index import FakeIndex
+    from test_query_roundtrip import _query_deps
+
+    from decision_memory.application.dto import (
+        QueryFilters,
+        QueryRequest,
+        QueryResult,
+        QueryState,
+    )
+    from decision_memory.application.query import query_index
+
+    chunk_ids = [f"c{i:02d}" for i in range(1, 27)]
+    expected_ranked = set(chunk_ids[:24])
+    expected_outside = set(chunk_ids[24:])
+
+    def _run(order: list[str]) -> QueryResult:
+        index = FakeIndex()
+        index.generation = "gen-fake"
+        for chunk_id in order:
+            # Identical direction vectors give an exact cosine-distance tie
+            # across all 26 chunks, so only the chunk id can break it.
+            index.chunks[chunk_id] = _desc(
+                chunk_id, f"R-{chunk_id}", "zzz qqq unrelated prose"
+            )
+            index.embeddings[chunk_id] = [1.0] * 8
+        return query_index(
+            QueryRequest(
+                question="why was the gate added",
+                store_dir=Path("/fake/store"),
+                allow_stale=True,
+                filters=QueryFilters(),
+            ),
+            _query_deps(index),
+        )
+
+    forward = _run(chunk_ids)
+    reversed_order = _run(list(reversed(chunk_ids)))
+
+    for result in (forward, reversed_order):
+        assert result.state == QueryState.ANSWERED
+        rows_by_id = {row.chunk_id: row for row in result.trace.retrieval.semantic.rows}
+        ranked = {
+            chunk_id
+            for chunk_id, row in rows_by_id.items()
+            if row.disposition == SemanticDisposition.RANKED
+        }
+        outside = {
+            chunk_id
+            for chunk_id, row in rows_by_id.items()
+            if row.disposition == SemanticDisposition.OUTSIDE_TOP_24
+        }
+        assert ranked == expected_ranked
+        assert outside == expected_outside
+        # Fusion never sees the two chunks the semantic stage dropped.
+        fusion_ids = {c.chunk_id for c in result.trace.retrieval.fusion.candidates}
+        assert fusion_ids == expected_ranked
 
 
 def test_query_answers_when_only_semantic_contributes(tmp_path) -> None:

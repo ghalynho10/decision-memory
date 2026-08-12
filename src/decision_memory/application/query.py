@@ -174,7 +174,7 @@ class QueryDependencies:
 
     store: IndexReader
     count_tokens: Callable[[str], int]
-    embed: Callable[[Sequence[str]], list[list[float]]]
+    embed: Callable[[Sequence[str], list[ProviderAttempt] | None], list[list[float]]]
     lexical_scorer: LexicalScorer
     load_manifest: Callable[[], Manifest]
     raw_manifest_digest: Callable[[], str]
@@ -354,13 +354,14 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
     # the accepted count as n_results and an $in over the accepted ids, and the
     # application validates the returned set before local ranking.
     try:
-        question_vector = deps.embed([question])[0]
+        question_vector = deps.embed([question], attempts)[0]
     except Exception as exc:  # noqa: BLE001 - provider failure is a result
         return _failed_result(
             request,
             freshness,
             Failure("provider.embedding", "embedding", _safe(exc)),
             EXIT_ERROR,
+            attempts,
         )
     try:
         matches = deps.store.semantic_search(
@@ -465,7 +466,11 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
             settings=_retrieval_settings(),
         )
         return _abstained_result(
-            request, freshness, retrieval, AbstentionStage.RETRIEVAL
+            request,
+            freshness,
+            retrieval,
+            AbstentionStage.RETRIEVAL,
+            attempts=attempts,
         )
 
     # Two pass record diversity over the fused candidates (AC-8).
@@ -507,6 +512,7 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
             freshness,
             Failure("provider.facets", "generation", _safe(exc)),
             EXIT_ERROR,
+            attempts,
         )
     generation = GenerationTrace(
         facets=facets,
@@ -529,6 +535,7 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
             freshness,
             Failure("provider.answer", "generation", _safe(exc)),
             EXIT_ERROR,
+            attempts,
         )
     generation = GenerationTrace(
         facets=facets,
@@ -562,6 +569,7 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
                 freshness,
                 Failure("provider.entailment", "claim_verification", _safe(exc)),
                 EXIT_ERROR,
+                attempts,
             )
         entailment_rows.append(
             (
@@ -584,6 +592,7 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
             freshness,
             Failure("provider.coverage", "claim_verification", _safe(exc)),
             EXIT_ERROR,
+            attempts,
         )
     uncovered = tuple(
         facet
@@ -605,6 +614,7 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
             AbstentionStage.CLAIM_VERIFICATION,
             generation=generation,
             verification=verification,
+            attempts=attempts,
         )
 
     # Build citations by first sentence use, deduplicated by source location.
@@ -661,6 +671,7 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
                         "manifest changed during query; use --allow-stale to read it",
                     ),
                     EXIT_ERROR,
+                    attempts,
                 )
 
     result_trace = ResultTrace(
@@ -1179,13 +1190,14 @@ def _abstained_result(
     stage: AbstentionStage,
     generation: GenerationTrace | None = None,
     verification: VerificationTrace | None = None,
+    attempts: list[ProviderAttempt] | None = None,
 ) -> QueryResult:
     trace = QueryTrace(
         freshness=freshness,
         retrieval=retrieval,
         generation=generation or _empty_generation(),
         verification=verification or _empty_verification(),
-        providers=(),
+        providers=tuple(attempts) if attempts else (),
         result=ResultTrace(
             state=QueryState.ABSTAINED,
             abstention_stage=stage,
@@ -1211,13 +1223,14 @@ def _failed_result(
     freshness: FreshnessTrace,
     failure: Failure,
     exit_code: int,
+    attempts: list[ProviderAttempt] | None = None,
 ) -> QueryResult:
     trace = QueryTrace(
         freshness=freshness,
         retrieval=_empty_retrieval(),
         generation=_empty_generation(),
         verification=_empty_verification(),
-        providers=(),
+        providers=tuple(attempts) if attempts else (),
         result=ResultTrace(
             state=QueryState.FAILED,
             abstention_stage=None,
