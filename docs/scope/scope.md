@@ -147,6 +147,8 @@ spec [0008](../specs/0008-reliable-multi-source-retrieval/index.md)
 
 **Status caveat (2026-08-11):** retrieval work is complete and verified; the two live acceptance gates (query 2 `DM-0004` coverage 0 of 5 in the post fix re run, query 4 abstention 5 of 5 answered) fail on a verification layer gap carried into Feature 11 as three items (query 4 fabrication, query 5 expected abstention, query 2 `DM-0004` coverage omission). This feature does not declare AC-15 passed.
 
+**Correction (2026-08-12):** the feature 11 harness measured query 4 across four `--runs 3` batches (12 runs). Abstention is a coin flip: 6 of 12 abstained, with whole batches flipping between 3/3 abstain and 3/3 answer (citations `DM-0007`/`DM-0008` when it answers). The earlier "5 of 5 answered" was one unlucky sample, not a stable property, so the carry in is better described as "query 4 abstention unreliable (stochastic)" than "query 4 fabricates". Query 5 remains a stable FAIL (`DM-0002` answered 0 of 12) and query 2 `DM-0004` coverage remains intermittent (6 of 12).
+
 ## Slice 3: Proven correctness (evaluation harness)
 
 ### 11. Proven correctness (evaluation harness)
