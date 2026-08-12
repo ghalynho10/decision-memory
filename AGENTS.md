@@ -43,6 +43,12 @@ Additional standards:
 - Third party adapters load by an absolute selector `package.module:attribute`; the built in `jsmastery-specs` stays the default. The teaching package and author guide live at `examples/starter-adapter/` and `docs/reference/artifact/guide/adapter-author-guide.md`. Adapters prove protocol compliance with `test-adapter SELECTOR --cases PATH`; the built in adapter must pass it.
 - `.decision-memory.yml` persists `adapter`, `corpus_root`, and `output`; `adapt` and directory `validate` read the nearest file upward, stopping at the Git root, with CLI input winning over config.
 
+## Circuit breaker
+
+If the same problem persists after one corrective prompt, stop and run `/recover` before trying again. It diagnoses whether this is an isolated bug (routes to `/debug`), a session that has gone wrong through repeated patching (hard reset), or a foundation built on a wrong assumption (rethink).
+
+`/recover` states its diagnosis without asking, but pauses for confirmation before a hard reset ends the session or a rethink changes code. A hard reset records a reset note in `docs/session-notes.md` for the next session, which `/checkpoint` reads and ages out.
+
 ## Git
 
 - integration: on
