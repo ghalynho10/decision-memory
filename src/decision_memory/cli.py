@@ -997,6 +997,11 @@ def _print_query_debug(result: QueryResult) -> None:
             typer.echo(f"    reason={sub_claim.reason}")
     for empty_id in trace.verification.empty_decompositions:
         typer.echo(f"  empty_decomposition {empty_id}")
+    for rejected in trace.verification.rejected_decompositions:
+        typer.echo(
+            f"  rejected_decomposition {rejected.sentence_id} "
+            f"count={rejected.returned_count} disposition={rejected.disposition}"
+        )
     for sentence_id, missing_ids in trace.verification.missing_chunk_refs:
         markers = ",".join(missing_ids)
         typer.echo(f"  missing_chunk_refs {sentence_id} [{markers}]")

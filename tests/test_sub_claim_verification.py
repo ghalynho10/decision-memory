@@ -25,10 +25,12 @@ from decision_memory.application.dto import (
     QueryRequest,
     QueryResult,
     QueryState,
+    RejectedDecomposition,
 )
 from decision_memory.application.query import query_index
 from decision_memory.application.verification import (
     MAX_SUB_CLAIMS,
+    decompose_disposition,
     decomposition_is_near_subset,
 )
 from decision_memory.infrastructure.openai_generation import (
@@ -351,14 +353,16 @@ def test_contained_parent_narrows_to_available_citations() -> None:
 
 
 # ---------------------------------------------------------------------------
-# AC-11 and AC-6: the contract guardrail discards a violating response into
-# the empty decomposition signal, never verified as written.
+# AC-11 and AC-6: the contract guardrail rejects a violating nonempty
+# response with a closed disposition, never verified as written; a genuine
+# empty response stays a distinct signal.
 # ---------------------------------------------------------------------------
 
 
-def test_invented_decomposition_is_discarded_as_empty() -> None:
+def test_invented_decomposition_is_rejected_by_the_lexical_guard() -> None:
     """A sub claim introducing content absent from the parent sentence is
-    discarded and recorded as an empty decomposition (AC-11, AC-6)."""
+    rejected with the closed lexical guard disposition, distinct from a
+    genuine empty response (AC-11, AC-6)."""
     chunks = {"ch_a": "The board approved the merger on Tuesday."}
     draft = (
         DraftSentence(
@@ -378,15 +382,18 @@ def test_invented_decomposition_is_discarded_as_empty() -> None:
         question="merger",
     )
     assert result.state == QueryState.ABSTAINED
-    assert result.trace.verification.empty_decompositions == ("S1",)
+    assert result.trace.verification.rejected_decompositions == (
+        RejectedDecomposition("S1", 2, "lexical_guard"),
+    )
+    assert result.trace.verification.empty_decompositions == ()
     assert result.trace.verification.decomposed == ()
     assert result.trace.verification.removed_sentences == ("S1",)
     assert not any("yacht" in sentence.text for sentence in result.sentences)
 
 
-def test_over_cap_decomposition_is_discarded_as_empty() -> None:
-    """More than the sanity bound of sub claims is discarded, never verified
-    (AC-11)."""
+def test_over_cap_decomposition_is_rejected_with_disposition() -> None:
+    """More than the sanity bound of sub claims is rejected with the over cap
+    disposition, never verified (AC-11, AC-6)."""
     chunks = {"ch_a": "The board approved the merger on Tuesday."}
     draft = (
         DraftSentence(
@@ -404,13 +411,47 @@ def test_over_cap_decomposition_is_discarded_as_empty() -> None:
         question="merger",
     )
     assert result.state == QueryState.ABSTAINED
-    assert result.trace.verification.empty_decompositions == ("S1",)
+    assert result.trace.verification.rejected_decompositions == (
+        RejectedDecomposition("S1", len(over_cap), "over_cap"),
+    )
+    assert result.trace.verification.empty_decompositions == ()
+    assert result.trace.verification.decomposed == ()
+
+
+def test_duplicate_decomposition_is_rejected_with_disposition() -> None:
+    """A normalized duplicate row rejects the complete response with the
+    duplicate disposition, so ids never skip on an accepted response
+    (AC-11, AC-6)."""
+    chunks = {"ch_a": "The board approved the merger on Tuesday."}
+    draft = (
+        DraftSentence(
+            "S1",
+            "The board approved the merger on Tuesday, and the board stayed late.",
+            ("ch_a",),
+        ),
+    )
+    result = _run(
+        chunks,
+        draft,
+        decompose=lambda s, c, a=None: (
+            "The board approved the merger on Tuesday.",
+            "the board approved the merger on Tuesday.",
+        ),
+        entail=_no_call,
+        question="merger",
+    )
+    assert result.state == QueryState.ABSTAINED
+    assert result.trace.verification.rejected_decompositions == (
+        RejectedDecomposition("S1", 2, "duplicate"),
+    )
+    assert result.trace.verification.empty_decompositions == ()
     assert result.trace.verification.decomposed == ()
 
 
 def test_empty_decomposition_is_traced_distinctly() -> None:
     """A decomposition returning zero sub claims removes the sentence and
-    records the empty signal separately from all unsupported (AC-6)."""
+    records the empty signal separately from a rejected response and from
+    all unsupported (AC-6)."""
     chunks = {"ch_a": "The board approved the merger on Tuesday."}
     draft = (
         DraftSentence(
@@ -428,6 +469,7 @@ def test_empty_decomposition_is_traced_distinctly() -> None:
     )
     assert result.state == QueryState.ABSTAINED
     assert result.trace.verification.empty_decompositions == ("S1",)
+    assert result.trace.verification.rejected_decompositions == ()
     assert result.trace.verification.decomposed == ()
     assert result.trace.verification.removed_sentences == ("S1",)
 
@@ -493,17 +535,19 @@ def test_decomposition_provider_failure_fails_the_query() -> None:
 
 
 def test_malformed_decomposition_payload_is_rejected_by_the_validator() -> None:
-    """A malformed or over cap decomposition payload raises at the provider
-    boundary, the same malformed response path as the other stages (AC-7)."""
+    """A malformed decomposition payload raises at the provider boundary; an
+    over cap payload passes the validator and is classified by the
+    application, never mislabeled as a provider failure (AC-7, AC-6)."""
     with pytest.raises(GenerationError):
         validate_decompose({})
     with pytest.raises(GenerationError):
         validate_decompose({"sub_claims": "not a list"})
     with pytest.raises(GenerationError):
         validate_decompose({"sub_claims": [{"text": "  "}]})
-    with pytest.raises(GenerationError):
-        validate_decompose({"sub_claims": [{"text": "x"}] * (MAX_SUB_CLAIMS + 1)})
     assert validate_decompose({"sub_claims": []}) == ()
+    assert validate_decompose(
+        {"sub_claims": [{"text": "x"}] * (MAX_SUB_CLAIMS + 1)}
+    ) == ("x",) * (MAX_SUB_CLAIMS + 1)
     assert validate_decompose({"sub_claims": [{"text": "an atomic claim"}]}) == (
         "an atomic claim",
     )
@@ -638,6 +682,7 @@ def test_schema_version_stays_two_and_trace_fields_resolve() -> None:
     # New fields resolve and are the additive signal.
     assert verification.decomposed
     assert verification.empty_decompositions == ()
+    assert verification.rejected_decompositions == ()
     assert verification.missing_chunk_refs == ()
 
 
@@ -656,3 +701,81 @@ def test_near_subset_contract_check() -> None:
         ("The board approved the merger.", "The board bought a yacht."), parent
     )
     assert not decomposition_is_near_subset(("The board approved",), "")
+
+
+def test_near_subset_lexical_tolerance_and_limits() -> None:
+    """The matcher allows one inflection suffix and one added grammar token
+    each, but rejects a new content token (AC-11)."""
+    parent = "The board refetches the merger file."
+    # refetch / refetches and file / files match through the suffix rule.
+    assert decomposition_is_near_subset(("The board refetch the merger file.",), parent)
+    assert decomposition_is_near_subset(
+        ("The board refetches the merger files.",), parent
+    )
+    # Each grammar token may be added at most once without a parent match.
+    assert decomposition_is_near_subset(
+        ("The board refetch a merger file and that which the.",), parent
+    )
+    # A second added instance of the same grammar token is rejected.
+    assert not decomposition_is_near_subset(
+        ("The board refetch a merger file and a.",), parent
+    )
+    # A new content token is rejected.
+    assert not decomposition_is_near_subset(
+        ("The board refetches the merger yacht.",), parent
+    )
+
+
+def test_near_subset_makes_no_semantic_guarantee() -> None:
+    """The matcher is lexical only: dropped negation and reversed order pass
+    it, so only individually verified fragments may emit (AC-11, AC-1)."""
+    parent = "The board did not approve the merger."
+    assert decomposition_is_near_subset(("The board approve the merger.",), parent)
+    assert decomposition_is_near_subset(("the merger approve the board",), parent)
+
+
+def test_decompose_disposition_classification() -> None:
+    """The classifier returns None for an accepted response and one closed
+    rejection disposition otherwise (AC-6, AC-11)."""
+    parent = "The board approved the merger on Tuesday."
+    assert decompose_disposition(("The board approved the merger.",), parent) is None
+    assert decompose_disposition(("x",) * (MAX_SUB_CLAIMS + 1), parent) == "over_cap"
+    assert (
+        decompose_disposition(
+            ("The board approved the merger.", "THE board APPROVED the merger."),
+            parent,
+        )
+        == "duplicate"
+    )
+    assert decompose_disposition(("The board bought a yacht.",), parent) == (
+        "lexical_guard"
+    )
+
+
+def test_debug_trace_renders_rejected_decomposition(capsys) -> None:
+    """The debug trace shows a rejected decomposition's sentence, count, and
+    disposition, never its rejected text (AC-6)."""
+    from decision_memory.cli import _print_query_debug
+
+    chunks = {"ch_a": "The board approved the merger on Tuesday."}
+    draft = (
+        DraftSentence(
+            "S1",
+            "The board approved the merger on Tuesday, and the board stayed late.",
+            ("ch_a",),
+        ),
+    )
+    result = _run(
+        chunks,
+        draft,
+        decompose=lambda s, c, a=None: (
+            "The board approved the merger on Tuesday.",
+            "The board bought a yacht.",
+        ),
+        entail=_no_call,
+        question="merger",
+    )
+    _print_query_debug(result)
+    out = capsys.readouterr().out
+    assert "rejected_decomposition S1 count=2 disposition=lexical_guard" in out
+    assert "yacht" not in out

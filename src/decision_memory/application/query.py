@@ -50,6 +50,7 @@ from decision_memory.application.dto import (
     QueryResult,
     QueryState,
     QueryTrace,
+    RejectedDecomposition,
     ResolutionState,
     ResultTrace,
     RetrievalFailure,
@@ -79,10 +80,8 @@ from decision_memory.application.pipeline import (
 )
 from decision_memory.application.store_format import STORE_FORMAT_VERSION
 from decision_memory.application.verification import (
-    MAX_SUB_CLAIMS,
-    decomposition_is_near_subset,
+    decompose_disposition,
     deterministic_containment,
-    normalize_for_containment,
 )
 
 EXIT_OK = 0
@@ -198,10 +197,12 @@ class QueryDependencies:
         tuple[DraftSentence, ...],
     ]
     decompose: Callable[
-        [str, Sequence[str], list[ProviderAttempt] | None], tuple[str, ...]
+        [str, Sequence[tuple[str, str]], list[ProviderAttempt] | None],
+        tuple[str, ...],
     ]
     entail: Callable[
-        [str, Sequence[str], list[ProviderAttempt] | None], tuple[bool, str]
+        [str, Sequence[tuple[str, str]], list[ProviderAttempt] | None],
+        tuple[bool, str],
     ]
     coverage: Callable[
         [
@@ -571,6 +572,7 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
     removed: list[str] = []
     decomposed_rows: list[SubClaim] = []
     empty_decompositions: list[str] = []
+    rejected_decompositions: list[RejectedDecomposition] = []
     missing_chunk_refs: list[tuple[str, tuple[str, ...]]] = []
     chunk_text_by_id = {chunk.chunk_id: chunk.text for chunk in accepted_chunks}
     for sentence in draft:
@@ -589,6 +591,7 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
         if missing_ids:
             missing_chunk_refs.append((sentence.sentence_id, missing_ids))
         available_texts = [chunk_text_by_id[chunk_id] for chunk_id in available_ids]
+        available_evidence = tuple(zip(available_ids, available_texts, strict=True))
         contained = deterministic_containment(sentence.text, available_texts)
         containment_rows.append((sentence.sentence_id, contained))
         if contained:
@@ -604,7 +607,9 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
             removed.append(sentence.sentence_id)
             continue
         try:
-            sub_claim_texts = deps.decompose(sentence.text, available_texts, attempts)
+            sub_claim_texts = deps.decompose(
+                sentence.text, available_evidence, attempts
+            )
         except Exception as exc:  # noqa: BLE001 - provider failure is a result
             return _failed_result(
                 request,
@@ -613,25 +618,28 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
                 EXIT_ERROR,
                 attempts,
             )
-        if len(sub_claim_texts) > MAX_SUB_CLAIMS or not decomposition_is_near_subset(
-            sub_claim_texts, sentence.text
-        ):
-            sub_claim_texts = ()
         if not sub_claim_texts:
+            # Genuine empty response: remove the sentence and record the
+            # empty signal, distinct from a rejected response (AC-6).
             empty_decompositions.append(sentence.sentence_id)
             removed.append(sentence.sentence_id)
             continue
-        # Drop normalized duplicate sub claim texts, then verify each alone.
-        seen_texts: set[str] = set()
-        unique_texts: list[str] = []
-        for text in sub_claim_texts:
-            key = normalize_for_containment(text)
-            if key not in seen_texts:
-                seen_texts.add(key)
-                unique_texts.append(text)
+        disposition = decompose_disposition(sub_claim_texts, sentence.text)
+        if disposition is not None:
+            # Rejected nonempty response: a closed rejection disposition.
+            # Rejected claim text is never recorded (AC-6, AC-11).
+            rejected_decompositions.append(
+                RejectedDecomposition(
+                    sentence.sentence_id, len(sub_claim_texts), disposition
+                )
+            )
+            removed.append(sentence.sentence_id)
+            continue
+        # Accepted response: every sub claim is unique under normalization,
+        # so ids never skip; verify each alone in provider order (AC-6).
         rows: list[SubClaim] = []
         fragments: list[DraftSentence] = []
-        for index, text in enumerate(unique_texts):
+        for index, text in enumerate(sub_claim_texts):
             sub_claim_id = f"{sentence.sentence_id}.{index + 1}"
             matching_ids = tuple(
                 chunk_id
@@ -654,7 +662,7 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
                 fragments.append(DraftSentence(sub_claim_id, text, matching_ids))
                 continue
             try:
-                supported, reason = deps.entail(text, available_texts, attempts)
+                supported, reason = deps.entail(text, available_evidence, attempts)
             except Exception as exc:  # noqa: BLE001 - provider failure is a result
                 return _failed_result(
                     request,
@@ -713,6 +721,7 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
         uncovered_facets=uncovered,
         decomposed=tuple(decomposed_rows),
         empty_decompositions=tuple(empty_decompositions),
+        rejected_decompositions=tuple(rejected_decompositions),
         missing_chunk_refs=tuple(missing_chunk_refs),
     )
     if uncovered:
@@ -1197,6 +1206,7 @@ def _empty_verification() -> VerificationTrace:
         uncovered_facets=(),
         decomposed=(),
         empty_decompositions=(),
+        rejected_decompositions=(),
         missing_chunk_refs=(),
     )
 

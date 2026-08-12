@@ -307,11 +307,11 @@ def fake_generate_answer(
     )
 
 
-def fake_entail(sentence, chunk_texts, attempts=None) -> tuple[bool, str]:
+def fake_entail(sentence, evidence, attempts=None) -> tuple[bool, str]:
     return (True, "direct support")
 
 
-def fake_decompose(sentence_text, chunk_texts, attempts=None) -> tuple[str, ...]:
+def fake_decompose(sentence_text, evidence, attempts=None) -> tuple[str, ...]:
     """An under split: the whole sentence as a single sub claim.
 
     Combined with ``fake_entail`` returning supported, every non verbatim

@@ -576,12 +576,29 @@ class SubClaim:
 
 
 @dataclass(frozen=True)
+class RejectedDecomposition:
+    """One rejected nonempty decomposition, held only in the trace (spec 0010).
+
+    ``returned_count`` is the number of rows the provider returned before the
+    rejection. ``disposition`` is one closed value: ``over_cap``, ``duplicate``,
+    or ``lexical_guard`` (spec 0010 AC-6). Rejected claim text is never
+    recorded.
+    """
+
+    sentence_id: str
+    returned_count: int
+    disposition: str
+
+
+@dataclass(frozen=True)
 class VerificationTrace:
     """The verification decision for one query (AC-15, spec 0010).
 
-    The three trailing fields are the additive spec 0010 signal: which
-    sentences were decomposed, which decompositions came back empty, and
-    which parent chunk ids retrieval did not surface.
+    The four trailing fields are the additive spec 0010 signal: which
+    sentences were decomposed, which decompositions came back empty, which
+    nonempty decompositions were rejected and why, and which parent chunk ids
+    retrieval did not surface. They default to empty tuples so an older
+    constructor call remains valid (AC-10).
     """
 
     containment: tuple[tuple[str, bool], ...]
@@ -589,9 +606,10 @@ class VerificationTrace:
     removed_sentences: tuple[str, ...]
     coverage: tuple[CoverageRow, ...]
     uncovered_facets: tuple[Facet, ...]
-    decomposed: tuple[SubClaim, ...]
-    empty_decompositions: tuple[str, ...]
-    missing_chunk_refs: tuple[tuple[str, tuple[str, ...]], ...]
+    decomposed: tuple[SubClaim, ...] = ()
+    empty_decompositions: tuple[str, ...] = ()
+    rejected_decompositions: tuple[RejectedDecomposition, ...] = ()
+    missing_chunk_refs: tuple[tuple[str, tuple[str, ...]], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -714,6 +732,7 @@ __all__ = [
     "RetrievalSettings",
     "RetrievalStage",
     "RetrievalTrace",
+    "RejectedDecomposition",
     "SemanticDisposition",
     "SemanticMatches",
     "SemanticRow",

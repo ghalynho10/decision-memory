@@ -26,7 +26,6 @@ from decision_memory.application.dto import (
     ProviderAttempt,
     SupersessionNotice,
 )
-from decision_memory.application.verification import MAX_SUB_CLAIMS
 from decision_memory.infrastructure.openai_common import (
     _client,
     require_api_key,
@@ -166,7 +165,6 @@ def _decompose_schema() -> dict[str, Any]:
         "properties": {
             "sub_claims": {
                 "type": "array",
-                "maxItems": MAX_SUB_CLAIMS,
                 "items": {
                     "type": "object",
                     "properties": {
@@ -375,15 +373,15 @@ def validate_coverage(
 def validate_decompose(payload: dict[str, Any]) -> tuple[str, ...]:
     """Validate and normalize a decomposition payload: sub claim texts.
 
-    The cap is a sanity bound against a runaway response (spec 0010 AC-11);
-    the near subset contract is checked by the application after this
-    returns, since it needs the parent sentence text.
+    The array is unbounded: the application classifies an over cap response
+    as a rejection disposition, never a provider failure (spec 0010 AC-6).
+    Empty text after trimming is malformed. The lexical guard contract is
+    checked by the application after this returns, since it needs the parent
+    sentence text.
     """
     raw = payload.get("sub_claims")
-    if not isinstance(raw, list) or not (0 <= len(raw) <= MAX_SUB_CLAIMS):
-        raise GenerationError(
-            f"decomposition must contain 0 to {MAX_SUB_CLAIMS} sub claims"
-        )
+    if not isinstance(raw, list):
+        raise GenerationError("decomposition must contain a sub_claims list")
     texts: list[str] = []
     for index, item in enumerate(raw):
         if not isinstance(item, dict):
@@ -490,12 +488,17 @@ def generate_answer(
 
 def entail_verdict(
     sentence_text: str,
-    chunk_texts: Sequence[str],
+    evidence: Sequence[tuple[str, str]],
     attempts: list[ProviderAttempt] | None = None,
 ) -> tuple[bool, str]:
-    """Whether a paraphrase is entailed by its cited chunks (AC-15)."""
-    evidence = "\n\n---\n\n".join(
-        f"CHUNK {index}: {text}" for index, text in enumerate(chunk_texts)
+    """Whether a paraphrase is entailed by its cited chunks (AC-15).
+
+    ``evidence`` is the ordered list of available ``(chunk_id, text)``
+    blocks; it serializes with the fixed provider contract, one ``CHUNK
+    {chunk_id}:`` block per citation in citation order (spec 0010).
+    """
+    evidence_text = "\n\n---\n\n".join(
+        f"CHUNK {chunk_id}:\n{text}" for chunk_id, text in evidence
     )
     messages = [
         {
@@ -510,7 +513,9 @@ def entail_verdict(
         },
         {
             "role": "user",
-            "content": f"Candidate sentence:\n{sentence_text}\n\nEvidence:\n{evidence}",
+            "content": (
+                f"Candidate sentence:\n{sentence_text}\n\nEvidence:\n{evidence_text}"
+            ),
         },
     ]
     for _ in range(2):
@@ -587,18 +592,20 @@ def coverage_verdict(
 
 def decompose_sentence(
     sentence_text: str,
-    chunk_texts: Sequence[str],
+    evidence: Sequence[tuple[str, str]],
     attempts: list[ProviderAttempt] | None = None,
 ) -> tuple[str, ...]:
     """Split a candidate sentence into atomic sub claims (spec 0010).
 
-    Fixed to the entailment and coverage model. The contract, each returned
-    sub claim a near subset of the parent sentence's own text and at most
-    eight sub claims, is enforced by the application caller after this
-    returns, not here.
+    Fixed to the entailment and coverage model. ``evidence`` is the ordered
+    list of available ``(chunk_id, text)`` blocks; it serializes with the
+    fixed provider contract, one ``CHUNK {chunk_id}:`` block per citation in
+    citation order. The contract, each returned sub claim a near subset of
+    the parent sentence's own text and at most eight sub claims, is
+    classified by the application caller after this returns, not here.
     """
-    evidence = "\n\n---\n\n".join(
-        f"CHUNK {index}: {text}" for index, text in enumerate(chunk_texts)
+    evidence_text = "\n\n---\n\n".join(
+        f"CHUNK {chunk_id}:\n{text}" for chunk_id, text in evidence
     )
     messages = [
         {
@@ -610,7 +617,7 @@ def decompose_sentence(
             "content": (
                 f"Candidate sentence:\n{sentence_text}\n\n"
                 "Evidence chunks (context only; never add content the "
-                f"candidate sentence does not contain):\n{evidence}"
+                f"candidate sentence does not contain):\n{evidence_text}"
             ),
         },
     ]
