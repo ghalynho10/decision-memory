@@ -8,6 +8,7 @@ package boots and builds.
 
 import json
 import tempfile
+from contextlib import ExitStack
 from importlib.metadata import version
 from pathlib import Path
 from typing import Annotated
@@ -95,6 +96,7 @@ from decision_memory.infrastructure.project_config import (
 )
 from decision_memory.infrastructure.runtime_loader import LoadFailure, select_adapter
 from decision_memory.infrastructure.source_resolver import resolve_source_path
+from decision_memory.infrastructure.store import read_active
 from decision_memory.infrastructure.tokenization import tiktoken_count
 
 app = typer.Typer(
@@ -1075,6 +1077,11 @@ def _print_partial_query_debug(partial: PartialQueryTrace) -> None:
         )
 
 
+# A typo like --runs 500 would otherwise fire thousands of paid live queries
+# with no confirmation; 20 covers every legitimate rate-measurement use so far.
+_MAX_EVALUATE_RUNS = 20
+
+
 @app.command("evaluate")
 def evaluate_command(
     corpus_path: Annotated[
@@ -1123,48 +1130,101 @@ def evaluate_command(
     if isinstance(settings, SettingsError):
         typer.echo(settings.message)
         raise typer.Exit(2)
+    if runs < 1:
+        typer.echo("--runs must be at least 1")
+        raise typer.Exit(2)
+    if runs > _MAX_EVALUATE_RUNS:
+        typer.echo(f"--runs must be at most {_MAX_EVALUATE_RUNS}")
+        raise typer.Exit(2)
     if not settings.corpus_root.is_dir():
         typer.echo(
             f"corpus path does not exist or is not a directory: {settings.corpus_root}"
         )
         raise typer.Exit(3)
-    if runs < 1:
-        typer.echo("--runs must be at least 1")
-        raise typer.Exit(2)
+    if settings.adapter != BUILTIN_ADAPTER_ID:
+        typer.echo(
+            f"warning: evaluate is calibrated to the built in adapter "
+            f"{BUILTIN_ADAPTER_ID!r}; the configured adapter "
+            f"{settings.adapter!r} is not used by this command, and its "
+            "output would not match the fixture battery's expected record ids"
+        )
 
-    records_dir = records or Path(
-        tempfile.mkdtemp(prefix="decision-memory-evaluate-records-")
-    )
-    store_dir = store or Path(
-        tempfile.mkdtemp(prefix="decision-memory-evaluate-store-")
-    )
-    runner = EvaluationRunner(settings.corpus_root, records_dir, store_dir)
+    with ExitStack() as stack:
+        if records is not None:
+            records_dir = records
+            if records_dir.is_dir() and any(records_dir.iterdir()):
+                typer.echo(
+                    f"warning: {records_dir} is not empty; evaluate always "
+                    "rebuilds and will overwrite its records and manifest"
+                )
+        else:
+            records_dir = Path(
+                stack.enter_context(
+                    tempfile.TemporaryDirectory(
+                        prefix="decision-memory-evaluate-records-"
+                    )
+                )
+            )
+        if store is not None:
+            store_dir = store
+            if read_active(store_dir) is not None:
+                typer.echo(
+                    f"warning: {store_dir} already has an active generation; "
+                    "evaluate always rebuilds and will replace it"
+                )
+        else:
+            store_dir = Path(
+                stack.enter_context(
+                    tempfile.TemporaryDirectory(
+                        prefix="decision-memory-evaluate-store-"
+                    )
+                )
+            )
+        # Printed before adapt/ingest/the battery run, not just before the
+        # report: a live --runs 3 battery takes minutes, and a blank
+        # terminal until the very end looks hung. The defaulted paths are
+        # labelled temporary since ExitStack removes them on exit, before a
+        # failing run's user could otherwise go look at them.
+        records_label = "" if records is not None else " (temporary, removed on exit)"
+        store_label = "" if store is not None else " (temporary, removed on exit)"
+        typer.echo(f"records: {records_dir}{records_label}")
+        typer.echo(f"store: {store_dir}{store_label}")
+        runner = EvaluationRunner(settings.corpus_root, records_dir, store_dir)
 
-    adapt_outcome = runner.adapt()
-    if adapt_outcome.exit_code != 0:
-        typer.echo(f"adapt failed with exit code {adapt_outcome.exit_code}")
-        raise typer.Exit(adapt_outcome.exit_code)
-    ingest_result = runner.ingest(rebuild=True)
-    if ingest_result.exit_code != 0:
-        typer.echo("ingest failed; the harness needs OPENAI_API_KEY to build the index")
-        raise typer.Exit(ingest_result.exit_code)
+        adapt_outcome = runner.adapt()
+        if adapt_outcome.exit_code != 0:
+            typer.echo(f"adapt failed with exit code {adapt_outcome.exit_code}")
+            raise typer.Exit(adapt_outcome.exit_code)
+        ingest_result = runner.ingest(rebuild=True)
+        if ingest_result.exit_code != 0:
+            if ingest_result.failure is not None:
+                typer.echo(
+                    f"ingest failed: error {ingest_result.failure.stage} "
+                    f"{ingest_result.failure.code}: {ingest_result.failure.detail}"
+                )
+                if ingest_result.failure.code == "provider.key":
+                    typer.echo("hint: set OPENAI_API_KEY to build the index")
+            else:
+                typer.echo(f"ingest failed with exit code {ingest_result.exit_code}")
+            raise typer.Exit(ingest_result.exit_code)
 
-    outcome = run_evaluation(EVALUATION_FIXTURES, runner, runs=runs)
-    _print_evaluation_report(outcome, records_dir, store_dir)
-    raise typer.Exit(outcome.exit_code)
+        try:
+            outcome = run_evaluation(EVALUATION_FIXTURES, runner, runs=runs)
+        except LockError:
+            typer.echo("store is locked by another ingest or query")
+            raise typer.Exit(1) from None
+        _print_evaluation_report(outcome)
+        raise typer.Exit(outcome.exit_code)
 
 
-def _print_evaluation_report(
-    outcome: EvaluationOutcome, records_dir: Path, store_dir: Path
-) -> None:
+def _print_evaluation_report(outcome: EvaluationOutcome) -> None:
     """Print the evaluation harness report, one line per fixture (feature 11).
 
     Order is the fixed fixture order. Each fixture prints PASS or FAIL with its
     detail; the run rate appears when ``--runs`` exceeds one. The final line
     mirrors the conformance report grammar so Feature 15 can restyle it later.
+    The records/store paths print earlier, before the battery runs, not here.
     """
-    typer.echo(f"records: {records_dir}")
-    typer.echo(f"store: {store_dir}")
     for check in outcome.checks:
         status = "PASS" if check.status else "FAIL"
         rate = (

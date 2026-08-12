@@ -183,6 +183,16 @@ def test_active_chunks_keeps_value_path_and_fingerprint_separate(
     ``--value-path`` filter and corrupted citation value paths against the
     real store. The chunk table stores both columns distinctly, so the
     descriptor must round trip them separately.
+
+    Deliberately kept ``integration`` rather than moved to the fast suite:
+    ``fake_embed`` only removes the network dependency, but this test still
+    exercises the real ``SqliteChromaIndexWriter``/``SqliteChromaIndexReader``
+    against a real store on disk, exactly like its two siblings in this file
+    (``test_real_store_is_format_two_and_semantic_search_exact`` and
+    ``test_rebuild_preserves_format_two_and_format_one_refuses_query``). This
+    file's convention is real store implies integration, fake provider or
+    not; moving only this one test would be inconsistent with that, not a
+    fix.
     """
     records_dir = _adapt_dm0012(tmp_path)
     store = tmp_path / "store"

@@ -173,7 +173,9 @@ The battery is fixed and calibrated to the built in adapter:
 - the unverifiable claim fixture asks for a specific fact no record states, and requires abstention, proving the verification step catches a fabricated claim.
 - the incremental re ingest assertion edits a copy of a `rationale.md`, re adapts, re ingests, and confirms the record's chunks changed.
 
-`--runs N` runs each query fixture N times and reports the observed pass rate, because a single run does not estimate reliability. The command needs `OPENAI_API_KEY` and the real corpus, exactly like a live `ingest` then `query` run. Known live blockers are reported as FAIL rather than hidden; the harness measures correctness, it does not patch it.
+`--runs N` runs each query fixture N times and reports the observed pass rate, because a single run does not estimate reliability. N is capped at 20, so a typo does not fire hundreds of paid live queries by accident. The command needs `OPENAI_API_KEY` and the real corpus, exactly like a live `ingest` then `query` run. Known live blockers are reported as FAIL rather than hidden; the harness measures correctness, it does not patch it.
+
+`--records PATH` and `--store PATH` point the harness at specific directories instead of a temporary one it cleans up on exit. The harness always adapts and rebuilds: pointing either option at a path you use for something else overwrites its records and manifest, or replaces its store's active generation, and the command warns loudly (but does not refuse) when it detects existing content there.
 
 ### When an answer is wrong: the triage map
 

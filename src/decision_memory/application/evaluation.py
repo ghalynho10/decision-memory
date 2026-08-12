@@ -17,11 +17,11 @@ narrow port. It imports no Typer, Pydantic, OpenAI, or Chroma (AC-18).
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import StrEnum
 from typing import Protocol
 
-from decision_memory.application.dto import QueryResult, QueryState
+from decision_memory.application.dto import QueryResult, QueryState, RetrievalFailure
 
 # The five defining queries (mvp.md, specs 0007 and 0008) with their exact
 # wording, and the two further assertions (mvp.md) plus the claim level
@@ -94,6 +94,29 @@ class EvaluationFixture:
     reingest_record_id: str | None = None
     reingest_rationale_relpath: str | None = None
 
+    def __post_init__(self) -> None:
+        """Enforce the per kind required fields at construction time.
+
+        A plain ``raise`` here, not ``assert``: an assert would vanish under
+        ``python -O`` and let a malformed fixture reach the runner, where the
+        ``question``/``oracle`` or ``reingest_*`` fields being ``None`` would
+        surface as a much less legible failure deep in the engine.
+        """
+        if self.kind == FixtureKind.QUERY:
+            if self.question is None or self.oracle is None:
+                raise ValueError(
+                    f"query fixture {self.id!r} needs both question and oracle"
+                )
+        else:
+            if (
+                self.reingest_record_id is None
+                or self.reingest_rationale_relpath is None
+            ):
+                raise ValueError(
+                    f"reingest fixture {self.id!r} needs both reingest_record_id "
+                    "and reingest_rationale_relpath"
+                )
+
 
 @dataclass(frozen=True)
 class ReingestEvidence:
@@ -118,7 +141,7 @@ class EvaluationCheck:
 class EvaluationOutcome:
     """The full result of an evaluation run, plus the exit code."""
 
-    checks: list[EvaluationCheck] = field(default_factory=list)
+    checks: tuple[EvaluationCheck, ...] = ()
     passed: int = 0
     failed: int = 0
     exit_code: int = 0
@@ -223,11 +246,20 @@ def run_evaluation(
     across runs rather than assuming consecutive passes hold (spec 0008
     Follow up 9). A query fixture passes only when every run passes; the
     check detail reports the observed rate. The re ingest assertion runs once.
+
+    ``runs`` must be at least 1: the CLI already rejects 0 as a usage error,
+    but a direct library caller passing 0 would otherwise get a vacuous
+    all-pass outcome (``passed == runs`` is ``0 == 0``), the worst possible
+    default for a correctness harness.
     """
+    if runs < 1:
+        raise ValueError("runs must be at least 1")
     checks: list[EvaluationCheck] = []
     passed = 0
     failed = 0
-    proposed = port.proposed_record_ids()
+    proposed = (
+        port.proposed_record_ids() if _needs_proposed_records(fixtures) else frozenset()
+    )
     for fixture in fixtures:
         if fixture.kind == FixtureKind.QUERY:
             check = _run_query_fixture(fixture, port, proposed, runs)
@@ -239,10 +271,25 @@ def run_evaluation(
         else:
             failed += 1
     return EvaluationOutcome(
-        checks=checks,
+        checks=tuple(checks),
         passed=passed,
         failed=failed,
         exit_code=1 if failed else 0,
+    )
+
+
+def _needs_proposed_records(fixtures: Sequence[EvaluationFixture]) -> bool:
+    """Whether any fixture's oracle needs the proposed record set.
+
+    ``proposed_record_ids`` walks the whole records directory; skip the call
+    entirely when no fixture sets ``cite_all_proposed``, so every port
+    implementation isn't forced to support it for a battery that never asks.
+    """
+    return any(
+        fixture.kind == FixtureKind.QUERY
+        and fixture.oracle is not None
+        and fixture.oracle.cite_all_proposed
+        for fixture in fixtures
     )
 
 
@@ -254,20 +301,34 @@ def _run_query_fixture(
 ) -> EvaluationCheck:
     assert fixture.question is not None and fixture.oracle is not None
     passed = 0
-    last_detail = ""
+    single_run_detail = ""
+    first_failing_detail = ""
     for _ in range(runs):
-        result = port.run_query(fixture.question)
-        ok, detail = _satisfies(result, fixture.oracle, proposed)
+        try:
+            result = port.run_query(fixture.question)
+        except RetrievalFailure as failure:
+            ok, detail = (
+                False,
+                f"retrieval integrity failure at {failure.stage.value}",
+            )
+        else:
+            ok, detail = _satisfies(result, fixture.oracle, proposed)
         if ok:
             passed += 1
-        last_detail = detail
+        elif not first_failing_detail:
+            # The first non-passing run's detail, not the last run's: under
+            # --runs N a fixture can fail on an early run and pass on a
+            # later one, and reporting the later (passing) run's detail on a
+            # row marked FAIL is self contradictory and discards the reason.
+            first_failing_detail = detail
+        single_run_detail = detail
     status = passed == runs
     if runs == 1:
-        detail = last_detail
+        detail = single_run_detail
     else:
         detail = f"{passed}/{runs} runs passed"
-        if not status and last_detail:
-            detail = f"{detail}; {last_detail}"
+        if not status and first_failing_detail:
+            detail = f"{detail}; {first_failing_detail}"
     return EvaluationCheck(
         fixture_id=fixture.id,
         status=status,
@@ -317,6 +378,18 @@ def _satisfies(
         )
     cited_ids = {c.record_id for c in result.citations}
     if oracle.cite_all_proposed:
+        if not proposed:
+            # An empty proposed set is not "nothing to check", it is the
+            # oracle's own input having gone missing (a parse regression, an
+            # adapter change, or a corpus with no proposed records at all);
+            # cited_ids - proposed would otherwise be vacuously satisfied by
+            # any answer at all, the same false-positive shape the re-ingest
+            # oracle had before it required a non-empty ``after``.
+            return (
+                False,
+                "cite_all_proposed is set but no proposed records were found; "
+                "the oracle has nothing to verify against",
+            )
         missing = sorted(proposed - cited_ids)
         if missing:
             return (
@@ -330,6 +403,25 @@ def _satisfies(
             f"missing required records {', '.join(missing)} from citations",
         )
     for prefix in oracle.required_value_path_prefixes:
-        if not any(c.value_path.startswith(prefix) for c in result.citations):
-            return False, f"no citation carries value path prefix {prefix}"
+        # When specific records are required, the prefix must be matched by
+        # one of THOSE records' citations, not merely by some citation
+        # somewhere in the answer: otherwise a result that cites the right
+        # record for its required_record_ids and an unrelated record for its
+        # value path would satisfy both checks without proving what the
+        # fixture is actually named for (e.g. assertion-rationale-summary
+        # proving DM-0006's own rationale_summary reached the answer, not
+        # some other record's).
+        if oracle.required_record_ids:
+            matched = any(
+                c.value_path.startswith(prefix)
+                and c.record_id in oracle.required_record_ids
+                for c in result.citations
+            )
+        else:
+            matched = any(c.value_path.startswith(prefix) for c in result.citations)
+        if not matched:
+            return (
+                False,
+                f"no required record's citation carries value path prefix {prefix}",
+            )
     return True, "answered with required citations"

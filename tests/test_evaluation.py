@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import pytest
+
 from decision_memory.application.dto import (
     AbstentionStage,
     AnswerSentence,
@@ -23,12 +25,15 @@ from decision_memory.application.dto import (
     FusionTrace,
     GenerationTrace,
     LexicalTrace,
+    PartialQueryTrace,
     QueryResult,
     QueryState,
     QueryTrace,
     ResolutionState,
     ResultTrace,
+    RetrievalFailure,
     RetrievalSettings,
+    RetrievalStage,
     RetrievalTrace,
     SemanticTrace,
     VerificationTrace,
@@ -206,6 +211,27 @@ def test_battery_has_eight_fixtures_in_fixed_order() -> None:
             assert fixture.reingest_rationale_relpath
 
 
+def test_query_fixture_needs_question_and_oracle() -> None:
+    with pytest.raises(ValueError, match="question and oracle"):
+        EvaluationFixture(id="f", kind=FixtureKind.QUERY)
+
+
+def test_reingest_fixture_needs_record_id_and_rationale_path() -> None:
+    with pytest.raises(ValueError, match="reingest_record_id"):
+        EvaluationFixture(id="f", kind=FixtureKind.REINGEST)
+
+
+def test_run_evaluation_rejects_zero_runs() -> None:
+    fixture = EvaluationFixture(
+        id="f",
+        kind=FixtureKind.QUERY,
+        question="q",
+        oracle=QueryOracle(expected_state=QueryState.ABSTAINED),
+    )
+    with pytest.raises(ValueError, match="runs must be at least 1"):
+        run_evaluation((fixture,), FakePort(), runs=0)
+
+
 # ---------------------------------------------------------------------------
 # Oracle comparison: answered fixtures
 # ---------------------------------------------------------------------------
@@ -311,6 +337,67 @@ def test_answered_fixture_requires_proposed_records() -> None:
     outcome2 = run_evaluation((fixture,), port2)
     assert outcome2.failed == 1
     assert "DM-0015" in outcome2.checks[0].detail
+
+
+def test_cite_all_proposed_fails_when_proposed_set_is_empty() -> None:
+    """An empty proposed set must not vacuously pass.
+
+    ``proposed - cited_ids`` is empty whenever ``proposed`` is empty, no
+    matter what was cited; an empty set usually means the oracle's own input
+    went missing (a parse regression, an adapter change), not that there is
+    nothing left to check.
+    """
+    fixture = EvaluationFixture(
+        id="f",
+        kind=FixtureKind.QUERY,
+        question="q",
+        oracle=QueryOracle(expected_state=QueryState.ANSWERED, cite_all_proposed=True),
+    )
+    port = FakePort(
+        proposed=frozenset(),
+        results={"q": _result(QueryState.ANSWERED, (_citation("DM-0001", "why[0]"),))},
+    )
+    outcome = run_evaluation((fixture,), port)
+    assert outcome.failed == 1
+    assert "no proposed records were found" in outcome.checks[0].detail
+
+
+def test_value_path_prefix_must_belong_to_a_required_record() -> None:
+    """A prefix match on an unrelated citation must not satisfy the oracle.
+
+    required_record_ids and required_value_path_prefixes used to be checked
+    independently, so a citation for the required record plus a citation for
+    an entirely different record carrying the required prefix would pass —
+    proving only that both things appeared somewhere in the answer, not that
+    the required record's own field reached it.
+    """
+    fixture = EvaluationFixture(
+        id="f",
+        kind=FixtureKind.QUERY,
+        question="q",
+        oracle=QueryOracle(
+            expected_state=QueryState.ANSWERED,
+            required_record_ids=frozenset({"DM-0006"}),
+            required_value_path_prefixes=("rationale_summary",),
+        ),
+    )
+    port = FakePort(
+        results={
+            "q": _result(
+                QueryState.ANSWERED,
+                (
+                    _citation("DM-0006", "why[0]"),
+                    _citation("DM-0099", "rationale_summary"),
+                ),
+            )
+        }
+    )
+    outcome = run_evaluation((fixture,), port)
+    assert outcome.failed == 1
+    assert (
+        "no required record's citation carries value path prefix"
+        in outcome.checks[0].detail
+    )
 
 
 def test_failed_state_fails_an_answered_fixture() -> None:
@@ -434,6 +521,46 @@ def test_runs_measures_rate_across_repeated_queries() -> None:
     assert outcome2.checks[0].runs_passed == 2
     assert outcome2.checks[0].runs_total == 3
     assert "2/3 runs passed" in outcome2.checks[0].detail
+    # The failing run is the middle one (index 1); the detail must name why
+    # that run failed, not repeat the last (passing) run's detail on a row
+    # marked FAIL.
+    assert "missing required records DM-0012" in outcome2.checks[0].detail
+    assert "answered with required citations" not in outcome2.checks[0].detail
+
+
+def test_retrieval_failure_becomes_a_failed_fixture_not_a_crash() -> None:
+    """A RetrievalFailure must not abort the whole battery.
+
+    ``query_index`` raises RetrievalFailure rather than returning it as a
+    QueryResult (AC-9); the engine must catch it at the port boundary so one
+    integrity failure produces a legible FAIL row instead of an unhandled
+    exception that discards every fixture already run.
+    """
+    fixture = EvaluationFixture(
+        id="f",
+        kind=FixtureKind.QUERY,
+        question="q",
+        oracle=QueryOracle(expected_state=QueryState.ANSWERED),
+    )
+    partial_trace = PartialQueryTrace(
+        freshness=_empty_trace(QueryState.ANSWERED).freshness,
+        filters=None,
+        lexical=None,
+        semantic=None,
+        fusion=None,
+        diversity=None,
+        providers=(),
+    )
+
+    class FailingPort(FakePort):
+        def run_query(self, question: str) -> QueryResult:
+            raise RetrievalFailure(RetrievalStage.SEMANTIC, partial_trace)
+
+    outcome = run_evaluation((fixture,), FailingPort())
+    assert outcome.passed == 0
+    assert outcome.failed == 1
+    assert outcome.exit_code == 1
+    assert "retrieval integrity failure at semantic" in outcome.checks[0].detail
 
 
 def test_full_battery_exit_code_zero_only_when_all_pass() -> None:
