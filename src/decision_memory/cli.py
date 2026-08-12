@@ -1082,6 +1082,55 @@ def _print_partial_query_debug(partial: PartialQueryTrace) -> None:
 _MAX_EVALUATE_RUNS = 20
 
 
+def _resolve_evaluate_paths(
+    records: Path | None, store: Path | None, stack: ExitStack
+) -> tuple[Path, Path]:
+    """Resolve --records/--store to concrete paths, warning on existing content.
+
+    A user supplied path that already has content is not refused (evaluate
+    always rebuilds, and reusing a scratch location on purpose is legitimate),
+    just warned about loudly before the destructive step. A defaulted path is
+    a fresh ``TemporaryDirectory`` registered on ``stack`` so it is removed
+    on exit either way.
+    """
+    if records is not None:
+        records_dir = records
+        if records_dir.is_dir() and any(records_dir.iterdir()):
+            typer.echo(
+                f"warning: {records_dir} is not empty; evaluate always "
+                "rebuilds and will overwrite its records and manifest"
+            )
+    else:
+        records_dir = Path(
+            stack.enter_context(
+                tempfile.TemporaryDirectory(prefix="decision-memory-evaluate-records-")
+            )
+        )
+    if store is not None:
+        store_dir = store
+        if read_active(store_dir) is not None:
+            typer.echo(
+                f"warning: {store_dir} already has an active generation; "
+                "evaluate always rebuilds and will replace it"
+            )
+        elif store_dir.is_dir() and any(store_dir.iterdir()):
+            # A store with content but no readable ACTIVE file yet (a
+            # generation mid write, or unrelated files at that path): the
+            # active-generation check alone would miss it, and evaluate is
+            # about to write into this directory regardless.
+            typer.echo(
+                f"warning: {store_dir} is not empty; evaluate always "
+                "rebuilds and will write into it"
+            )
+    else:
+        store_dir = Path(
+            stack.enter_context(
+                tempfile.TemporaryDirectory(prefix="decision-memory-evaluate-store-")
+            )
+        )
+    return records_dir, store_dir
+
+
 @app.command("evaluate")
 def evaluate_command(
     corpus_path: Annotated[
@@ -1150,36 +1199,7 @@ def evaluate_command(
         )
 
     with ExitStack() as stack:
-        if records is not None:
-            records_dir = records
-            if records_dir.is_dir() and any(records_dir.iterdir()):
-                typer.echo(
-                    f"warning: {records_dir} is not empty; evaluate always "
-                    "rebuilds and will overwrite its records and manifest"
-                )
-        else:
-            records_dir = Path(
-                stack.enter_context(
-                    tempfile.TemporaryDirectory(
-                        prefix="decision-memory-evaluate-records-"
-                    )
-                )
-            )
-        if store is not None:
-            store_dir = store
-            if read_active(store_dir) is not None:
-                typer.echo(
-                    f"warning: {store_dir} already has an active generation; "
-                    "evaluate always rebuilds and will replace it"
-                )
-        else:
-            store_dir = Path(
-                stack.enter_context(
-                    tempfile.TemporaryDirectory(
-                        prefix="decision-memory-evaluate-store-"
-                    )
-                )
-            )
+        records_dir, store_dir = _resolve_evaluate_paths(records, store, stack)
         # Printed before adapt/ingest/the battery run, not just before the
         # report: a live --runs 3 battery takes minutes, and a blank
         # terminal until the very end looks hung. The defaulted paths are
@@ -1193,7 +1213,7 @@ def evaluate_command(
 
         adapt_outcome = runner.adapt()
         if adapt_outcome.exit_code != 0:
-            typer.echo(f"adapt failed with exit code {adapt_outcome.exit_code}")
+            _print_adapt_report(adapt_outcome)
             raise typer.Exit(adapt_outcome.exit_code)
         ingest_result = runner.ingest(rebuild=True)
         if ingest_result.exit_code != 0:

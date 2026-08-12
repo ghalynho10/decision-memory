@@ -66,10 +66,13 @@ class QueryOracle:
 
     ``expected_state`` is answered or abstained. For answered results,
     ``required_record_ids`` must all be cited, and each
-    ``required_value_path_prefixes`` entry must match at least one citation.
-    ``cite_all_proposed`` (query 3) additionally requires every proposed
-    record to be cited; the proposed set is resolved through the port so the
-    oracle tracks the corpus instead of a hardcoded id.
+    ``required_value_path_prefixes`` entry must match at least one citation
+    belonging to a required record (or to the proposed set, when
+    ``cite_all_proposed`` is set and no record ids are otherwise required);
+    a prefix matched only by an unrelated citation does not satisfy the
+    oracle. ``cite_all_proposed`` (query 3) additionally requires every
+    proposed record to be cited; the proposed set is resolved through the
+    port so the oracle tracks the corpus instead of a hardcoded id.
     """
 
     expected_state: QueryState
@@ -127,6 +130,21 @@ class ReingestEvidence:
 
 
 @dataclass(frozen=True)
+class ProposedRecords:
+    """Every proposed record id, plus how many record files could not be read.
+
+    ``unparsed_count`` being nonzero means ``ids`` may be smaller than the
+    corpus actually has: a parse failure or a missing id drops a record from
+    the set silently rather than raising (see
+    ``EvaluationRunner.proposed_record_ids``), so the oracle must treat a
+    nonzero count as "this set cannot be trusted", not "nothing more to find".
+    """
+
+    ids: frozenset[str] = frozenset()
+    unparsed_count: int = 0
+
+
+@dataclass(frozen=True)
 class EvaluationCheck:
     """One executed fixture row, for the report."""
 
@@ -152,13 +170,15 @@ class EvaluationPort(Protocol):
 
     ``run_query`` executes one live query and returns its full traced result.
     ``proposed_record_ids`` returns every record id whose canonical status is
-    proposed, so query 3's oracle derives from the records themselves.
-    ``run_reingest`` runs the edit, re adapt, re ingest, compare flow and
-    reports whether the target record's chunks changed.
+    proposed, plus how many record files it could not read, so query 3's
+    oracle derives from the records themselves and can tell a complete set
+    from an incomplete one. ``run_reingest`` runs the edit, re adapt, re
+    ingest, compare flow and reports whether the target record's chunks
+    changed.
     """
 
     def run_query(self, question: str) -> QueryResult: ...
-    def proposed_record_ids(self) -> frozenset[str]: ...
+    def proposed_record_ids(self) -> ProposedRecords: ...
     def run_reingest(
         self, record_id: str, rationale_relpath: str
     ) -> ReingestEvidence: ...
@@ -258,7 +278,9 @@ def run_evaluation(
     passed = 0
     failed = 0
     proposed = (
-        port.proposed_record_ids() if _needs_proposed_records(fixtures) else frozenset()
+        port.proposed_record_ids()
+        if _needs_proposed_records(fixtures)
+        else ProposedRecords()
     )
     for fixture in fixtures:
         if fixture.kind == FixtureKind.QUERY:
@@ -296,7 +318,7 @@ def _needs_proposed_records(fixtures: Sequence[EvaluationFixture]) -> bool:
 def _run_query_fixture(
     fixture: EvaluationFixture,
     port: EvaluationPort,
-    proposed: frozenset[str],
+    proposed: ProposedRecords,
     runs: int,
 ) -> EvaluationCheck:
     assert fixture.question is not None and fixture.oracle is not None
@@ -354,7 +376,7 @@ def _run_reingest_fixture(
 
 
 def _satisfies(
-    result: QueryResult, oracle: QueryOracle, proposed: frozenset[str]
+    result: QueryResult, oracle: QueryOracle, proposed: ProposedRecords
 ) -> tuple[bool, str]:
     """Whether one query result satisfies its oracle, with a legible reason."""
     if oracle.expected_state == QueryState.ABSTAINED:
@@ -378,43 +400,63 @@ def _satisfies(
         )
     cited_ids = {c.record_id for c in result.citations}
     if oracle.cite_all_proposed:
-        if not proposed:
+        if proposed.unparsed_count:
+            # Not every proposed record could be read, so the set may be
+            # smaller than the corpus actually has; a shrunken set can look
+            # satisfied on evidence that proves nothing about the records
+            # that silently dropped out. Fail loudly rather than checking
+            # against a set that might already be incomplete.
+            return (
+                False,
+                f"{proposed.unparsed_count} record file(s) could not be read "
+                "while resolving the proposed set; it may be incomplete",
+            )
+        if not proposed.ids:
             # An empty proposed set is not "nothing to check", it is the
             # oracle's own input having gone missing (a parse regression, an
             # adapter change, or a corpus with no proposed records at all);
-            # cited_ids - proposed would otherwise be vacuously satisfied by
-            # any answer at all, the same false-positive shape the re-ingest
-            # oracle had before it required a non-empty ``after``.
+            # proposed.ids - cited_ids would otherwise be vacuously satisfied
+            # by any answer at all, the same false-positive shape the
+            # re-ingest oracle had before it required a non-empty ``after``.
             return (
                 False,
                 "cite_all_proposed is set but no proposed records were found; "
                 "the oracle has nothing to verify against",
             )
-        missing = sorted(proposed - cited_ids)
-        if missing:
+        missing_proposed = sorted(proposed.ids - cited_ids)
+        if missing_proposed:
             return (
                 False,
-                f"did not cite every proposed record; missing {', '.join(missing)}",
+                "did not cite every proposed record; missing "
+                f"{', '.join(missing_proposed)}",
             )
-    missing = sorted(oracle.required_record_ids - cited_ids)
-    if missing:
+    missing_required = sorted(oracle.required_record_ids - cited_ids)
+    if missing_required:
         return (
             False,
-            f"missing required records {', '.join(missing)} from citations",
+            f"missing required records {', '.join(missing_required)} from citations",
         )
+    # The set of records a value path prefix must belong to: the explicit
+    # required_record_ids when set, else the proposed set when
+    # cite_all_proposed is set (so a fixture combining the two, though none
+    # ships in the battery today, can't pass on an unrelated record's
+    # prefix), else no scope at all (a prefix with neither is matched by any
+    # citation, today's only such fixture).
+    record_scope = oracle.required_record_ids or (
+        proposed.ids if oracle.cite_all_proposed else frozenset()
+    )
     for prefix in oracle.required_value_path_prefixes:
-        # When specific records are required, the prefix must be matched by
-        # one of THOSE records' citations, not merely by some citation
-        # somewhere in the answer: otherwise a result that cites the right
-        # record for its required_record_ids and an unrelated record for its
-        # value path would satisfy both checks without proving what the
-        # fixture is actually named for (e.g. assertion-rationale-summary
-        # proving DM-0006's own rationale_summary reached the answer, not
-        # some other record's).
-        if oracle.required_record_ids:
+        # When a record scope applies, the prefix must be matched by one of
+        # THOSE records' citations, not merely by some citation somewhere in
+        # the answer: otherwise a result that cites the right record for its
+        # required_record_ids and an unrelated record for its value path
+        # would satisfy both checks without proving what the fixture is
+        # actually named for (e.g. assertion-rationale-summary proving
+        # DM-0006's own rationale_summary reached the answer, not some other
+        # record's).
+        if record_scope:
             matched = any(
-                c.value_path.startswith(prefix)
-                and c.record_id in oracle.required_record_ids
+                c.value_path.startswith(prefix) and c.record_id in record_scope
                 for c in result.citations
             )
         else:

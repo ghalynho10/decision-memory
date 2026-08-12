@@ -19,7 +19,9 @@ import pytest
 from spec_factory import make_corpus, write_spec
 
 from decision_memory.application.dto import IngestState
+from decision_memory.domain.records import CanonicalDecisionRecord, Status
 from decision_memory.infrastructure.evaluation_runner import EvaluationRunner
+from decision_memory.infrastructure.file_reader import write_record_file
 from decision_memory.infrastructure.index_lock import store_lock
 
 
@@ -279,3 +281,58 @@ def test_run_reingest_fails_when_record_had_no_chunks_before_the_edit(
 
     assert evidence.chunks_changed is False
     assert evidence.detail == "record DM-0001 had no active chunks"
+
+
+# ---------------------------------------------------------------------------
+# proposed_record_ids: pure filesystem-plus-parse logic, no adapt/ingest/store
+# ---------------------------------------------------------------------------
+
+
+def test_proposed_record_ids_finds_only_proposed_status(tmp_path: Path) -> None:
+    records_dir = tmp_path / "records"
+    write_record_file(
+        CanonicalDecisionRecord(id="DM-0001", title="Proposed", status=Status.PROPOSED),
+        records_dir / "DM-0001.md",
+    )
+    write_record_file(
+        CanonicalDecisionRecord(id="DM-0002", title="Accepted", status=Status.ACCEPTED),
+        records_dir / "DM-0002.md",
+    )
+    runner = EvaluationRunner(tmp_path / "corpus", records_dir, tmp_path / "store")
+
+    proposed = runner.proposed_record_ids()
+
+    assert proposed.ids == frozenset({"DM-0001"})
+    assert proposed.unparsed_count == 0
+
+
+def test_proposed_record_ids_counts_unparseable_files(tmp_path: Path) -> None:
+    """A file with no frontmatter fence counts as unparsed, not silently skipped."""
+    records_dir = tmp_path / "records"
+    records_dir.mkdir()
+    write_record_file(
+        CanonicalDecisionRecord(id="DM-0001", title="Proposed", status=Status.PROPOSED),
+        records_dir / "DM-0001.md",
+    )
+    (records_dir / "garbage.md").write_text(
+        "not a record file at all, no frontmatter fence", encoding="utf-8"
+    )
+    runner = EvaluationRunner(tmp_path / "corpus", records_dir, tmp_path / "store")
+
+    proposed = runner.proposed_record_ids()
+
+    assert proposed.ids == frozenset({"DM-0001"})
+    assert proposed.unparsed_count == 1
+
+
+def test_proposed_record_ids_empty_directory_is_a_clean_empty_set(
+    tmp_path: Path,
+) -> None:
+    records_dir = tmp_path / "records"
+    records_dir.mkdir()
+    runner = EvaluationRunner(tmp_path / "corpus", records_dir, tmp_path / "store")
+
+    proposed = runner.proposed_record_ids()
+
+    assert proposed.ids == frozenset()
+    assert proposed.unparsed_count == 0

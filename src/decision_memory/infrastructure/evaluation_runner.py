@@ -30,7 +30,7 @@ from decision_memory.application.dto import (
     QueryRequest,
     QueryResult,
 )
-from decision_memory.application.evaluation import ReingestEvidence
+from decision_memory.application.evaluation import ProposedRecords, ReingestEvidence
 from decision_memory.application.ingest import IngestDependencies, ingest_records
 from decision_memory.application.query import QueryDependencies, query_index
 from decision_memory.domain.records import Status
@@ -193,28 +193,29 @@ class EvaluationRunner:
                 ),
             )
 
-    def proposed_record_ids(self) -> frozenset[str]:
-        """Every record id whose canonical status is proposed.
+    def proposed_record_ids(self) -> ProposedRecords:
+        """Every proposed record id, plus how many record files did not parse.
 
         Reads the adapted records directory, so the query 3 oracle derives
         from the records themselves instead of a hardcoded id. A record that
-        failed to parse, or parsed without an id, is skipped rather than
-        raised: this runs once at the start of the whole battery (not inside
-        a single fixture), so an exception here would crash every fixture,
-        not just query 3. The oracle itself (``_satisfies`` in
-        ``application/evaluation.py``) is where an empty proposed set is
-        turned into a named, legible failure instead of a vacuous pass.
+        failed to parse, or parsed without an id, is counted in
+        ``unparsed_count`` rather than raised: this runs once at the start of
+        the whole battery (not inside a single fixture), so an exception here
+        would crash every fixture, not just query 3. The oracle itself
+        (``_satisfies`` in ``application/evaluation.py``) is where a nonzero
+        count, or an empty proposed set, is turned into a named, legible
+        failure instead of a silently shrunken or vacuous pass.
         """
         ids: set[str] = set()
+        unparsed_count = 0
         for path in self.records_dir.glob("*.md"):
             parsed = parse_record_file(path)
-            if (
-                parsed.record is not None
-                and parsed.record.status == Status.PROPOSED
-                and parsed.record.id is not None
-            ):
+            if parsed.record is None or parsed.record.id is None:
+                unparsed_count += 1
+                continue
+            if parsed.record.status == Status.PROPOSED:
                 ids.add(parsed.record.id)
-        return frozenset(ids)
+        return ProposedRecords(ids=frozenset(ids), unparsed_count=unparsed_count)
 
     def run_reingest(self, record_id: str, rationale_relpath: str) -> ReingestEvidence:
         """Edit a rationale.md copy, re adapt, re ingest, and compare chunks.

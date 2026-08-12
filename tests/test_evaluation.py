@@ -43,6 +43,7 @@ from decision_memory.application.evaluation import (
     EvaluationFixture,
     EvaluationPort,
     FixtureKind,
+    ProposedRecords,
     QueryOracle,
     ReingestEvidence,
     run_evaluation,
@@ -163,6 +164,7 @@ class FakePort(EvaluationPort):
 
     results: dict[str, QueryResult] | None = None
     proposed: frozenset[str] = frozenset()
+    proposed_unparsed_count: int = 0
     reingest_evidence: ReingestEvidence | None = None
     calls: list[str] | None = None
 
@@ -173,8 +175,10 @@ class FakePort(EvaluationPort):
             raise AssertionError(f"unexpected query: {question}")
         return self.results[question]
 
-    def proposed_record_ids(self) -> frozenset[str]:
-        return self.proposed
+    def proposed_record_ids(self) -> ProposedRecords:
+        return ProposedRecords(
+            ids=self.proposed, unparsed_count=self.proposed_unparsed_count
+        )
 
     def run_reingest(self, record_id: str, rationale_relpath: str) -> ReingestEvidence:
         if self.reingest_evidence is None:
@@ -391,6 +395,71 @@ def test_value_path_prefix_must_belong_to_a_required_record() -> None:
                 ),
             )
         }
+    )
+    outcome = run_evaluation((fixture,), port)
+    assert outcome.failed == 1
+    assert (
+        "no required record's citation carries value path prefix"
+        in outcome.checks[0].detail
+    )
+
+
+def test_cite_all_proposed_fails_when_some_records_could_not_be_parsed() -> None:
+    """A partial shrink of the proposed set must fail loudly, not silently.
+
+    The empty-set guard alone only catches total loss. If one proposed
+    record among several silently fails to parse, the remaining ones can
+    still all be cited, satisfying ``proposed - cited_ids`` on a set that
+    was never complete in the first place.
+    """
+    fixture = EvaluationFixture(
+        id="f",
+        kind=FixtureKind.QUERY,
+        question="q",
+        oracle=QueryOracle(expected_state=QueryState.ANSWERED, cite_all_proposed=True),
+    )
+    port = FakePort(
+        proposed=frozenset({"DM-0015"}),
+        proposed_unparsed_count=1,
+        results={
+            "q": _result(
+                QueryState.ANSWERED, (_citation("DM-0015", "decision.chosen"),)
+            )
+        },
+    )
+    outcome = run_evaluation((fixture,), port)
+    assert outcome.failed == 1
+    assert "could not be read" in outcome.checks[0].detail
+
+
+def test_value_path_prefix_matched_against_proposed_set() -> None:
+    """cite_all_proposed plus a prefix must not pass on an unrelated citation.
+
+    No shipped fixture combines the two, but the co-location rule that
+    closed this hole for required_record_ids must also hold when the record
+    scope comes from the proposed set instead.
+    """
+    fixture = EvaluationFixture(
+        id="f",
+        kind=FixtureKind.QUERY,
+        question="q",
+        oracle=QueryOracle(
+            expected_state=QueryState.ANSWERED,
+            cite_all_proposed=True,
+            required_value_path_prefixes=("decision.chosen",),
+        ),
+    )
+    port = FakePort(
+        proposed=frozenset({"DM-0015"}),
+        results={
+            "q": _result(
+                QueryState.ANSWERED,
+                (
+                    _citation("DM-0015", "why[0]"),
+                    _citation("DM-0099", "decision.chosen"),
+                ),
+            )
+        },
     )
     outcome = run_evaluation((fixture,), port)
     assert outcome.failed == 1
