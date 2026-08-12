@@ -28,6 +28,17 @@ The relevance floor is not enabled now, and is not treated as the fix for the ve
 
 The verification layer also has observed intermittent abstentions on supported questions and one unsupported answer on an unrelated question. Hybrid breadth is not allowed to make that grounding problem quieter. Unsupported cited output from either live oracle blocks this feature, while Feature 11 remains responsible for the reusable harness and measured calibration.
 
+## Check verify run and landing (2026-08-11)
+
+`/check verify` ran the full ladder against one rebuilt format 2 JobPilot store. Gates 1 to 6 pass with cited evidence: local quality gates (ruff, format, strict mypy, 431 unit, 14 integration, build), the filter contract through the real CLI (exit 2 usage errors, zero provider filter abstention, record id/value path/status filters constraining retrieval), the store and integrity boundaries (format 1 refusal, format 2 with SQLite schema 1, `chunk_id` locator metadata, cosine metric, zero parity problems, a forced semantic integrity failure exiting 1 with a partial trace and no `QueryResult`), and the trace and rendering contract (schema version 2, fixed section order including `Settings`, pinned settings, unchanged normal output).
+
+The two live smoke gates failed on the verification layer, not on retrieval:
+
+- **Query 2 (5 runs):** every run `answered`/exit 0 and cited `DM-0019`, but `DM-0004` was cited in only 3 of 5 runs. Runs 3 and 5 omitted the on demand generation point even though `DM-0004` chunks were in the diversity accepted context, so the miss is generation/verification coverage, not retrieval. The previous session's 5 of 5 was a favorable sample; the 5 of 5 to 3 of 5 swing validates AC-15's own caveat that a smoke gate is not a reliability estimate, within days of writing it.
+- **Query 4 (5 runs):** all five returned a cited answer (DM-0007, DM-0008, and DM-0012 across runs) instead of abstaining, confirming the known blocker recorded above. Deferred to Feature 11.
+
+Landing decision: Feature 10's own scope is complete and verified, so it is landed rather than held open. The two live acceptance gates are not declared passed; they are carried into Feature 11 as three items (query 4 fabrication, query 5 expected abstention, query 2 `DM-0004` coverage omission). This does not change AC-15 or the oracles, and does not make the unsupported query 4 answer acceptable.
+
 ## Options considered
 
 ### Option 1: Fix the query path with parallel retrieval and rank fusion

@@ -88,7 +88,7 @@ Prove:
 Prove:
 
 1. QueryResult and QueryTrace report schema version `2`.
-2. Debug sections appear in fixed order: Freshness, Filter, Lexical, Semantic, Fusion, Diversity, Facets, Draft, Verification, Providers, Citations, Result.
+2. Debug sections appear in fixed order: Freshness, Filter, Lexical, Semantic, Fusion, Diversity, Settings, Facets, Draft, Verification, Providers, Citations, Result.
 3. Filter, lexical, and semantic rows sort by chunk id. Filter trace includes every active chunk even with no filter.
 4. Fused candidates sort by fused rank and diversity accepted ids sort by final rank.
 5. Retrieval settings include tokenizer and stopword identifiers, the pinned stopword digest, BM25 variant and parameters, limits, RRF constant, diversity cap, cosine metric, and `None` relevance floor.
@@ -108,12 +108,14 @@ Every run must:
 
 1. Return `answered` and exit `0`.
 2. Cite `DM-0004` for on demand generation from the saved profile and storage of the produced PDF.
-3. Cite `DM-0014` for deliberately excluding projects from generated resumes.
+3. Cite `DM-0019` for deliberately excluding projects from generated resumes (DM-0019 AC-9; corrected oracle — was `DM-0014`, a flat single file spec the adapter does not ingest).
 4. Cite `DM-0019` for ATS quality guidance and deterministic guards against unsupported numbers and em dash output.
 5. Contain no factual sentence whose citations do not support it.
 6. Show the three records surviving fusion and diversity in trace.
 
 Any unsupported cited answer blocks completion.
+
+**Gate status (2026-08-11):** failing on the Feature 11 verification gap. 5 of 5 runs returned `answered`/exit 0 and cited `DM-0019`, but `DM-0004` was cited in only 3 of 5 (runs 3 and 5 omitted it although `DM-0004` chunks were in the diversity accepted context). This is a generation/verification coverage omission, the same class as the query 4 fabrication. Carried into Feature 11 as the query 2 DM-0004 coverage item. This gate is not declared passed.
 
 ### 8. Live query 4 smoke gate
 
@@ -131,6 +133,8 @@ Every run must:
 4. Preserve the complete retrieval and verification trace reached by that run.
 
 The evidence is outside the adapted corpus. A cited answer is a failure, not a partial pass.
+
+**Gate status (2026-08-11):** failing — 5 of 5 runs returned a cited answer (DM-0007, DM-0008, and DM-0012 across runs) instead of abstaining. This is the known, documented blocker (rationale "Query 4 verification finding", "Verification unit gap", "Relevance floor decision"; index.md Follow-up 6, 7, 8). Deferred to Feature 11; this gate is not declared passed.
 
 ## Evidence to record
 
