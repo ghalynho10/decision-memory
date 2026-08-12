@@ -7,6 +7,7 @@ package boots and builds.
 """
 
 import json
+import tempfile
 from importlib.metadata import version
 from pathlib import Path
 from typing import Annotated
@@ -47,6 +48,11 @@ from decision_memory.application.dto import (
     QueryState,
     RetrievalFailure,
 )
+from decision_memory.application.evaluation import (
+    EVALUATION_FIXTURES,
+    EvaluationOutcome,
+    run_evaluation,
+)
 from decision_memory.application.filters import FilterUsageError, build_query_filters
 from decision_memory.application.ingest import IngestDependencies, ingest_records
 from decision_memory.application.query import QueryDependencies, query_index
@@ -59,6 +65,7 @@ from decision_memory.infrastructure.conformance_manifest import (
     load_conformance_manifest,
 )
 from decision_memory.infrastructure.doctor_scanner import scan_corpus
+from decision_memory.infrastructure.evaluation_runner import EvaluationRunner
 from decision_memory.infrastructure.file_reader import (
     parse_record_file,
     write_record_file,
@@ -1066,6 +1073,109 @@ def _print_partial_query_debug(partial: PartialQueryTrace) -> None:
             f"  {attempt.concern} attempt={attempt.attempt_number} "
             f"elapsed_ms={attempt.elapsed_ms} outcome={attempt.outcome.value}"
         )
+
+
+@app.command("evaluate")
+def evaluate_command(
+    corpus_path: Annotated[
+        Path | None,
+        typer.Argument(
+            help="Path to the corpus; defaults to the configured corpus_root"
+        ),
+    ] = None,
+    records: Annotated[
+        Path | None,
+        typer.Option(
+            "--records",
+            help="Records directory; defaults to a temporary directory",
+        ),
+    ] = None,
+    store: Annotated[
+        Path | None,
+        typer.Option(
+            "--store",
+            help="Index store path; defaults to a temporary directory",
+        ),
+    ] = None,
+    runs: Annotated[
+        int,
+        typer.Option(
+            "--runs",
+            help="Live query runs per fixture, to measure the rate across runs",
+        ),
+    ] = 1,
+) -> None:
+    """Run the evaluation harness: the five defining queries plus two assertions.
+
+    Adapts the corpus into canonical records, ingests them into a fresh store,
+    runs the fixed battery (the five defining queries, the rationale summary
+    assertion, the unverifiable claim fixture, and the incremental re ingest
+    assertion) against the real pipeline, and reports PASS or FAIL per fixture.
+    Exit 0 means every fixture passed; exit 1 means one or more failed; exit 2
+    is a usage error; exit 3 is a missing corpus.
+    """
+    settings = resolve_runtime_settings(
+        cli_corpus=corpus_path,
+        cli_adapter=None,
+        cli_output=None,
+        config=_project_config(),
+    )
+    if isinstance(settings, SettingsError):
+        typer.echo(settings.message)
+        raise typer.Exit(2)
+    if not settings.corpus_root.is_dir():
+        typer.echo(
+            f"corpus path does not exist or is not a directory: {settings.corpus_root}"
+        )
+        raise typer.Exit(3)
+    if runs < 1:
+        typer.echo("--runs must be at least 1")
+        raise typer.Exit(2)
+
+    records_dir = records or Path(
+        tempfile.mkdtemp(prefix="decision-memory-evaluate-records-")
+    )
+    store_dir = store or Path(
+        tempfile.mkdtemp(prefix="decision-memory-evaluate-store-")
+    )
+    runner = EvaluationRunner(settings.corpus_root, records_dir, store_dir)
+
+    adapt_outcome = runner.adapt()
+    if adapt_outcome.exit_code != 0:
+        typer.echo(f"adapt failed with exit code {adapt_outcome.exit_code}")
+        raise typer.Exit(adapt_outcome.exit_code)
+    ingest_result = runner.ingest(rebuild=True)
+    if ingest_result.exit_code != 0:
+        typer.echo("ingest failed; the harness needs OPENAI_API_KEY to build the index")
+        raise typer.Exit(ingest_result.exit_code)
+
+    outcome = run_evaluation(EVALUATION_FIXTURES, runner, runs=runs)
+    _print_evaluation_report(outcome, records_dir, store_dir)
+    raise typer.Exit(outcome.exit_code)
+
+
+def _print_evaluation_report(
+    outcome: EvaluationOutcome, records_dir: Path, store_dir: Path
+) -> None:
+    """Print the evaluation harness report, one line per fixture (feature 11).
+
+    Order is the fixed fixture order. Each fixture prints PASS or FAIL with its
+    detail; the run rate appears when ``--runs`` exceeds one. The final line
+    mirrors the conformance report grammar so Feature 15 can restyle it later.
+    """
+    typer.echo(f"records: {records_dir}")
+    typer.echo(f"store: {store_dir}")
+    for check in outcome.checks:
+        status = "PASS" if check.status else "FAIL"
+        rate = (
+            f" ({check.runs_passed}/{check.runs_total} runs)"
+            if check.runs_total > 1
+            else ""
+        )
+        typer.echo(f"{status} {check.fixture_id}{rate}: {check.detail}")
+    typer.echo(f"result: {outcome.passed} passed, {outcome.failed} failed")
+    final = "passed" if outcome.failed == 0 else "failed"
+    typer.echo(f"final: {final}")
 
 
 if __name__ == "__main__":
