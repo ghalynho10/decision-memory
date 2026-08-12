@@ -176,7 +176,7 @@ spec [0010](../specs/0010-abstention-verification-reliability/index.md) · code 
   - [x] Add the initial decomposition provider, per sub claim verification, and trace path (AC-5 to AC-8, AC-10)
   - [x] Remove parent restoration and enforce the accepted context citation boundary (AC-1, AC-4, AC-5, AC-8)
   - [x] Add exact decomposition outcomes and the lexical guard contract (AC-6, AC-7, AC-10, AC-11)
-  - [ ] Tighten canonical facet coverage and classify query 4 failures by stage (AC-2, AC-4, AC-12)
+  - [x] Tighten canonical facet coverage and classify query 4 failures by stage (AC-2, AC-4, AC-12)
   - [ ] Replace the affected tests and complete two live `--runs 3` batches (AC-1 to AC-12)
 - [ ] Verify it: `/check verify abstention verification reliability`
 - [ ] Test it: `/test abstention verification reliability`
