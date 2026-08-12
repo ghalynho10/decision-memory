@@ -101,6 +101,9 @@ def _empty_trace(state: QueryState) -> QueryTrace:
         removed_sentences=(),
         coverage=(),
         uncovered_facets=(),
+        decomposed=(),
+        empty_decompositions=(),
+        missing_chunk_refs=(),
     )
     return QueryTrace(
         freshness=freshness,

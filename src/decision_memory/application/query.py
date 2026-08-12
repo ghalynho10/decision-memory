@@ -62,6 +62,7 @@ from decision_memory.application.dto import (
     SemanticRow,
     SemanticTrace,
     StaleReason,
+    SubClaim,
     SupersessionNotice,
     VerificationTrace,
 )
@@ -77,7 +78,12 @@ from decision_memory.application.pipeline import (
     pipeline_signature,
 )
 from decision_memory.application.store_format import STORE_FORMAT_VERSION
-from decision_memory.application.verification import deterministic_containment
+from decision_memory.application.verification import (
+    MAX_SUB_CLAIMS,
+    decomposition_is_near_subset,
+    deterministic_containment,
+    normalize_for_containment,
+)
 
 EXIT_OK = 0
 EXIT_ERROR = 1
@@ -190,6 +196,9 @@ class QueryDependencies:
             list[ProviderAttempt] | None,
         ],
         tuple[DraftSentence, ...],
+    ]
+    decompose: Callable[
+        [str, Sequence[str], list[ProviderAttempt] | None], tuple[str, ...]
     ]
     entail: Callable[
         [str, Sequence[str], list[ProviderAttempt] | None], tuple[bool, str]
@@ -544,43 +553,129 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
         cited_chunk_ids=tuple(sorted(known_ids)),
     )
 
-    # Verify each sentence: deterministic containment first, then entailment.
+    # Verify each sentence: whole containment shortcut, then sub claim
+    # decomposition and per sub claim verification (spec 0010). A sentence
+    # that is verbatim in one of its cited chunks is kept untouched and never
+    # pays a decomposition call (AC-5). Any other sentence is decomposed into
+    # atomic sub claims and each sub claim is verified alone, so a verbatim
+    # borrowed clause can no longer hide an invented decision inside the same
+    # sentence (AC-1, AC-4).
     kept_sentences: list[DraftSentence] = []
     containment_rows: list[tuple[str, bool]] = []
     entailment_rows: list[tuple[str, str, str]] = []
     removed: list[str] = []
+    decomposed_rows: list[SubClaim] = []
+    empty_decompositions: list[str] = []
+    missing_chunk_refs: list[tuple[str, tuple[str, ...]]] = []
     chunk_text_by_id = {chunk.chunk_id: chunk.text for chunk in accepted_chunks}
     for sentence in draft:
-        cited_texts = [
-            chunk_text_by_id[chunk_id]
-            for chunk_id in sentence.chunk_ids
-            if chunk_id in chunk_text_by_id
+        present_ids = [
+            chunk_id for chunk_id in sentence.chunk_ids if chunk_id in chunk_text_by_id
         ]
-        contained = deterministic_containment(sentence.text, cited_texts)
+        missing_ids = tuple(
+            chunk_id
+            for chunk_id in sentence.chunk_ids
+            if chunk_id not in chunk_text_by_id
+        )
+        if missing_ids:
+            missing_chunk_refs.append((sentence.sentence_id, missing_ids))
+        present_texts = [chunk_text_by_id[chunk_id] for chunk_id in present_ids]
+        contained = deterministic_containment(sentence.text, present_texts)
         containment_rows.append((sentence.sentence_id, contained))
         if contained:
             kept_sentences.append(sentence)
             continue
+        if not present_texts:
+            # Verified against empty evidence: never supported (AC-8). The
+            # missing refs are already recorded above.
+            removed.append(sentence.sentence_id)
+            continue
         try:
-            supported, reason = deps.entail(sentence.text, cited_texts, attempts)
+            sub_claim_texts = deps.decompose(sentence.text, present_texts, attempts)
         except Exception as exc:  # noqa: BLE001 - provider failure is a result
             return _failed_result(
                 request,
                 freshness,
-                Failure("provider.entailment", "claim_verification", _safe(exc)),
+                Failure("provider.decompose", "claim_verification", _safe(exc)),
                 EXIT_ERROR,
                 attempts,
             )
-        entailment_rows.append(
-            (
-                sentence.sentence_id,
-                "supported" if supported else "unsupported",
-                reason,
+        if len(sub_claim_texts) > MAX_SUB_CLAIMS or not decomposition_is_near_subset(
+            sub_claim_texts, sentence.text
+        ):
+            sub_claim_texts = ()
+        if not sub_claim_texts:
+            empty_decompositions.append(sentence.sentence_id)
+            removed.append(sentence.sentence_id)
+            continue
+        # Drop normalized duplicate sub claim texts, then verify each alone.
+        seen_texts: set[str] = set()
+        unique_texts: list[str] = []
+        for text in sub_claim_texts:
+            key = normalize_for_containment(text)
+            if key not in seen_texts:
+                seen_texts.add(key)
+                unique_texts.append(text)
+        rows: list[SubClaim] = []
+        fragments: list[DraftSentence] = []
+        for index, text in enumerate(unique_texts):
+            sub_claim_id = f"{sentence.sentence_id}.{index + 1}"
+            matching_ids = tuple(
+                chunk_id
+                for chunk_id in present_ids
+                if deterministic_containment(text, [chunk_text_by_id[chunk_id]])
             )
-        )
-        if supported:
+            if matching_ids:
+                rows.append(
+                    SubClaim(
+                        sub_claim_id=sub_claim_id,
+                        sentence_id=sentence.sentence_id,
+                        text=text,
+                        contained=True,
+                        entailment="skipped",
+                        reason="",
+                        kept=True,
+                        citations=matching_ids,
+                    )
+                )
+                fragments.append(DraftSentence(sub_claim_id, text, matching_ids))
+                continue
+            try:
+                supported, reason = deps.entail(text, present_texts, attempts)
+            except Exception as exc:  # noqa: BLE001 - provider failure is a result
+                return _failed_result(
+                    request,
+                    freshness,
+                    Failure("provider.entailment", "claim_verification", _safe(exc)),
+                    EXIT_ERROR,
+                    attempts,
+                )
+            rows.append(
+                SubClaim(
+                    sub_claim_id=sub_claim_id,
+                    sentence_id=sentence.sentence_id,
+                    text=text,
+                    contained=False,
+                    entailment="supported" if supported else "unsupported",
+                    reason=reason,
+                    kept=supported,
+                    citations=sentence.chunk_ids,
+                )
+            )
+            if supported:
+                fragments.append(DraftSentence(sub_claim_id, text, sentence.chunk_ids))
+        decomposed_rows.extend(rows)
+        if len(fragments) == len(unique_texts):
+            # Every sub claim kept: re-emit the original sentence unchanged
+            # instead of the fragments (spec 0010).
             kept_sentences.append(sentence)
+        elif fragments:
+            # Some sub claims kept: the kept fragments become answer units.
+            kept_sentences.extend(fragments)
         else:
+            # Every sub claim unsupported: the sentence is fully removed. The
+            # kept=False rows above distinguish this from an empty
+            # decomposition (AC-6).
             removed.append(sentence.sentence_id)
 
     # Independent coverage over the original question, facets, and kept sentences.
@@ -605,6 +700,9 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
         removed_sentences=tuple(removed),
         coverage=coverage_rows,
         uncovered_facets=uncovered,
+        decomposed=tuple(decomposed_rows),
+        empty_decompositions=tuple(empty_decompositions),
+        missing_chunk_refs=tuple(missing_chunk_refs),
     )
     if uncovered:
         return _abstained_result(
@@ -1086,6 +1184,9 @@ def _empty_verification() -> VerificationTrace:
         removed_sentences=(),
         coverage=(),
         uncovered_facets=(),
+        decomposed=(),
+        empty_decompositions=(),
+        missing_chunk_refs=(),
     )
 
 

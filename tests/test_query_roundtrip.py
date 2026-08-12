@@ -16,6 +16,7 @@ import pytest
 from fake_index import (
     FakeIndex,
     fake_coverage,
+    fake_decompose,
     fake_embed,
     fake_entail,
     fake_extract_facets,
@@ -91,6 +92,7 @@ def _query_deps(index: Any, **overrides: object) -> QueryDependencies:
         ),
         "extract_facets": fake_extract_facets,
         "generate_answer": fake_generate_answer,
+        "decompose": fake_decompose,
         "entail": fake_entail,
         "coverage": fake_coverage,
     }

@@ -1,14 +1,15 @@
 """Infrastructure: the generation concern, one module (spec 0007 AC-15, AC-20).
 
-This module owns facet extraction, answer generation, entailment, and facet
-coverage, the four structured stages of the generation concern, and is the
-only place their OpenAI SDK calls live. Structured output uses JSON schema
-response formats; a malformed response gets one schema repair request carrying
-only the validation error and the original structured task, and a second
-malformed response is operational failure.
+This module owns facet extraction, answer generation, entailment, facet
+coverage, and sub claim decomposition (spec 0010), the five structured stages
+of the generation concern, and is the only place their OpenAI SDK calls live.
+Structured output uses JSON schema response formats; a malformed response gets
+one schema repair request carrying only the validation error and the original
+structured task, and a second malformed response is operational failure.
 
-Facet extraction and answer generation use gpt-4o; entailment and coverage use
-gpt-4o-mini; all generation calls use temperature 0 (settled defaults).
+Facet extraction and answer generation use gpt-4o; entailment, coverage, and
+decomposition use gpt-4o-mini; all generation calls use temperature 0
+(settled defaults).
 """
 
 from __future__ import annotations
@@ -25,6 +26,7 @@ from decision_memory.application.dto import (
     ProviderAttempt,
     SupersessionNotice,
 )
+from decision_memory.application.verification import MAX_SUB_CLAIMS
 from decision_memory.infrastructure.openai_common import (
     _client,
     require_api_key,
@@ -52,6 +54,14 @@ ANSWER_SYSTEM_PROMPT = (
     "supported by, exactly as shown in brackets in the evidence. Number the "
     "sentences S1, S2, and so on. Never invent facts outside the evidence. "
     "If the evidence cannot answer a facet, write nothing for it."
+)
+DECOMPOSE_SYSTEM_PROMPT = (
+    "Split the candidate sentence into atomic factual sub claims. Each sub "
+    "claim must be one atomic assertion stated nearly verbatim, using only "
+    "words and facts already present in the candidate sentence. Return at "
+    "most 8 sub claims. Never introduce content that is not in the candidate "
+    "sentence. If the sentence is already a single atomic claim, return it "
+    "as one sub claim."
 )
 
 MAX_FACETS = 8
@@ -146,6 +156,28 @@ def _coverage_schema() -> dict[str, Any]:
             }
         },
         "required": ["rows"],
+        "additionalProperties": False,
+    }
+
+
+def _decompose_schema() -> dict[str, Any]:
+    return {
+        "type": "object",
+        "properties": {
+            "sub_claims": {
+                "type": "array",
+                "maxItems": MAX_SUB_CLAIMS,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "text": {"type": "string"},
+                    },
+                    "required": ["text"],
+                    "additionalProperties": False,
+                },
+            }
+        },
+        "required": ["sub_claims"],
         "additionalProperties": False,
     }
 
@@ -340,6 +372,29 @@ def validate_coverage(
     return tuple(covered)
 
 
+def validate_decompose(payload: dict[str, Any]) -> tuple[str, ...]:
+    """Validate and normalize a decomposition payload: sub claim texts.
+
+    The cap is a sanity bound against a runaway response (spec 0010 AC-11);
+    the near subset contract is checked by the application after this
+    returns, since it needs the parent sentence text.
+    """
+    raw = payload.get("sub_claims")
+    if not isinstance(raw, list) or not (0 <= len(raw) <= MAX_SUB_CLAIMS):
+        raise GenerationError(
+            f"decomposition must contain 0 to {MAX_SUB_CLAIMS} sub claims"
+        )
+    texts: list[str] = []
+    for index, item in enumerate(raw):
+        if not isinstance(item, dict):
+            raise GenerationError(f"sub claim {index} is not an object")
+        text = item.get("text")
+        if not isinstance(text, str) or not text.strip():
+            raise GenerationError(f"sub claim {index} has empty text")
+        texts.append(text.strip())
+    return tuple(texts)
+
+
 # ---------------------------------------------------------------------------
 # The four generation stages
 # ---------------------------------------------------------------------------
@@ -528,3 +583,53 @@ def coverage_verdict(
                 }
             )
     raise GenerationError("coverage failed twice")
+
+
+def decompose_sentence(
+    sentence_text: str,
+    chunk_texts: Sequence[str],
+    attempts: list[ProviderAttempt] | None = None,
+) -> tuple[str, ...]:
+    """Split a candidate sentence into atomic sub claims (spec 0010).
+
+    Fixed to the entailment and coverage model. The contract, each returned
+    sub claim a near subset of the parent sentence's own text and at most
+    eight sub claims, is enforced by the application caller after this
+    returns, not here.
+    """
+    evidence = "\n\n---\n\n".join(
+        f"CHUNK {index}: {text}" for index, text in enumerate(chunk_texts)
+    )
+    messages = [
+        {
+            "role": "system",
+            "content": DECOMPOSE_SYSTEM_PROMPT,
+        },
+        {
+            "role": "user",
+            "content": (
+                f"Candidate sentence:\n{sentence_text}\n\n"
+                "Evidence chunks (context only; never add content the "
+                f"candidate sentence does not contain):\n{evidence}"
+            ),
+        },
+    ]
+    for _ in range(2):
+        payload = _structured_call(
+            "decompose",
+            messages,
+            _decompose_schema(),
+            MODEL_ENTAILMENT_COVERAGE,
+            attempts,
+        )
+        try:
+            return validate_decompose(payload)
+        except GenerationError as exc:
+            messages.append(
+                {
+                    "role": "user",
+                    "content": f"The previous response was invalid: {exc}. "
+                    "Return only the corrected structured result.",
+                }
+            )
+    raise GenerationError("decomposition failed twice")

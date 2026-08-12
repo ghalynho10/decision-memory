@@ -84,6 +84,7 @@ from decision_memory.infrastructure.openai_common import require_api_key
 from decision_memory.infrastructure.openai_embeddings import embed_texts
 from decision_memory.infrastructure.openai_generation import (
     coverage_verdict,
+    decompose_sentence,
     entail_verdict,
     extract_facets,
     generate_answer,
@@ -794,6 +795,7 @@ def query_command(
                     ),
                     extract_facets=extract_facets,
                     generate_answer=generate_answer,
+                    decompose=decompose_sentence,
                     entail=entail_verdict,
                     coverage=coverage_verdict,
                 ),
@@ -980,6 +982,24 @@ def _print_query_debug(result: QueryResult) -> None:
         )
     for facet in trace.verification.uncovered_facets:
         typer.echo(f"  uncovered {facet.facet_id}: {facet.text}")
+    typer.echo("Sub claims")
+    for sub_claim in trace.verification.decomposed:
+        markers = ",".join(sub_claim.citations)
+        typer.echo(
+            f"  {sub_claim.sub_claim_id} ({sub_claim.sentence_id}): {sub_claim.text}"
+        )
+        typer.echo(
+            f"    contained={sub_claim.contained} "
+            f"entailment={sub_claim.entailment} kept={sub_claim.kept} "
+            f"[{markers}]"
+        )
+        if sub_claim.reason:
+            typer.echo(f"    reason={sub_claim.reason}")
+    for empty_id in trace.verification.empty_decompositions:
+        typer.echo(f"  empty_decomposition {empty_id}")
+    for sentence_id, missing_ids in trace.verification.missing_chunk_refs:
+        markers = ",".join(missing_ids)
+        typer.echo(f"  missing_chunk_refs {sentence_id} [{markers}]")
     typer.echo("Providers")
     for attempt in trace.providers:
         typer.echo(

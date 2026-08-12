@@ -311,6 +311,16 @@ def fake_entail(sentence, chunk_texts, attempts=None) -> tuple[bool, str]:
     return (True, "direct support")
 
 
+def fake_decompose(sentence_text, chunk_texts, attempts=None) -> tuple[str, ...]:
+    """An under split: the whole sentence as a single sub claim.
+
+    Combined with ``fake_entail`` returning supported, every non verbatim
+    sentence is fully kept and re emitted unchanged, so the fakes preserve
+    the pre spec 0010 answer behavior.
+    """
+    return (sentence_text,)
+
+
 def fake_coverage(
     question, facets, sentences, attempts=None
 ) -> tuple[CoverageRow, ...]:

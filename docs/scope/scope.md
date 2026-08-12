@@ -26,6 +26,8 @@ _You are in charge. Every box below is a suggestion, not a gate: run any, skip a
 | 13 | Declarative adapters | V2 | planned |
 | 14 | MCP server interface | V2 | planned |
 | 15 | CLI presentation redesign | Slice 4 | planned |
+| 16 | Abstention verification reliability | Slice 3 | in-progress |
+| 17 | Retrieval query hardening | Slice 2 | planned |
 
 ## Foundations
 
@@ -149,6 +151,11 @@ spec [0008](../specs/0008-reliable-multi-source-retrieval/index.md)
 
 **Correction (2026-08-12):** the feature 11 harness measured query 4 across four `--runs 3` batches (12 runs). Abstention is a coin flip: 6 of 12 abstained, with whole batches flipping between 3/3 abstain and 3/3 answer (citations `DM-0007`/`DM-0008` when it answers). The earlier "5 of 5 answered" was one unlucky sample, not a stable property, so the carry in is better described as "query 4 abstention unreliable (stochastic)" than "query 4 fabricates". Query 5 remains a stable FAIL (`DM-0002` answered 0 of 12) and query 2 `DM-0004` coverage remains intermittent (6 of 12).
 
+### 17. Retrieval query hardening
+Fix four unresolved minors from the feature 10 review (`docs/reviews/2026-08-11-multi-source-retrieval.md`), still present in code: a filter matching no chunk can mask a store parity failure or an over limit question as an honest abstention, since the token limit and parity checks run after the empty filter early return; a diversity failure's partial trace carries invented fusion dispositions (`breadth_disposition=RECORD_CAP`, `final_disposition=OUTSIDE_TOP_8`) instead of leaving that section absent; no test enforces the application and domain layers' ban on `rank_bm25`, `chromadb`, `openai`, `typer`, and `pydantic` imports; and `QUERY_SCHEMA_VERSION` is defined and exported but dead, with `schema_version=2` hardcoded at three call sites in `query.py` instead.
+**Done when:** all four are fixed and regression locked by tests, per the review's suggested fixes.
+- [ ] Build it: `/develop retrieval query hardening`
+
 ## Slice 3: Proven correctness (evaluation harness)
 
 ### 11. Proven correctness (evaluation harness) · done
@@ -159,6 +166,21 @@ code in src/decision_memory/
 
 **Status (2026-08-12, re-verified after four `/check review` rounds):** the harness is built, verified live, and test locked; the `evaluate` command runs all eight fixtures in fixed order, reports per fixture pass or fail plus the rate across `--runs N`, and exits 0, 1, 2, or 3. It also caught a real `active_chunks` column swap bug, regression locked by an integration marked test (not unit; that test does not run on the push gate, see `verify.md`). The two fixtures still failing live are feature 10 carry-ins, not harness defects: query 5 (`DM-0002` answered instead of abstain) is stable, query 4 abstention is a measured coin flip; the harness measures and reports them, it does not patch them. Query 1 and the rationale summary assertion were re-verified live 3/3 after a review round tightened their oracle to require citation co-location. Verified with `/check verify` and `/test` (486 unit passing).
 
+### 16. Abstention verification reliability
+Close the sub sentence verification gap spec 0008 named and feature 11 measured live: a sentence that fuses a fabricated decision with a verbatim evidence clause can pass both the containment and entailment checks, so query 4 and query 5 answer instead of honestly abstaining, and query 2's `DM-0004` coverage stays intermittent. The relevance floor correlates the symptom away without closing the gap (spec 0008 rationale, "Verification unit gap"). Feature 11 measured and reported this; it did not patch it.
+**Done when:** query 4 and query 5 abstain reliably, not a stochastic coin flip, and query 2 cites `DM-0004` consistently, confirmed across repeated live `evaluate --runs` batches.
+**Carried from:** spec 0008 Follow-up items 1, 6, 7, 8, 9; spec 0009 `verify.md` known state, 2026-08-12. Structured query types for alternatives, lineage, and supersession traversal (spec 0008 Follow-up item 4) stay deferred: the evidence feature 11 supplied points at this verification gap, not a missing query type.
+spec [0010](../specs/0010-abstention-verification-reliability/index.md) · code in src/decision_memory/
+- [x] Design it (spec): `/architect abstention verification reliability`
+- [ ] Build it: `/develop abstention verification reliability`
+  - [x] Add the decomposition provider call and its contract guardrail (near-subset check, cap 8) (AC-6, AC-7, AC-11)
+  - [x] Wire sub claim verification into `query.py`: decompose, verify each sub claim, narrow containment grounded citations, re-emit fully grounded sentences, feed the existing coverage check (AC-1, AC-4, AC-5, AC-6, AC-8)
+  - [x] Extend `VerificationTrace` and the debug trace rendering with the additive fields (AC-6, AC-10)
+  - [x] Add the deterministic unit test suite (AC-1, AC-4 to AC-8, AC-10, AC-11)
+  - [ ] Live acceptance: two `--runs 3` batches against the real JobPilot corpus (AC-2, AC-3, AC-9)
+- [ ] Verify it: `/check verify abstention verification reliability`
+- [ ] Test it: `/test abstention verification reliability`
+
 ## Slice 4: Presentation
 
 Runs after Slice 2 and Slice 3, and before V2. The number 15 is only the next free ordinal, it is not a claim that this comes after everything else. Ordering against Feature 8 (built-in ADR adapters) is irrelevant, the two do not touch the same surface, and Feature 8 keeps its own sequencing (a `doctor` survey of real corpora first).
@@ -167,7 +189,7 @@ Runs after Slice 2 and Slice 3, and before V2. The number 15 is only the next fr
 Restyle the human facing output of the CLI to one defined visual language: a teal accent, aligned reports at 80 columns, status markers that carry both a shape and a word so meaning survives without color, a single line summary paired with the exit code, and a consistent error then hint then exit grammar. The visual target is an external design (opendesign), corrected against what the CLI really prints today.
 **Done when:** every one of the 7 commands (`version`, `validate`, `doctor`, `adapt`, `test-adapter`, `ingest`, `query`) prints in the new language, including its failure paths, and the whole surface stays untouched underneath: same commands, same flags, same exit codes, same JSON output, same DTOs, same backends.
 **Scope guardrails (carry into the spec):** presentation only. No new command, no new or renamed flag, no changed exit code, no changed DTO field, no retrieval or storage change. The change lives in `src/decision_memory/cli.py` plus one new rendering module; machine readable output (`--json` and friends) stays byte stable, since scripts depend on it.
-**Why it waits for Features 10 and 11:** Feature 10 (reliable multi source retrieval) rewrites what `query --debug` traces, since filtering and lexical stages add candidate sets and scores the current trace has no shape for. Styling today's trace first means styling it twice. Feature 11 (the evaluation harness) is the other output producer whose report shape is not settled yet. Build the visual language once, over output that has stopped moving.
+**Why it waits for Features 10, 11, and now 16:** Feature 10 (reliable multi source retrieval) rewrites what `query --debug` traces, since filtering and lexical stages add candidate sets and scores the current trace has no shape for. Styling today's trace first means styling it twice. Feature 11 (the evaluation harness) is the other output producer whose report shape is not settled yet. Feature 16 (abstention verification reliability) is a fix to the same verification layer the debug trace exposes, so it can reshape that output the same way Feature 10 did; build the visual language once, over output that has stopped moving.
 - [ ] Design it (spec): `/architect CLI presentation redesign`
 
 ## V2
@@ -191,6 +213,7 @@ Expose the query function as an MCP tool inside a coding agent, where day to day
 
 ## Deferred
 Out of scope for the current build pass, kept so the plan stays honest.
+- **Coverage direction (query 2 citation completeness)**: query 2's `DM-0004` citation is intermittent because generation is not required to cite every accepted chunk that directly answers a facet, while `DM-0019` is. Deliberately kept out of spec 0010 so the fabrication direction ships as one measurable change. Needs a decision on a stricter generation contract or a citation completeness verification stage · needs a decision
 - **Capture**: interview based record creation for projects with no existing decision shaped artifacts · needs a decision
 - **Capture revisit trigger**: revisit capture after the tool has been used on three projects that lack decision shaped artifacts and the need is demonstrated.
 - **Web UI**: a frontend over a thin HTTP layer on the core · needs a decision

@@ -552,14 +552,46 @@ class CoverageRow:
 
 
 @dataclass(frozen=True)
+class SubClaim:
+    """One atomic sub claim of a decomposed sentence (spec 0010).
+
+    Held only in the verification trace, never persisted. ``contained`` is
+    whether the whole sub claim is verbatim in a cited chunk;
+    ``entailment`` is one of ``skipped`` (contained, no model call),
+    ``supported``, or ``unsupported``; ``kept`` is
+    ``contained or entailment == "supported"``. ``citations`` narrows to the
+    specific matching chunk ids for a contained sub claim, else keeps the
+    parent sentence's full cited set, since ``entail_verdict`` returns no
+    per chunk attribution.
+    """
+
+    sub_claim_id: str
+    sentence_id: str
+    text: str
+    contained: bool
+    entailment: str
+    reason: str
+    kept: bool
+    citations: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class VerificationTrace:
-    """The verification decision for one query (AC-15)."""
+    """The verification decision for one query (AC-15, spec 0010).
+
+    The three trailing fields are the additive spec 0010 signal: which
+    sentences were decomposed, which decompositions came back empty, and
+    which parent chunk ids retrieval did not surface.
+    """
 
     containment: tuple[tuple[str, bool], ...]
     entailment: tuple[tuple[str, str, str], ...]
     removed_sentences: tuple[str, ...]
     coverage: tuple[CoverageRow, ...]
     uncovered_facets: tuple[Facet, ...]
+    decomposed: tuple[SubClaim, ...]
+    empty_decompositions: tuple[str, ...]
+    missing_chunk_refs: tuple[tuple[str, tuple[str, ...]], ...]
 
 
 @dataclass(frozen=True)
@@ -688,6 +720,7 @@ __all__ = [
     "SemanticTrace",
     "SelectionPass",
     "StaleReason",
+    "SubClaim",
     "SupersessionNotice",
     "VerificationTrace",
 ]

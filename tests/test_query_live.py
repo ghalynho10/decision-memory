@@ -37,6 +37,7 @@ from decision_memory.infrastructure.openai_common import require_api_key
 from decision_memory.infrastructure.openai_embeddings import embed_texts
 from decision_memory.infrastructure.openai_generation import (
     coverage_verdict,
+    decompose_sentence,
     entail_verdict,
     extract_facets,
     generate_answer,
@@ -128,6 +129,7 @@ def test_query_one_against_real_jobpilot(tmp_path) -> None:
             resolve_source=lambda path: resolve_source_path(path, _stored_hint()),
             extract_facets=extract_facets,
             generate_answer=generate_answer,
+            decompose=decompose_sentence,
             entail=entail_verdict,
             coverage=coverage_verdict,
         ),
@@ -225,6 +227,7 @@ def test_live_smoke_query_two_and_query_four(tmp_path) -> None:
             resolve_source=lambda path: resolve_source_path(path, _stored_hint()),
             extract_facets=extract_facets,
             generate_answer=generate_answer,
+            decompose=decompose_sentence,
             entail=entail_verdict,
             coverage=coverage_verdict,
         )
