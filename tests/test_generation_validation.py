@@ -305,6 +305,139 @@ def test_answer_prompt_instructs_s_ids_and_bracket_chunk_ids() -> None:
     assert "brackets" in ANSWER_SYSTEM_PROMPT
 
 
+_HEX_A = "a" * 64
+_HEX_B = "b" * 64
+_MARKER_A = f"ch_{_HEX_A}"
+_MARKER_B = f"ch_{_HEX_B}"
+_KNOWN = frozenset({_MARKER_A, _MARKER_B})
+
+
+def _one(text: str, chunk_ids: list[str] | None = None) -> dict[str, object]:
+    return {
+        "id": "S1",
+        "text": text,
+        "chunk_ids": chunk_ids if chunk_ids is not None else [_MARKER_A],
+    }
+
+
+def _text_of(text: str, chunk_ids: list[str] | None = None) -> str:
+    draft = validate_draft({"sentences": [_one(text, chunk_ids)]}, _KNOWN)
+    return draft[0].text
+
+
+def test_marker_never_survives_into_draft_text() -> None:
+    """A bracketed group, a bare mid sentence id, and a trailing group all
+    reach ``DraftSentence.text`` with no chunk id and single spaced prose,
+    while ``chunk_ids`` is untouched (spec 0010 AC-13)."""
+    expected = "The board approved the merger on Tuesday."
+    bracketed = _one(
+        f"The board approved the merger [{_MARKER_A}, {_MARKER_B}] on Tuesday.",
+        [_MARKER_A, _MARKER_B],
+    )
+    bare = _one(f"The board approved {_MARKER_A} the merger on Tuesday.")
+    trailing = _one(f"The board approved the merger on Tuesday [{_MARKER_A}].")
+    for payload in (bracketed, bare, trailing):
+        draft = validate_draft({"sentences": [payload]}, _KNOWN)
+        assert draft[0].text == expected
+        assert "ch_" not in draft[0].text
+        assert draft[0].chunk_ids == tuple(payload["chunk_ids"])  # type: ignore[arg-type]
+
+
+def test_marker_only_sentence_fails_as_empty_text() -> None:
+    """A sentence whose whole text is a marker is empty once stripped, so it
+    fails the empty text check rather than reaching output (AC-13)."""
+    for text in (f"[{_MARKER_A}]", _MARKER_A, f"  [{_MARKER_A}]  "):
+        with pytest.raises(GenerationError, match="empty text"):
+            validate_draft({"sentences": [_one(text)]}, _KNOWN)
+
+
+def test_one_sentence_check_reads_the_cleaned_text() -> None:
+    """The strip runs before the one sentence check, so a sentence whose
+    period was swallowed by a directly attached marker is judged on the
+    cleaned string and passes (AC-13)."""
+    assert _text_of(f"The board approved it.[{_MARKER_A}]") == "The board approved it."
+
+
+def test_marker_regex_is_case_insensitive() -> None:
+    """An uppercased hash cannot smuggle a marker through, even though
+    ``chunk_id`` only ever emits lowercase (AC-13)."""
+    upper = f"CH_{_HEX_A.upper()}"
+    assert _text_of(f"The board approved it [{upper}].") == "The board approved it."
+
+
+def test_wrong_hex_length_is_not_a_marker() -> None:
+    """``ch_`` with 63 or 65 hex characters is not an id, and the word
+    boundary stops a 64 character prefix match (AC-13)."""
+    short = "ch_" + "a" * 63
+    long = "ch_" + "a" * 65
+    assert _text_of(f"The token {short} is prose.") == f"The token {short} is prose."
+    assert _text_of(f"The token {long} is prose.") == f"The token {long} is prose."
+
+
+def test_group_separator_tolerates_either_comma_spacing() -> None:
+    """The model writes ``", "`` and the debug renderer writes ``","``, so
+    both spacings parse inside one group (AC-13)."""
+    tight = f"It shipped [{_MARKER_A},{_MARKER_B}]."
+    spaced = f"It shipped [{_MARKER_A} , {_MARKER_B}]."
+    assert _text_of(tight, [_MARKER_A, _MARKER_B]) == "It shipped."
+    assert _text_of(spaced, [_MARKER_A, _MARKER_B]) == "It shipped."
+
+
+def test_mixed_bracket_group_keeps_its_brackets_and_prose() -> None:
+    """A bracket group holding anything besides markers and separators is not
+    a marker group, so it loses only its bare marker (AC-13)."""
+    assert _text_of(f"See [see {_MARKER_A}] for the rule.") == "See [see] for the rule."
+
+
+def test_whitespace_repair_after_the_strip() -> None:
+    """The three repair steps pin the readable prose AC-4 emits verbatim."""
+    # A trailing group before a full stop leaves no space before it.
+    assert _text_of(f"The store was rebuilt [{_MARKER_A}].") == "The store was rebuilt."
+    # A mid sentence group leaves no space before the following comma.
+    assert (
+        _text_of(f"The store was rebuilt [{_MARKER_A}], then ingested.")
+        == "The store was rebuilt, then ingested."
+    )
+    # A parenthetical with no marker in it is untouched.
+    untouched = "The store was rebuilt (twice) on Tuesday."
+    assert _text_of(untouched) == untouched
+    # A sentence with no marker at all is returned unchanged.
+    plain = "The store was rebuilt on Tuesday."
+    assert _text_of(plain) == plain
+
+
+def test_strip_makes_two_marked_sentences_collide_as_duplicates() -> None:
+    """Two draft sentences whose prose is identical and whose markers differ
+    become identical after stripping and fail the response as a duplicate.
+    That reading is deliberate: the marker was never content (AC-13)."""
+    with pytest.raises(GenerationError, match="repeated sentence text"):
+        validate_draft(
+            {
+                "sentences": [
+                    {
+                        "id": "S1",
+                        "text": f"The board approved it [{_MARKER_A}].",
+                        "chunk_ids": [_MARKER_A],
+                    },
+                    {
+                        "id": "S2",
+                        "text": f"The board approved it [{_MARKER_B}].",
+                        "chunk_ids": [_MARKER_B],
+                    },
+                ]
+            },
+            _KNOWN,
+        )
+
+
+def test_answer_prompt_forbids_a_chunk_id_inside_the_sentence_text() -> None:
+    """The prompt is the soft half of AC-13: it keeps naming the real
+    bracketed ids (load bearing, or a live model invents its own) while
+    moving them into the ``chunk_ids`` field and out of the prose."""
+    assert "chunk_ids field" in ANSWER_SYSTEM_PROMPT
+    assert "Never write a chunk id inside the sentence text" in ANSWER_SYSTEM_PROMPT
+
+
 def test_coverage_prompt_instructs_directness() -> None:
     """The coverage prompt must require a sentence to directly state the
     answer and forbid a reason, context, consequence, premise, or anaphoric

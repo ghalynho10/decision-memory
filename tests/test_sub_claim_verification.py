@@ -46,6 +46,7 @@ from decision_memory.application.verification import (
 from decision_memory.infrastructure.openai_generation import (
     GenerationError,
     validate_decompose,
+    validate_draft,
 )
 
 
@@ -334,6 +335,40 @@ def test_verbatim_sentence_skips_decomposition_call() -> None:
     assert result.trace.verification.decomposed == ()
     assert result.trace.verification.empty_decompositions == ()
     assert result.trace.verification.missing_chunk_refs == ()
+    assert result.trace.verification.dropped_sentences == ()
+
+
+def test_marker_strip_restores_the_containment_shortcut() -> None:
+    """A sentence verbatim in its cited chunk **except** for an inline marker
+    takes the containment shortcut once the marker is stripped, and pays no
+    decomposition call (AC-5, AC-13).
+
+    This is the case that made AC-5 silently dead: a sentence carrying a
+    marker can never be a substring of the chunk it cites, so before the strip
+    the cost bound was unreachable for every marker bearing sentence, measured
+    at 11 of 20 in experiment 0003.
+    """
+    chunk_id = "ch_" + "a" * 64
+    chunks = {chunk_id: "The board approved the merger on Tuesday."}
+    draft = validate_draft(
+        {
+            "sentences": [
+                {
+                    "id": "S1",
+                    "text": f"The board approved the merger on Tuesday [{chunk_id}].",
+                    "chunk_ids": [chunk_id],
+                }
+            ]
+        },
+        frozenset({chunk_id}),
+    )
+    assert draft[0].text == "The board approved the merger on Tuesday."
+    result = _run(chunks, draft, decompose=_no_call, entail=_no_call, question="merger")
+    assert result.state == QueryState.ANSWERED
+    assert [sentence.text for sentence in result.sentences] == [
+        "The board approved the merger on Tuesday."
+    ]
+    assert result.trace.verification.decomposed == ()
     assert result.trace.verification.dropped_sentences == ()
 
 

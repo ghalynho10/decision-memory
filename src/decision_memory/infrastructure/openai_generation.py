@@ -49,10 +49,12 @@ FACETS_SYSTEM_PROMPT = (
 ANSWER_SYSTEM_PROMPT = (
     "Write short factual answer sentences that directly answer the given "
     "facets, using ONLY the provided evidence chunks. Every sentence must "
-    "be a single complete sentence and cite 1 to 8 chunk ids it is directly "
-    "supported by, exactly as shown in brackets in the evidence. Number the "
-    "sentences S1, S2, and so on. Never invent facts outside the evidence. "
-    "If the evidence cannot answer a facet, write nothing for it."
+    "be a single complete sentence and list 1 to 8 chunk ids it is directly "
+    "supported by in the chunk_ids field, copied exactly as shown in "
+    "brackets in the evidence. Never write a chunk id inside the sentence "
+    "text itself. Number the sentences S1, S2, and so on. Never invent "
+    "facts outside the evidence. If the evidence cannot answer a facet, "
+    "write nothing for it."
 )
 # The decomposition is a check on the candidate sentence, not a rewrite of
 # it (spec 0010 AC-11). The prompt asks for both directions the validity test
@@ -86,6 +88,24 @@ MAX_CITED_CHUNKS = 8
 
 # The fixed closed sentence delimiters, matching the chunker's sentence rule.
 _SENTENCE_END_RE = re.compile(r"[.!?]['\"\u2019\u201d)\]}]*(\s+|$)")
+
+# The inline chunk id markers a live model writes into the sentence text
+# (spec 0010 AC-13). The shapes are pinned literally rather than described,
+# because a described shape leaves the reading ambiguous. Matching is case
+# insensitive so an uppercased hash cannot smuggle a marker through, and the
+# group separator tolerates any or no surrounding whitespace, since the model
+# writes ", " while the debug renderer writes ",".
+_MARKER_GROUP_RE = re.compile(
+    r"(?i)\[\s*ch_[0-9a-f]{64}(?:\s*,\s*ch_[0-9a-f]{64})*\s*\]"
+)
+_BARE_MARKER_RE = re.compile(r"(?i)\bch_[0-9a-f]{64}\b")
+# The three fixed whitespace repair steps, applied in this order after the
+# markers are gone. The punctuation steps are not cosmetic: without them the
+# common case leaves "chosen [ch_...]." as "chosen .", which reaches the
+# reader as broken prose, since AC-4 emits the sentence verbatim.
+_WHITESPACE_RUN_RE = re.compile(r"\s+")
+_SPACE_BEFORE_PUNCTUATION_RE = re.compile(r" ([.,;:!?)\]}])")
+_SPACE_AFTER_OPENER_RE = re.compile(r"([(\[{]) ")
 
 
 class GenerationError(Exception):
@@ -255,6 +275,24 @@ def _is_one_sentence(text: str) -> bool:
     return len(matches) == 1
 
 
+def strip_chunk_markers(text: str) -> str:
+    """Remove every inline chunk id marker from a raw draft sentence (AC-13).
+
+    Bracket groups go first, then any remaining bare marker, then the three
+    fixed whitespace repair steps, then a trim. A bracket group holding
+    anything besides markers and separators is not a marker group, so
+    ``[see ch_<64 hex>]`` loses only its bare marker and keeps its brackets
+    and its prose. ``chunk_ids`` is untouched and stays the only citation
+    source.
+    """
+    cleaned = _MARKER_GROUP_RE.sub("", text)
+    cleaned = _BARE_MARKER_RE.sub("", cleaned)
+    cleaned = _WHITESPACE_RUN_RE.sub(" ", cleaned)
+    cleaned = _SPACE_BEFORE_PUNCTUATION_RE.sub(r"\1", cleaned)
+    cleaned = _SPACE_AFTER_OPENER_RE.sub(r"\1", cleaned)
+    return cleaned.strip()
+
+
 def validate_facets(payload: dict[str, Any]) -> tuple[Facet, ...]:
     """Validate and normalize a FacetSet payload."""
     raw = payload.get("facets")
@@ -303,13 +341,21 @@ def validate_draft(
         if sentence_id in seen_ids:
             raise GenerationError(f"duplicate sentence id {sentence_id}")
         seen_ids.add(sentence_id)
-        if not isinstance(text, str) or not text.strip():
+        if not isinstance(text, str):
             raise GenerationError(f"sentence {sentence_id} has empty text")
-        if not _is_one_sentence(text.strip()):
+        # The marker strip runs before every other check on this text (AC-13),
+        # so the empty, one sentence, and duplicate checks all read the
+        # cleaned string. A sentence that is nothing but a marker therefore
+        # fails as empty text rather than reaching output, and two sentences
+        # whose prose matches but whose markers differ now collide.
+        cleaned = strip_chunk_markers(text)
+        if not cleaned:
+            raise GenerationError(f"sentence {sentence_id} has empty text")
+        if not _is_one_sentence(cleaned):
             raise GenerationError(f"sentence {sentence_id} is not exactly one sentence")
-        if text.strip() in seen_texts:
+        if cleaned in seen_texts:
             raise GenerationError(f"repeated sentence text for {sentence_id}")
-        seen_texts.add(text.strip())
+        seen_texts.add(cleaned)
         if not isinstance(chunk_ids, list) or not (
             1 <= len(chunk_ids) <= MAX_CITED_CHUNKS
         ):
@@ -326,7 +372,7 @@ def validate_draft(
         sentences.append(
             DraftSentence(
                 sentence_id=sentence_id,
-                text=text.strip(),
+                text=cleaned,
                 chunk_ids=tuple(chunk_ids),
             )
         )
