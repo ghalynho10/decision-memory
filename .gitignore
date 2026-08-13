@@ -119,3 +119,8 @@ desktop.ini
 .agents/
 mvp.md
 .env
+
+# A dated status snapshot, deliberately not tracked (see docs/session-notes.md,
+# Standing instructions). scope.md owns durable status and session-notes.md owns
+# unresolved residue; a third file drifts from both.
+docs/where-things-stand.md
