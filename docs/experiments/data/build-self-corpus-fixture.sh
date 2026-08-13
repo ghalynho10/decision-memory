@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# Build the frozen self corpus gate fixture (spec 0010 AC-14).
+#
+# The gate measures code behaviour, so its input is held constant: this script
+# copies every direct child of docs/specs/ except spec 0010 into the fixture,
+# then writes manifest.json beside it with a sha256 over the raw bytes of each
+# copied file. Raw bytes rather than the adapter's own fingerprint(), because
+# this hash exists to detect drift of the fixture input; fingerprint() also
+# moves on an ADAPTER_VERSION bump, which would report adapter churn as corpus
+# drift.
+#
+# The fixture's own corpus root is the fixture directory, so its records live
+# at <fixture>/docs/specs/. That is outside docs/specs/, and discovery reads
+# corpus_root/docs/specs and iterates its direct children only, so the nested
+# tree is structurally invisible to an adapt run at the repository root.
+#
+# The gate's queries and their expected records live in the manifest, outside
+# the corpus entirely, so no spec can become a source for its own gate answer.
+#
+# Usage: build-self-corpus-fixture.sh [destination]
+# The destination defaults to the pinned fixture path; the tests pass a
+# temporary directory so a check never rewrites the committed fixture.
+set -uo pipefail
+
+ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
+SPECS="$ROOT/docs/specs"
+FIXTURE=${1:-"$ROOT/docs/experiments/data/self-corpus-fixture"}
+EXCLUDED="0010-abstention-verification-reliability"
+
+if [ ! -d "$SPECS" ]; then
+  echo "no docs/specs/ at $ROOT" >&2
+  exit 1
+fi
+
+COMMIT=$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+GENERATED=$(date +%Y-%m-%d)
+
+rm -rf "$FIXTURE"
+mkdir -p "$FIXTURE/docs/specs"
+
+for child in "$SPECS"/*; do
+  [ -e "$child" ] || continue
+  name=$(basename "$child")
+  [ "$name" = "$EXCLUDED" ] && continue
+  cp -R "$child" "$FIXTURE/docs/specs/$name"
+done
+
+# files is sorted by path so two regenerations of the same tree produce a
+# byte identical manifest and a real diff is the only thing review sees.
+LIST=$(cd "$FIXTURE" && find docs -type f | LC_ALL=C sort)
+
+{
+  printf '{\n'
+  printf '  "source_commit": "%s",\n' "$COMMIT"
+  printf '  "generated": "%s",\n' "$GENERATED"
+  printf '  "excluded_specs": ["%s"],\n' "$EXCLUDED"
+  printf '  "files": [\n'
+  first=1
+  while IFS= read -r rel; do
+    [ -z "$rel" ] && continue
+    hash=$(shasum -a 256 "$FIXTURE/$rel" | awk '{print $1}')
+    [ "$first" -eq 0 ] && printf ',\n'
+    first=0
+    printf '    { "path": "%s",\n      "sha256": "%s" }' "$rel" "$hash"
+  done <<< "$LIST"
+  printf '\n  ],\n'
+  printf '  "queries": [\n'
+  printf '    { "id": "decision",\n'
+  printf '      "text": "What was decided about hybrid lexical and semantic retrieval?",\n'
+  printf '      "expected_record": "DM-0008",\n'
+  printf '      "expected_state": "answered" },\n'
+  printf '    { "id": "reason",\n'
+  printf '      "text": "Why did we choose hybrid lexical and semantic retrieval?",\n'
+  printf '      "expected_record": null,\n'
+  printf '      "expected_state": "abstained" }\n'
+  printf '  ]\n'
+  printf '}\n'
+} > "$FIXTURE/manifest.json"
+
+echo "wrote $(printf '%s\n' "$LIST" | wc -l | tr -d ' ') files to $FIXTURE" >&2
