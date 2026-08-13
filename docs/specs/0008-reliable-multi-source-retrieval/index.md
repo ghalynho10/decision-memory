@@ -1,7 +1,7 @@
 # 0008. Reliable multi source retrieval
 
 **Date**: 2026-08-11
-**Status**: Accepted (AC-13/14/15 fail — verification gap carried to Feature 11)
+**Status**: Accepted
 **Status note (2026-08-11)**: The retrieval work in this feature's own scope (filters, hybrid ranking, store format 2, trace, integrity boundaries) is complete and verified: `/check verify` gates 1 to 6 pass with cited evidence. The two live acceptance gates ran and failed — AC-13/14/15 are not met — and the failure is carried to Feature 11 as three items (query 4 fabrication, query 5 expected abstention, query 2 DM-0004 coverage omission). This is NOT a declaration that AC-15 passed.
 
 ## Summary
