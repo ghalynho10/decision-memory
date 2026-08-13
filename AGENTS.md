@@ -26,6 +26,10 @@ uv run pytest -m integration   # integration suite: real OpenAI, Chroma, live Jo
 
 Stored in `docs/specs/`. Format: `docs/specs/NNNN-title.md`.
 
+## Experiments
+
+Measured findings live in `docs/experiments/NNNN-title.md`, with their instruments and data in `docs/experiments/data/`. Specs and scope rows cite them by number. Read the cited experiment before re measuring or re deriving a figure, and add a new numbered one rather than editing a past result; a correction goes in the new experiment, with the superseded reading kept and marked.
+
 ## Rules
 
 Clean Architecture:
