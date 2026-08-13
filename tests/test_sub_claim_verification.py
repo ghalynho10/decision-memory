@@ -35,7 +35,10 @@ from decision_memory.application.dto import (
     RejectedDecomposition,
     VerificationTrace,
 )
-from decision_memory.application.query import query_index
+from decision_memory.application.query import (
+    NO_EMITTED_SENTENCE_REASON,
+    query_index,
+)
 from decision_memory.application.verification import (
     MAX_SUB_CLAIMS,
     classify_decomposition,
@@ -1030,7 +1033,7 @@ def test_no_emitted_sentences_skips_the_coverage_call() -> None:
     facets = result.trace.generation.facets
     assert facets
     assert result.trace.verification.coverage == tuple(
-        CoverageRow(facet.facet_id, False, "no emitted answer sentence", ())
+        CoverageRow(facet.facet_id, False, NO_EMITTED_SENTENCE_REASON, ())
         for facet in facets
     )
     assert result.trace.verification.uncovered_facets == facets

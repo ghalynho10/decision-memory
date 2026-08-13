@@ -16,17 +16,19 @@ narrow port. It imports no Typer, Pydantic, OpenAI, or Chroma (AC-18).
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Protocol
 
 from decision_memory.application.dto import (
+    AbstentionStage,
     Facet,
     QueryResult,
     QueryState,
     RetrievalFailure,
 )
+from decision_memory.application.query import NO_EMITTED_SENTENCE_REASON
 
 # The five defining queries (mvp.md, specs 0007 and 0008) with their exact
 # wording, and the two further assertions (mvp.md) plus the claim level
@@ -65,6 +67,21 @@ class FixtureKind(StrEnum):
     REINGEST = "reingest"
 
 
+class AbstentionCause(StrEnum):
+    """Why a claim verification abstention happened (spec 0010 AC-15).
+
+    ``UNCOVERED_FACET`` means at least one sentence was emitted and at least
+    one facet still came back uncovered: the abstention the gates are named
+    for. ``NO_EMITTED_SENTENCES`` means no sentence reached coverage at all,
+    so the deterministic uncovered rows applied; the query abstained because
+    the pipeline produced nothing, which satisfies an ``abstained`` state
+    while proving nothing about abstention.
+    """
+
+    UNCOVERED_FACET = "uncovered_facet"
+    NO_EMITTED_SENTENCES = "no_emitted_sentences"
+
+
 @dataclass(frozen=True)
 class QueryOracle:
     """What a query fixture's result must satisfy to pass.
@@ -78,12 +95,40 @@ class QueryOracle:
     oracle. ``cite_all_proposed`` (query 3) additionally requires every
     proposed record to be cited; the proposed set is resolved through the
     port so the oracle tracks the corpus instead of a hardcoded id.
+
+    Two optional fields carry the spec 0010 AC-15 strengthening, and both
+    default to today's behaviour so the JobPilot battery is untouched:
+
+    - ``expected_abstention`` names the cause an abstaining fixture expects.
+      It applies only when ``expected_state`` is abstained; ``None`` means no
+      constraint, which is what every JobPilot fixture keeps.
+    - ``covering_sentence_scope`` narrows value path matching to citations
+      belonging to a sentence that a covered coverage row names. Record scope
+      alone cannot tell a decision from a caveat drawn from the same record
+      once more than one sentence is emitted.
     """
 
     expected_state: QueryState
     required_record_ids: frozenset[str] = frozenset()
     required_value_path_prefixes: tuple[str, ...] = ()
     cite_all_proposed: bool = False
+    expected_abstention: AbstentionCause | None = None
+    covering_sentence_scope: bool = False
+
+    def __post_init__(self) -> None:
+        """Refuse an abstention cause on an answering oracle.
+
+        An answered result has no abstention cause to read, so the constraint
+        could only ever be silently ignored, which is the exact class of
+        quietly weakened expectation AC-15 exists to close. The manifest
+        loader reports the same thing with a manifest shaped message before
+        this ever fires; this is the library level backstop.
+        """
+        if (
+            self.expected_abstention is not None
+            and self.expected_state != QueryState.ABSTAINED
+        ):
+            raise ValueError("expected_abstention applies only to an abstained oracle")
 
 
 @dataclass(frozen=True)
@@ -191,6 +236,76 @@ class EvaluationPort(Protocol):
     def run_reingest(
         self, record_id: str, rationale_relpath: str
     ) -> ReingestEvidence: ...
+
+
+def abstention_cause(result: QueryResult) -> AbstentionCause | None:
+    """Why this result abstained, read from the existing trace (AC-15).
+
+    No new trace field: the cause is the coverage rows the query already
+    records. It is read **only** from a claim verification abstention whose
+    coverage tuple is nonempty, and ``None`` means the cause cannot be read
+    from this result at all, never "neither applies, so pass".
+
+    That guard is not a formality. A retrieval stage abstention carries an
+    empty coverage tuple, and every row of an empty tuple satisfies any test,
+    so without it a query that abstained before generation ever ran would
+    report as the deterministic no sentence case and quietly satisfy a gate.
+    """
+    if result.state != QueryState.ABSTAINED:
+        return None
+    if result.abstention_stage != AbstentionStage.CLAIM_VERIFICATION:
+        return None
+    coverage = result.trace.verification.coverage
+    if not coverage:
+        return None
+    if all(row.reason == NO_EMITTED_SENTENCE_REASON for row in coverage):
+        return AbstentionCause.NO_EMITTED_SENTENCES
+    return AbstentionCause.UNCOVERED_FACET
+
+
+def unsatisfiable_oracles(
+    fixtures: Sequence[EvaluationFixture],
+    record_value_paths: Mapping[str, frozenset[str]],
+) -> tuple[str, ...]:
+    """Every expectation the corpus cannot satisfy, before any query runs.
+
+    ``record_value_paths`` maps each adapted record id to the value paths its
+    active chunks carry. Checked once after adapt and ingest: every
+    ``required_record_ids`` entry must exist in that map, and every
+    ``required_value_path_prefixes`` entry must be a prefix of some value
+    path on a record the oracle scopes it to.
+
+    A typo'd record id or a prefix no chunk carries would otherwise fail its
+    gate forever with nothing to separate a broken pipeline from a wrong
+    manifest. Returns the messages rather than raising, so the pure engine
+    stays free of an error type and the caller decides how loud to be.
+    """
+    problems: list[str] = []
+    for fixture in fixtures:
+        if fixture.kind != FixtureKind.QUERY or fixture.oracle is None:
+            continue
+        oracle = fixture.oracle
+        missing = sorted(oracle.required_record_ids - set(record_value_paths))
+        for record_id in missing:
+            problems.append(
+                f"{fixture.id}: expected record {record_id} is not in the "
+                "adapted record set"
+            )
+        scope = oracle.required_record_ids - frozenset(missing)
+        for prefix in oracle.required_value_path_prefixes:
+            if not scope:
+                continue
+            carried = any(
+                any(path.startswith(prefix) for path in record_value_paths[record_id])
+                for record_id in scope
+            )
+            if not carried:
+                problems.append(
+                    f"{fixture.id}: no chunk of "
+                    f"{', '.join(sorted(scope))} carries value path prefix "
+                    f"{prefix}"
+                )
+    return tuple(problems)
 
 
 def _facet_is_reason(facet: Facet) -> bool:
@@ -436,6 +551,63 @@ def _run_reingest_fixture(
     )
 
 
+def _satisfies_abstention_cause(
+    result: QueryResult, expected: AbstentionCause
+) -> tuple[bool, str]:
+    """Whether an abstention happened for the cause its oracle names (AC-15).
+
+    An abstention at any stage other than claim verification, or one whose
+    coverage tuple is empty, is neither cause: it fails with that state
+    named, rather than being reported as the deterministic no sentence case
+    on a vacuously satisfied test.
+    """
+    cause = abstention_cause(result)
+    if cause is None:
+        stage = (
+            result.abstention_stage.value
+            if result.abstention_stage is not None
+            else "unknown"
+        )
+        if result.abstention_stage != AbstentionStage.CLAIM_VERIFICATION:
+            return (
+                False,
+                f"abstained at {stage}, which is neither abstention cause; "
+                f"expected {expected.value}",
+            )
+        return (
+            False,
+            "abstained at claim_verification with no coverage rows, so the "
+            f"cause cannot be read; expected {expected.value}",
+        )
+    if cause != expected:
+        return (
+            False,
+            f"abstained from {cause.value}, expected {expected.value}",
+        )
+    return True, f"abstained as expected from {cause.value}"
+
+
+def _covering_citation_ids(result: QueryResult) -> frozenset[str]:
+    """Citation ids belonging to a sentence a covered coverage row names.
+
+    The AC-15 covering sentence scope. An answered result's covered rows name
+    the sentences that did the covering, and each answer sentence carries the
+    citation ids it cites, so the two compose without a new trace field.
+    """
+    covering_sentences = {
+        sentence_id
+        for row in result.trace.verification.coverage
+        if row.covered
+        for sentence_id in row.sentence_ids
+    }
+    return frozenset(
+        citation_id
+        for sentence in result.sentences
+        if sentence.sentence_id in covering_sentences
+        for citation_id in sentence.citation_ids
+    )
+
+
 def _satisfies(
     result: QueryResult, oracle: QueryOracle, proposed: ProposedRecords
 ) -> tuple[bool, str]:
@@ -446,7 +618,9 @@ def _satisfies(
             and not result.sentences
             and not result.citations
         ):
-            return True, "abstained as expected"
+            if oracle.expected_abstention is None:
+                return True, "abstained as expected"
+            return _satisfies_abstention_cause(result, oracle.expected_abstention)
         cited = ", ".join(sorted({c.record_id for c in result.citations}))
         return (
             False,
@@ -506,6 +680,26 @@ def _satisfies(
     record_scope = oracle.required_record_ids or (
         proposed.ids if oracle.cite_all_proposed else frozenset()
     )
+    # The manifest battery narrows the same rule to the sentence that did the
+    # covering (AC-15): a caveat and the decision it caveats can be drawn
+    # from the same record, so record scope alone passes an answer whose
+    # covering sentence never cites the decision. The JobPilot battery leaves
+    # this off and keeps the whole answer semantics unchanged.
+    candidates = result.citations
+    if oracle.required_value_path_prefixes and oracle.covering_sentence_scope:
+        covering_citation_ids = _covering_citation_ids(result)
+        if not covering_citation_ids:
+            return (
+                False,
+                "no covered coverage row names a sentence with citations, so "
+                "no value path prefix can be checked against the covering "
+                "sentence",
+            )
+        candidates = tuple(
+            citation
+            for citation in result.citations
+            if citation.citation_id in covering_citation_ids
+        )
     for prefix in oracle.required_value_path_prefixes:
         # When a record scope applies, the prefix must be matched by one of
         # THOSE records' citations, not merely by some citation somewhere in
@@ -518,13 +712,17 @@ def _satisfies(
         if record_scope:
             matched = any(
                 c.value_path.startswith(prefix) and c.record_id in record_scope
-                for c in result.citations
+                for c in candidates
             )
         else:
-            matched = any(c.value_path.startswith(prefix) for c in result.citations)
+            matched = any(c.value_path.startswith(prefix) for c in candidates)
         if not matched:
+            scope_note = (
+                " on the covering sentence" if oracle.covering_sentence_scope else ""
+            )
             return (
                 False,
-                f"no required record's citation carries value path prefix {prefix}",
+                "no required record's citation carries value path prefix "
+                f"{prefix}{scope_note}",
             )
     return True, "answered with required citations"

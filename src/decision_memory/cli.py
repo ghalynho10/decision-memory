@@ -51,14 +51,21 @@ from decision_memory.application.dto import (
 )
 from decision_memory.application.evaluation import (
     EVALUATION_FIXTURES,
+    EvaluationFixture,
     EvaluationOutcome,
     run_evaluation,
+    unsatisfiable_oracles,
 )
 from decision_memory.application.filters import FilterUsageError, build_query_filters
 from decision_memory.application.ingest import IngestDependencies, ingest_records
 from decision_memory.application.query import QueryDependencies, query_index
 from decision_memory.application.settings import SettingsError, resolve_runtime_settings
 from decision_memory.application.validation_service import validate_file
+from decision_memory.infrastructure.battery_manifest import (
+    BatteryManifestError,
+    battery_corpus_root,
+    load_battery,
+)
 from decision_memory.infrastructure.bm25 import bm25_lexical_scorer
 from decision_memory.infrastructure.conformance_fixtures import conformance_fixture_port
 from decision_memory.infrastructure.conformance_manifest import (
@@ -1186,6 +1193,16 @@ def evaluate_command(
             help="Live query runs per fixture, to measure the rate across runs",
         ),
     ] = 1,
+    battery: Annotated[
+        Path | None,
+        typer.Option(
+            "--battery",
+            help=(
+                "Fixture battery manifest to run instead of the built in "
+                "battery; its parent directory is the corpus root"
+            ),
+        ),
+    ] = None,
 ) -> None:
     """Run the evaluation harness: the five defining queries plus two assertions.
 
@@ -1195,7 +1212,29 @@ def evaluate_command(
     assertion) against the real pipeline, and reports PASS or FAIL per fixture.
     Exit 0 means every fixture passed; exit 1 means one or more failed; exit 2
     is a usage error; exit 3 is a missing corpus.
+
+    ``--battery PATH`` runs a fixture battery declared by a manifest file
+    instead (spec 0010 AC-15), with the corpus root taken from that file's
+    parent directory. The runs, report, and exit codes are unchanged either
+    way. A manifest key this build does not recognize, or an expectation the
+    adapted corpus cannot satisfy, is a usage error rather than a quietly
+    weakened gate.
     """
+    fixtures: tuple[EvaluationFixture, ...] = EVALUATION_FIXTURES
+    if battery is not None:
+        if corpus_path is not None:
+            typer.echo(
+                "--battery takes its corpus root from the manifest's parent "
+                "directory; drop the corpus argument"
+            )
+            raise typer.Exit(2)
+        try:
+            fixtures = load_battery(battery)
+        except BatteryManifestError as exc:
+            typer.echo(f"battery manifest error: {exc.detail}")
+            raise typer.Exit(2) from None
+        corpus_path = battery_corpus_root(battery)
+
     settings = resolve_runtime_settings(
         cli_corpus=corpus_path,
         cli_adapter=None,
@@ -1254,8 +1293,22 @@ def evaluate_command(
                 typer.echo(f"ingest failed with exit code {ingest_result.exit_code}")
             raise typer.Exit(ingest_result.exit_code)
 
+        if battery is not None:
+            # Once, after adapt and ingest and before any query runs: an
+            # expectation this corpus cannot satisfy would otherwise fail its
+            # gate forever with nothing to separate a broken pipeline from a
+            # wrong manifest (AC-15). Only for a manifest battery: the built
+            # in battery's oracles are code, and turning one of its fixtures
+            # into a whole run usage error would change what a JobPilot run
+            # reports.
+            problems = unsatisfiable_oracles(fixtures, runner.record_value_paths())
+            if problems:
+                for problem in problems:
+                    typer.echo(f"unsatisfiable oracle: {problem}")
+                raise typer.Exit(2)
+
         try:
-            outcome = run_evaluation(EVALUATION_FIXTURES, runner, runs=runs)
+            outcome = run_evaluation(fixtures, runner, runs=runs)
         except LockError:
             typer.echo("store is locked by another ingest or query")
             raise typer.Exit(1) from None

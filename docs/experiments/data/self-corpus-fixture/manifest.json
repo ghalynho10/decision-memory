@@ -1,5 +1,5 @@
 {
-  "source_commit": "95bf861",
+  "source_commit": "b24f933",
   "generated": "2026-08-13",
   "excluded_specs": ["0010-abstention-verification-reliability"],
   "files": [
@@ -52,10 +52,14 @@
     { "id": "decision",
       "text": "What was decided about hybrid lexical and semantic retrieval?",
       "expected_record": "DM-0008",
-      "expected_state": "answered" },
+      "expected_state": "answered",
+      "expected_value_paths": ["decision.chosen"],
+      "expected_abstention": null },
     { "id": "reason",
       "text": "Why did we choose hybrid lexical and semantic retrieval?",
       "expected_record": null,
-      "expected_state": "abstained" }
+      "expected_state": "abstained",
+      "expected_value_paths": [],
+      "expected_abstention": "uncovered_facet" }
   ]
 }

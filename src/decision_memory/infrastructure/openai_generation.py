@@ -73,13 +73,20 @@ DECOMPOSE_SYSTEM_PROMPT = (
 )
 # The fixed directness instruction for facet coverage (spec 0010 AC-12): one
 # sentence must directly state the answer; a reason, context, consequence,
-# premise, or anaphoric fragment does not state a decision.
+# premise, or anaphoric fragment does not state a decision. The caveat
+# sentence is the AC-16 addition: AC-12 already forbade a limitation covering
+# a decision facet and the model did not honour it, so the exclusion is now
+# stated here rather than only in the spec. It sits in the fixed instruction
+# and not in a schema property description, because AC-17 bounds a description
+# to a rule some validator already enforces and nothing enforces this one.
 COVERAGE_SYSTEM_PROMPT = (
     "For each facet, decide whether one provided answer sentence directly "
     "states its answer. Judge only what that sentence says. Do not combine "
     "sentences. A reason, context, consequence, premise, or anaphoric "
-    "fragment does not state a decision. One sentence may support several "
-    "facets only when it directly answers each one."
+    "fragment does not state a decision. A statement about what the evidence "
+    "does or does not establish is a limitation, not a decision, and never "
+    "covers a decision facet. One sentence may support several facets only "
+    "when it directly answers each one."
 )
 
 MAX_FACETS = 8

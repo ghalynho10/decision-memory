@@ -101,6 +101,13 @@ BM25_VARIANT = "BM25Okapi"
 BM25_PARAMETERS = "k1=1.5,b=0.75"
 COLLECTION_METRIC = "cosine"
 
+# The reason on every deterministic uncovered coverage row, written when no
+# sentence reached coverage at all (spec 0010 AC-12). It has one home because
+# it has more than one reader: the evaluation oracle tells an abstention
+# caused by every sentence being dropped from one caused by an uncovered facet
+# by reading exactly this string off the coverage rows (spec 0010 AC-15).
+NO_EMITTED_SENTENCE_REASON = "no emitted answer sentence"
+
 # A cosine distance is valid when finite and within [0, 2]. The epsilon
 # absorbs Chroma float noise at the boundaries (a parallel vector can come
 # back as a tiny negative); the value is then clamped so traces hold a real
@@ -750,7 +757,7 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
             )
     else:
         coverage_rows = tuple(
-            CoverageRow(facet.facet_id, False, "no emitted answer sentence", ())
+            CoverageRow(facet.facet_id, False, NO_EMITTED_SENTENCE_REASON, ())
             for facet in facets
         )
     uncovered = tuple(

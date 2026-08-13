@@ -13,6 +13,7 @@ baked in here.
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 from types import SimpleNamespace
@@ -339,3 +340,146 @@ def test_evaluate_runs_three_renders_per_fixture_rate(
     assert "FAIL query-b (2/3 runs): 2/3 runs passed" in result.stdout
     assert "result: 1 passed, 1 failed" in result.stdout
     assert "final: failed" in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# --battery: a fixture battery loaded from a manifest (spec 0010 AC-15)
+# ---------------------------------------------------------------------------
+
+
+def _battery_manifest(tmp_path: Path) -> Path:
+    """A minimal well formed battery manifest in its own corpus directory."""
+    fixture_root = tmp_path / "fixture"
+    _write_one_spec(fixture_root)
+    manifest = fixture_root / "manifest.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "source_commit": "abc1234",
+                "generated": "2026-08-13",
+                "excluded_specs": ["0010-abstention-verification-reliability"],
+                "files": [],
+                "queries": [
+                    {
+                        "id": "decision",
+                        "text": "What was decided?",
+                        "expected_record": "DM-0012",
+                        "expected_state": "answered",
+                        "expected_value_paths": ["decision.chosen"],
+                        "expected_abstention": None,
+                    },
+                    {
+                        "id": "reason",
+                        "text": "Why?",
+                        "expected_record": None,
+                        "expected_state": "abstained",
+                        "expected_value_paths": [],
+                        "expected_abstention": "uncovered_facet",
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    return manifest
+
+
+class _BatteryRunner(_FakeRunner):
+    """The fake runner plus the value paths the satisfiability check reads."""
+
+    value_paths: dict[str, frozenset[str]] = {
+        "DM-0012": frozenset({"decision.chosen", "rationale_summary"})
+    }
+
+    def record_value_paths(self) -> dict[str, frozenset[str]]:
+        return dict(self.value_paths)
+
+
+def test_battery_runs_the_manifest_fixtures_not_the_built_in_ones(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The manifest's queries become the battery, and its parent directory is
+    the corpus root (spec 0010 AC-15)."""
+    manifest = _battery_manifest(tmp_path)
+    seen: dict[str, object] = {}
+
+    def _capture(fixtures: object, port: object, runs: int = 1) -> EvaluationOutcome:
+        seen["fixtures"] = fixtures
+        seen["corpus_root"] = getattr(port, "corpus_root", None)
+        checks = tuple(
+            EvaluationCheck(fixture_id=fixture.id, status=True, detail="scripted")
+            for fixture in fixtures  # type: ignore[attr-defined]
+        )
+        return EvaluationOutcome(
+            checks=checks, passed=len(checks), failed=0, exit_code=0
+        )
+
+    monkeypatch.setattr("decision_memory.cli.EvaluationRunner", _BatteryRunner)
+    monkeypatch.setattr("decision_memory.cli.run_evaluation", _capture)
+    result = runner.invoke(app, ["evaluate", "--battery", str(manifest)])
+    assert result.exit_code == 0, result.stdout
+    assert [f.id for f in seen["fixtures"]] == ["decision", "reason"]  # type: ignore[union-attr]
+    assert seen["corpus_root"] == manifest.parent
+    assert "PASS decision" in result.stdout
+
+
+def test_battery_with_an_explicit_corpus_argument_is_a_usage_error(
+    tmp_path: Path,
+) -> None:
+    """A battery run against the wrong corpus adapts and ingests happily and
+    then fails on record ids, which looks like a broken pipeline and is not
+    one; the pair is refused instead."""
+    manifest = _battery_manifest(tmp_path)
+    result = runner.invoke(
+        app, ["evaluate", str(tmp_path / "elsewhere"), "--battery", str(manifest)]
+    )
+    assert result.exit_code == 2
+    assert "takes its corpus root from the manifest's parent directory" in result.stdout
+
+
+def test_battery_manifest_error_is_a_usage_error(tmp_path: Path) -> None:
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text('{"queries": []}', encoding="utf-8")
+    result = runner.invoke(app, ["evaluate", "--battery", str(manifest)])
+    assert result.exit_code == 2
+    assert "battery manifest error:" in result.stdout
+
+
+def test_an_unsatisfiable_battery_oracle_stops_before_any_query(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A typo'd record id or a prefix no chunk carries would otherwise fail
+    the gate forever with nothing to separate a broken pipeline from a wrong
+    manifest (spec 0010 AC-15)."""
+    manifest = _battery_manifest(tmp_path)
+
+    class _WrongCorpus(_BatteryRunner):
+        value_paths = {"DM-0012": frozenset({"rationale_summary"})}
+
+    def _never(*args: object, **kwargs: object) -> EvaluationOutcome:
+        raise AssertionError("no query may run once an oracle is unsatisfiable")
+
+    monkeypatch.setattr("decision_memory.cli.EvaluationRunner", _WrongCorpus)
+    monkeypatch.setattr("decision_memory.cli.run_evaluation", _never)
+    result = runner.invoke(app, ["evaluate", "--battery", str(manifest)])
+    assert result.exit_code == 2
+    assert "unsatisfiable oracle: decision" in result.stdout
+    assert "decision.chosen" in result.stdout
+
+
+def test_the_built_in_battery_is_never_checked_for_satisfiability(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Nothing the JobPilot battery runs through moves: its oracles are code,
+    and turning one failing fixture into a whole run usage error would change
+    what a live run reports."""
+    corpus = make_corpus(tmp_path)
+    monkeypatch.setattr("decision_memory.cli.EvaluationRunner", _FakeRunner)
+    monkeypatch.setattr(
+        "decision_memory.cli.run_evaluation",
+        lambda *args, **kwargs: _all_pass_outcome(),
+    )
+    # _FakeRunner has no record_value_paths at all, so reaching the check
+    # would raise AttributeError rather than pass quietly.
+    result = _invoke_evaluate(corpus, tmp_path)
+    assert result.exit_code == 0

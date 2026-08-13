@@ -42,15 +42,20 @@ from decision_memory.application.dto import (
 )
 from decision_memory.application.evaluation import (
     EVALUATION_FIXTURES,
+    AbstentionCause,
+    EvaluationCheck,
     EvaluationFixture,
     EvaluationPort,
     FixtureKind,
     ProposedRecords,
     QueryOracle,
     ReingestEvidence,
+    abstention_cause,
     classify_query4_failure,
     run_evaluation,
+    unsatisfiable_oracles,
 )
+from decision_memory.application.query import NO_EMITTED_SENTENCE_REASON
 
 # ---------------------------------------------------------------------------
 # A minimal but valid QueryResult, with empty traces so the engine can read it
@@ -793,3 +798,386 @@ def test_query4_fixture_failure_detail_names_the_stage() -> None:
     outcome = run_evaluation((fixture,), port)
     assert outcome.failed == 1
     assert "query4 stage: coverage_directness" in outcome.checks[0].detail
+
+
+# ---------------------------------------------------------------------------
+# The manifest battery oracle: co located citations and a named abstention
+# cause (spec 0010 AC-15)
+# ---------------------------------------------------------------------------
+
+
+def _cited(citation_id: str, record_id: str, value_path: str) -> Citation:
+    """A citation with its own id, so a sentence can name a specific one."""
+    return Citation(
+        citation_id=citation_id,
+        kind=CitationKind.CHUNK,
+        evidence_id=f"evidence-{citation_id}",
+        record_id=record_id,
+        chunk_id=f"ch_{citation_id}",
+        value_path=value_path,
+        relative_path=f"docs/specs/{record_id}/index.md",
+        section="Decision",
+        resolution=ResolutionState.RESOLVED,
+        freshness=CitationFreshness.CURRENT,
+    )
+
+
+def _answered_result(
+    sentences: tuple[AnswerSentence, ...],
+    citations: tuple[Citation, ...],
+    coverage: tuple[CoverageRow, ...],
+) -> QueryResult:
+    """An answered result carrying sentences, citations, and coverage rows."""
+    base = _empty_trace(QueryState.ANSWERED)
+    trace = QueryTrace(
+        freshness=base.freshness,
+        retrieval=base.retrieval,
+        generation=base.generation,
+        verification=VerificationTrace(
+            containment=(),
+            entailment=(),
+            removed_sentences=(),
+            coverage=coverage,
+            uncovered_facets=(),
+        ),
+        providers=(),
+        result=base.result,
+    )
+    return QueryResult(
+        schema_version=2,
+        state=QueryState.ANSWERED,
+        exit_code=0,
+        sentences=sentences,
+        citations=citations,
+        freshness=FreshnessState.CURRENT,
+        abstention_stage=None,
+        trace=trace,
+        failure=None,
+    )
+
+
+def _abstained_result(
+    coverage: tuple[CoverageRow, ...],
+    stage: AbstentionStage = AbstentionStage.CLAIM_VERIFICATION,
+) -> QueryResult:
+    """An abstained result at a chosen stage with chosen coverage rows."""
+    base = _empty_trace(QueryState.ABSTAINED)
+    trace = QueryTrace(
+        freshness=base.freshness,
+        retrieval=base.retrieval,
+        generation=base.generation,
+        verification=VerificationTrace(
+            containment=(),
+            entailment=(),
+            removed_sentences=(),
+            coverage=coverage,
+            uncovered_facets=(),
+        ),
+        providers=(),
+        result=ResultTrace(
+            state=QueryState.ABSTAINED,
+            abstention_stage=stage,
+            citations=(),
+            stale_markers=(),
+        ),
+    )
+    return QueryResult(
+        schema_version=2,
+        state=QueryState.ABSTAINED,
+        exit_code=0,
+        sentences=(),
+        citations=(),
+        freshness=FreshnessState.CURRENT,
+        abstention_stage=stage,
+        trace=trace,
+        failure=None,
+    )
+
+
+def _run_one(fixture: EvaluationFixture, result: QueryResult) -> EvaluationCheck:
+    port = FakePort(results={fixture.question or "": result})
+    return run_evaluation((fixture,), port).checks[0]
+
+
+def _query_fixture(oracle: QueryOracle, question: str = "q") -> EvaluationFixture:
+    return EvaluationFixture(
+        id="manifest-query", kind=FixtureKind.QUERY, question=question, oracle=oracle
+    )
+
+
+def test_abstention_cause_reads_no_emitted_sentences_from_the_reason_constant() -> None:
+    """Every coverage row carrying the deterministic reason means no sentence
+    reached coverage at all (AC-15). The constant has one home in query.py so
+    the reader and the writer cannot drift apart."""
+    coverage = (
+        CoverageRow("F1", False, NO_EMITTED_SENTENCE_REASON, ()),
+        CoverageRow("F2", False, NO_EMITTED_SENTENCE_REASON, ()),
+    )
+    assert (
+        abstention_cause(_abstained_result(coverage))
+        == AbstentionCause.NO_EMITTED_SENTENCES
+    )
+
+
+def test_abstention_cause_reads_uncovered_facet_when_a_sentence_was_judged() -> None:
+    coverage = (
+        CoverageRow("F1", True, "states the decision", ("S1",)),
+        CoverageRow("F2", False, "no sentence states why", ()),
+    )
+    assert (
+        abstention_cause(_abstained_result(coverage)) == AbstentionCause.UNCOVERED_FACET
+    )
+
+
+def test_abstention_cause_is_unreadable_from_an_empty_coverage_tuple() -> None:
+    """The guard that stops a vacuous pass (AC-15).
+
+    A retrieval stage abstention carries an empty coverage tuple, and every
+    row of an empty tuple satisfies any test, so without this guard a query
+    that abstained before generation ever ran would report as the
+    deterministic no sentence case and quietly satisfy the gate.
+    """
+    assert abstention_cause(_abstained_result((), AbstentionStage.RETRIEVAL)) is None
+    assert (
+        abstention_cause(_abstained_result((), AbstentionStage.CLAIM_VERIFICATION))
+        is None
+    )
+
+
+def test_abstention_cause_is_none_for_a_non_abstained_result() -> None:
+    assert abstention_cause(_answered_result((), (), ())) is None
+
+
+def test_expected_cause_passes_only_when_the_cause_matches() -> None:
+    fixture = _query_fixture(
+        QueryOracle(
+            expected_state=QueryState.ABSTAINED,
+            expected_abstention=AbstentionCause.UNCOVERED_FACET,
+        )
+    )
+    uncovered = _abstained_result(
+        (
+            CoverageRow("F1", True, "states the decision", ("S1",)),
+            CoverageRow("F2", False, "no sentence states why", ()),
+        )
+    )
+    check = _run_one(fixture, uncovered)
+    assert check.status
+    assert "uncovered_facet" in check.detail
+
+    collapsed = _abstained_result(
+        (CoverageRow("F1", False, NO_EMITTED_SENTENCE_REASON, ()),)
+    )
+    check = _run_one(fixture, collapsed)
+    assert not check.status
+    assert "abstained from no_emitted_sentences" in check.detail
+
+
+def test_expected_cause_fails_loudly_on_an_abstention_at_another_stage() -> None:
+    """An abstention at retrieval is neither cause, and fails with the stage
+    named rather than passing on a state only match (AC-15)."""
+    fixture = _query_fixture(
+        QueryOracle(
+            expected_state=QueryState.ABSTAINED,
+            expected_abstention=AbstentionCause.NO_EMITTED_SENTENCES,
+        )
+    )
+    check = _run_one(fixture, _abstained_result((), AbstentionStage.RETRIEVAL))
+    assert not check.status
+    assert "abstained at retrieval" in check.detail
+
+    check = _run_one(fixture, _abstained_result((), AbstentionStage.CLAIM_VERIFICATION))
+    assert not check.status
+    assert "no coverage rows" in check.detail
+
+
+def test_an_abstaining_oracle_without_a_cause_keeps_todays_behaviour() -> None:
+    """Every JobPilot fixture leaves ``expected_abstention`` unset, so a state
+    only abstention still passes and nothing already built moves."""
+    fixture = _query_fixture(QueryOracle(expected_state=QueryState.ABSTAINED))
+    check = _run_one(fixture, _abstained_result((), AbstentionStage.RETRIEVAL))
+    assert check.status
+    assert check.detail == "abstained as expected"
+
+
+def test_an_answering_oracle_cannot_carry_an_abstention_cause() -> None:
+    with pytest.raises(ValueError):
+        QueryOracle(
+            expected_state=QueryState.ANSWERED,
+            expected_abstention=AbstentionCause.UNCOVERED_FACET,
+        )
+
+
+def test_covering_sentence_scope_rejects_a_caveat_from_the_right_record() -> None:
+    """The failure this criterion exists to close (AC-15).
+
+    Both sentences cite ``DM-0008``, and the answer carries a
+    ``decision.chosen`` citation, so state plus record id plus a whole answer
+    value path check all pass. Only the covering sentence narrowing sees that
+    the sentence which covered the decision facet cites a caveat instead.
+    """
+    citations = (
+        _cited("C1", "DM-0008", "decision.chosen"),
+        _cited("C2", "DM-0008", "consequences.negative[0]"),
+    )
+    sentences = (
+        AnswerSentence("S1", "The evidence does not establish a floor.", ("C2",)),
+        AnswerSentence("S2", "Hybrid retrieval was chosen.", ("C1",)),
+    )
+    coverage = (CoverageRow("F1", True, "reads as the decision", ("S1",)),)
+    result = _answered_result(sentences, citations, coverage)
+
+    whole_answer = _query_fixture(
+        QueryOracle(
+            expected_state=QueryState.ANSWERED,
+            required_record_ids=frozenset({"DM-0008"}),
+            required_value_path_prefixes=("decision.chosen",),
+        )
+    )
+    assert _run_one(whole_answer, result).status
+
+    scoped = _query_fixture(
+        QueryOracle(
+            expected_state=QueryState.ANSWERED,
+            required_record_ids=frozenset({"DM-0008"}),
+            required_value_path_prefixes=("decision.chosen",),
+            covering_sentence_scope=True,
+        )
+    )
+    check = _run_one(scoped, result)
+    assert not check.status
+    assert "on the covering sentence" in check.detail
+
+
+def test_covering_sentence_scope_passes_when_the_covering_sentence_cites_it() -> None:
+    citations = (
+        _cited("C1", "DM-0008", "decision.chosen"),
+        _cited("C2", "DM-0008", "consequences.negative[0]"),
+    )
+    sentences = (
+        AnswerSentence("S1", "The evidence does not establish a floor.", ("C2",)),
+        AnswerSentence("S2", "Hybrid retrieval was chosen.", ("C1",)),
+    )
+    coverage = (CoverageRow("F1", True, "states the decision", ("S2",)),)
+    scoped = _query_fixture(
+        QueryOracle(
+            expected_state=QueryState.ANSWERED,
+            required_record_ids=frozenset({"DM-0008"}),
+            required_value_path_prefixes=("decision.chosen",),
+            covering_sentence_scope=True,
+        )
+    )
+    assert _run_one(scoped, _answered_result(sentences, citations, coverage)).status
+
+
+def test_covering_sentence_scope_keeps_the_record_scope_too() -> None:
+    """A covering sentence citing the right value path on the wrong record
+    does not satisfy the oracle; co location means both."""
+    citations = (_cited("C1", "DM-0009", "decision.chosen"),)
+    sentences = (AnswerSentence("S1", "Another record's decision.", ("C1",)),)
+    coverage = (CoverageRow("F1", True, "states a decision", ("S1",)),)
+    scoped = _query_fixture(
+        QueryOracle(
+            expected_state=QueryState.ANSWERED,
+            required_record_ids=frozenset({"DM-0009"}),
+            required_value_path_prefixes=("decision.chosen",),
+            covering_sentence_scope=True,
+        )
+    )
+    assert _run_one(scoped, _answered_result(sentences, citations, coverage)).status
+
+    wrong_record = _query_fixture(
+        QueryOracle(
+            expected_state=QueryState.ANSWERED,
+            required_record_ids=frozenset({"DM-0008"}),
+            required_value_path_prefixes=("decision.chosen",),
+            covering_sentence_scope=True,
+        )
+    )
+    check = _run_one(wrong_record, _answered_result(sentences, citations, coverage))
+    assert not check.status
+    assert "DM-0008" in check.detail
+
+
+def test_covering_sentence_scope_fails_when_no_covered_row_names_a_sentence() -> None:
+    """Not measured, rather than silently satisfied: an answered result whose
+    covered rows name no sentence with citations cannot be checked."""
+    citations = (_cited("C1", "DM-0008", "decision.chosen"),)
+    sentences = (AnswerSentence("S1", "Hybrid retrieval was chosen.", ("C1",)),)
+    coverage = (CoverageRow("F1", False, "not covered", ()),)
+    scoped = _query_fixture(
+        QueryOracle(
+            expected_state=QueryState.ANSWERED,
+            required_record_ids=frozenset({"DM-0008"}),
+            required_value_path_prefixes=("decision.chosen",),
+            covering_sentence_scope=True,
+        )
+    )
+    check = _run_one(scoped, _answered_result(sentences, citations, coverage))
+    assert not check.status
+    assert "no covered coverage row names a sentence" in check.detail
+
+
+def test_the_jobpilot_battery_keeps_the_whole_answer_semantics() -> None:
+    """Nothing already built moves: no built in fixture opts into either new
+    field (AC-15)."""
+    for fixture in EVALUATION_FIXTURES:
+        if fixture.oracle is None:
+            continue
+        assert fixture.oracle.expected_abstention is None, fixture.id
+        assert fixture.oracle.covering_sentence_scope is False, fixture.id
+
+
+# ---------------------------------------------------------------------------
+# Unsatisfiable oracles are reported before any query runs (spec 0010 AC-15)
+# ---------------------------------------------------------------------------
+
+
+def test_unsatisfiable_oracles_names_a_record_absent_from_the_corpus() -> None:
+    fixture = _query_fixture(
+        QueryOracle(
+            expected_state=QueryState.ANSWERED,
+            required_record_ids=frozenset({"DM-0099"}),
+        )
+    )
+    problems = unsatisfiable_oracles(
+        (fixture,), {"DM-0008": frozenset({"decision.chosen"})}
+    )
+    assert len(problems) == 1
+    assert "DM-0099" in problems[0]
+
+
+def test_unsatisfiable_oracles_names_a_prefix_no_chunk_carries() -> None:
+    fixture = _query_fixture(
+        QueryOracle(
+            expected_state=QueryState.ANSWERED,
+            required_record_ids=frozenset({"DM-0008"}),
+            required_value_path_prefixes=("decision.chosen",),
+        )
+    )
+    problems = unsatisfiable_oracles(
+        (fixture,), {"DM-0008": frozenset({"rationale_summary"})}
+    )
+    assert len(problems) == 1
+    assert "decision.chosen" in problems[0]
+
+
+def test_a_satisfiable_battery_reports_nothing() -> None:
+    fixture = _query_fixture(
+        QueryOracle(
+            expected_state=QueryState.ANSWERED,
+            required_record_ids=frozenset({"DM-0008"}),
+            required_value_path_prefixes=("decision.chosen",),
+        )
+    )
+    abstaining = EvaluationFixture(
+        id="reason",
+        kind=FixtureKind.QUERY,
+        question="why",
+        oracle=QueryOracle(
+            expected_state=QueryState.ABSTAINED,
+            expected_abstention=AbstentionCause.UNCOVERED_FACET,
+        ),
+    )
+    paths = {"DM-0008": frozenset({"decision.chosen", "decision.alternatives[0]"})}
+    assert unsatisfiable_oracles((fixture, abstaining), paths) == ()

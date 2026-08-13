@@ -64,15 +64,27 @@ LIST=$(cd "$FIXTURE" && find docs -type f | LC_ALL=C sort)
     printf '    { "path": "%s",\n      "sha256": "%s" }' "$rel" "$hash"
   done <<< "$LIST"
   printf '\n  ],\n'
+  # Every key is present on every query, including the ones that do not apply,
+  # written as null or []. That is what lets the loader require the full key
+  # set and refuse a manifest it does not fully recognize, rather than reading
+  # an absent key as no constraint (spec 0010 AC-15). expected_value_paths
+  # names the value path the answer's covering sentence must cite, so citing
+  # any chunk of the right record no longer passes; expected_abstention names
+  # why the abstaining query is expected to abstain, so an abstention caused
+  # by every sentence being dropped stops counting as the gated behaviour.
   printf '  "queries": [\n'
   printf '    { "id": "decision",\n'
   printf '      "text": "What was decided about hybrid lexical and semantic retrieval?",\n'
   printf '      "expected_record": "DM-0008",\n'
-  printf '      "expected_state": "answered" },\n'
+  printf '      "expected_state": "answered",\n'
+  printf '      "expected_value_paths": ["decision.chosen"],\n'
+  printf '      "expected_abstention": null },\n'
   printf '    { "id": "reason",\n'
   printf '      "text": "Why did we choose hybrid lexical and semantic retrieval?",\n'
   printf '      "expected_record": null,\n'
-  printf '      "expected_state": "abstained" }\n'
+  printf '      "expected_state": "abstained",\n'
+  printf '      "expected_value_paths": [],\n'
+  printf '      "expected_abstention": "uncovered_facet" }\n'
   printf '  ]\n'
   printf '}\n'
 } > "$FIXTURE/manifest.json"

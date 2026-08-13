@@ -445,3 +445,134 @@ def test_coverage_prompt_instructs_directness() -> None:
     assert "directly states its answer" in COVERAGE_SYSTEM_PROMPT
     assert "Do not combine sentences" in COVERAGE_SYSTEM_PROMPT
     assert "does not state a decision" in COVERAGE_SYSTEM_PROMPT
+
+
+def test_coverage_prompt_excludes_a_caveat_from_covering_a_decision() -> None:
+    """The AC-16 exclusion, stated to the model rather than only in the spec.
+
+    Experiment 0004 recorded coverage accepting a sentence about what the
+    evidence does not establish as the answer to a decision facet. AC-12
+    already forbade it; the instruction is the soft half that tells the model
+    so. The deterministic guard is deliberately not built yet and is held
+    behind the AC-16 miss count.
+    """
+    assert (
+        "A statement about what the evidence does or does not establish is a "
+        "limitation, not a decision, and never covers a decision facet."
+    ) in COVERAGE_SYSTEM_PROMPT
+
+
+# ---------------------------------------------------------------------------
+# Schema property descriptions are soft guidance only (spec 0010 AC-17)
+# ---------------------------------------------------------------------------
+
+
+def _descriptions(schema: object, path: str = "schema") -> dict[str, str]:
+    """Every ``description`` in a schema, keyed by its property path."""
+    found: dict[str, str] = {}
+    if isinstance(schema, dict):
+        for key, value in schema.items():
+            if key == "description" and isinstance(value, str):
+                found[path] = value
+            else:
+                found.update(_descriptions(value, f"{path}.{key}"))
+    elif isinstance(schema, list):
+        for index, item in enumerate(schema):
+            found.update(_descriptions(item, f"{path}[{index}]"))
+    return found
+
+
+def _without_descriptions(schema: object) -> object:
+    """The same schema with every ``description`` key removed."""
+    if isinstance(schema, dict):
+        return {
+            key: _without_descriptions(value)
+            for key, value in schema.items()
+            if key != "description"
+        }
+    if isinstance(schema, list):
+        return [_without_descriptions(item) for item in schema]
+    return schema
+
+
+def test_only_the_ratified_description_exists_and_it_is_verbatim() -> None:
+    """Exactly one schema property carries a description, and it is the text
+    AC-17 pins (spec 0010 AC-17).
+
+    A description is prompt text under another name, so its exact wording is
+    a spec constant. Its validator is ``validate_coverage``, whose uncovered
+    row check enforces the same rule; a second description may only be added
+    under the same bound.
+    """
+    found: dict[str, str] = {}
+    for schema in (
+        _facets_schema(),
+        _draft_schema(),
+        _verdict_schema(),
+        _coverage_schema(),
+    ):
+        found.update(_descriptions(schema))
+    assert list(found) == ["schema.properties.rows.items.properties.sentence_ids"], (
+        f"unexpected schema descriptions: {sorted(found)}"
+    )
+    assert found["schema.properties.rows.items.properties.sentence_ids"] == (
+        "Sentence ids that directly state this facet's answer, in the order "
+        "the sentences were given. Leave this empty when covered is false: "
+        "never name a sentence you judged and rejected."
+    )
+
+
+def test_descriptions_carry_no_deterministic_weight() -> None:
+    """Removing every description leaves every validator outcome unchanged
+    (spec 0010 AC-17).
+
+    This is what keeps a description guidance rather than a second contract:
+    the rule it restates is enforced by ``validate_coverage``, which never
+    reads the schema. The uncovered row naming a sentence, the covered row
+    naming none, and the valid row are rejected or accepted identically with
+    the descriptions gone.
+    """
+    facets = (Facet("F1", "what"), Facet("F2", "why"))
+    known = ("S1", "S2")
+    valid = [
+        {
+            "facet_id": "F1",
+            "covered": True,
+            "reason": "states it",
+            "sentence_ids": ["S1"],
+        },
+        {"facet_id": "F2", "covered": False, "reason": "absent", "sentence_ids": []},
+    ]
+    uncovered_names_a_sentence = [
+        valid[0],
+        {
+            "facet_id": "F2",
+            "covered": False,
+            "reason": "absent",
+            "sentence_ids": ["S2"],
+        },
+    ]
+    covered_names_none = [
+        {"facet_id": "F1", "covered": True, "reason": "states it", "sentence_ids": []},
+        valid[1],
+    ]
+
+    def outcomes() -> list[bool]:
+        results: list[bool] = []
+        for rows in (valid, uncovered_names_a_sentence, covered_names_none):
+            try:
+                validate_coverage({"rows": rows}, facets, known)
+            except GenerationError:
+                results.append(False)
+            else:
+                results.append(True)
+        return results
+
+    with_descriptions = outcomes()
+    stripped = _without_descriptions(_coverage_schema())
+    assert _descriptions(stripped) == {}
+    # The schema is otherwise untouched, and the validator's verdicts do not
+    # move: it takes the payload, the facets, and the known sentence ids, and
+    # never the schema at all.
+    assert stripped != _coverage_schema()
+    assert outcomes() == with_descriptions == [True, False, False]

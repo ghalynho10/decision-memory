@@ -219,6 +219,23 @@ class EvaluationRunner:
                 ids.add(parsed.record.id)
         return ProposedRecords(ids=frozenset(ids), unparsed_count=unparsed_count)
 
+    def record_value_paths(self) -> dict[str, frozenset[str]]:
+        """Every ingested record id with the value paths its active chunks carry.
+
+        The input to the AC-15 unsatisfiable oracle check, read once after
+        adapt and ingest and before any query runs. It comes from the store
+        rather than the records directory because the value paths a citation
+        can carry are exactly the ones that survived chunking into the index.
+        """
+        reader = SqliteChromaIndexReader(self.store_dir)
+        paths: dict[str, set[str]] = {}
+        for descriptor in reader.active_chunks():
+            paths.setdefault(descriptor.record_id, set()).add(descriptor.value_path)
+        return {
+            record_id: frozenset(value_paths)
+            for record_id, value_paths in paths.items()
+        }
+
     def run_reingest(self, record_id: str, rationale_relpath: str) -> ReingestEvidence:
         """Edit a rationale.md copy, re adapt, re ingest, and compare chunks.
 

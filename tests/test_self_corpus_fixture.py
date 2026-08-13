@@ -143,18 +143,38 @@ class TestFixtureDrift:
             assert hashlib.sha256(raw).hexdigest() == row["sha256"], row["path"]
 
     def test_the_manifest_carries_the_gate_queries_and_expectations(self) -> None:
-        """The gate's queries and expected records live in the manifest,
-        outside the corpus entirely, so no spec can become a source for the
-        answer its own gate checks."""
+        """The gate's queries and expectations live in the manifest, outside
+        the corpus entirely, so no spec can become a source for the answer its
+        own gate checks.
+
+        The oracle is state, a co located citation, and an abstention cause
+        (spec 0010 AC-15): the answering query names the value path its
+        covering sentence must cite, and the abstaining query names why it is
+        expected to abstain. Every key is present on every query, including
+        the ones that do not apply, so the loader can require the full key set
+        and refuse a manifest it does not fully recognize.
+        """
         manifest = json.loads((_FIXTURE / "manifest.json").read_text())
         by_id = {query["id"]: query for query in manifest["queries"]}
         assert set(by_id) == {"decision", "reason"}
         assert by_id["decision"]["expected_record"] == _GATE_RECORD
         assert by_id["decision"]["expected_state"] == "answered"
+        assert by_id["decision"]["expected_value_paths"] == ["decision.chosen"]
+        assert by_id["decision"]["expected_abstention"] is None
         assert by_id["reason"]["expected_record"] is None
         assert by_id["reason"]["expected_state"] == "abstained"
+        assert by_id["reason"]["expected_value_paths"] == []
+        assert by_id["reason"]["expected_abstention"] == "uncovered_facet"
         for query in manifest["queries"]:
             assert query["text"].strip()
+            assert set(query) == {
+                "id",
+                "text",
+                "expected_record",
+                "expected_state",
+                "expected_value_paths",
+                "expected_abstention",
+            }
 
 
 @pytest.mark.integration
