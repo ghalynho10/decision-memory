@@ -1,10 +1,48 @@
-# Verify: Abstention verification reliability · spec 0010 · updated 2026-08-12
+# Verify: Abstention verification reliability · spec 0010 · updated 2026-08-13
 
-> **The checklist below is out of date as of 2026-08-12 and must not be run.** `/architect` revised AC-4, AC-6, AC-10, AC-11, and AC-12 after experiments 0001 and 0002. The output unit changed from the sub claim fragment to the whole sentence, so almost every local check here describes a mechanism the spec no longer specifies. Build plan task 12 rewrites this file against the revised contract. **The Live findings sections below are kept deliberately**: they are the measured evidence that drove the revision, and they stay as history.
+> **The `## Local checks (superseded contract)` section below is out of date as of 2026-08-12 and must not be run.** `/architect` revised AC-4, AC-6, AC-10, AC-11, and AC-12 after experiments 0001 and 0002. The output unit changed from the sub claim fragment to the whole sentence, so almost every check in that one section describes a mechanism the spec no longer specifies. Build plan task 12 deletes it and rewrites this file against the revised contract. **`## Local checks (revised contract)` is live and runnable**: it was derived on 2026-08-13 from AC-15, AC-16, and AC-17 and describes the shipped behaviour. **The Live findings sections below are kept deliberately**: they are the measured evidence that drove the revision, and they stay as history.
 
 _Steps derived from spec 0010 acceptance criteria. `/check verify` runs these; `/test` locks the durable ones. The code landed in `/develop abstention verification reliability`. The live gate ran on the finished per sub claim build and does not pass: AC-2, AC-3, and both AC-9 provider assertion bars fail, for one reason recorded under Live findings._
 
-## Local checks
+## Local checks (revised contract)
+
+Derived 2026-08-13 from AC-15, AC-16, and AC-17, after build plan tasks 16 and 15 shipped. Every step here runs against the behaviour in the tree today. `<manifest>` is `docs/experiments/data/self-corpus-fixture/manifest.json`.
+
+### Commands
+
+- [ ] `uv run pytest` passes (580 unit tests) -> AC-15, AC-16, AC-17
+- [ ] `uv run pytest tests/test_battery_manifest.py tests/test_evaluation.py tests/test_generation_validation.py` passes -> focused suites for the loader, the oracle, and the description bound
+- [ ] `uv run pytest -m integration tests/test_self_corpus_fixture.py` passes: isolation, drift against the committed hashes, and `DM-0008` chunk faithfulness -> AC-14, AC-15
+- [ ] Ruff, format, strict mypy, and build pass -> quality gate
+- [ ] `uv run --env-file .env decision-memory evaluate --battery <manifest> --runs 3`, run twice: the abstaining query must meet its expected state **and** its `uncovered_facet` cause in 6 of 6; the answering query's 6 of 6 is provisional until the task 13 calibration -> AC-15 (0 of 6 on both halves, 2026-08-13, [experiment 0005](../../experiments/0005-gate-oracle-first-measurement.md))
+- [ ] `decision-memory evaluate --runs 1` against the JobPilot corpus with no `--battery`: the report, the oracle semantics, and the exit codes are unchanged, and no satisfiability check runs -> AC-15 (the JobPilot battery must not move)
+
+### Loud failures of the battery loader (each exits 2 and names the problem; use a copy of the manifest)
+
+- [ ] A query with `expected_value_paths` or `expected_abstention` deleted -> AC-15 (a manifest written before the oracle was strengthened cannot run the gate under the old weaker oracle)
+- [ ] A query carrying an unknown key, and a manifest carrying an unknown top level key -> AC-15
+- [ ] An unrecognized `expected_abstention` value, and one set on an answering query -> AC-15
+- [ ] An abstaining query with no `expected_abstention`, or one carrying `expected_record` or `expected_value_paths` -> AC-15
+- [ ] An `expected_record` that no adapted record matches, and an `expected_value_paths` prefix no chunk of that record carries: both reported after adapt and ingest and **before any query runs** -> AC-15
+- [ ] A corpus path argument passed together with `--battery` -> AC-15 (the corpus root is the manifest's parent directory, never a second argument)
+
+### The oracle itself
+
+- [ ] A covering sentence citing a caveat chunk of the right record fails the `decision.chosen` co location, while the same answer passes the whole answer rule the JobPilot battery keeps -> AC-15 (the exact false pass experiment 0004 recorded)
+- [ ] A covering sentence citing `decision.chosen` of a different record fails: co location means record and value path together -> AC-15
+- [ ] An answered result whose covered rows name no sentence with citations is reported as not measurable, never as satisfied -> AC-15
+- [ ] `no_emitted_sentences` is read only when every coverage row carries the `NO_EMITTED_SENTENCE_REASON` constant from `query.py`; `uncovered_facet` otherwise; an abstention with an empty coverage tuple, or at any stage other than `claim_verification`, is neither cause and fails with the stage named -> AC-15 (the empty tuple guard is what stops a pre generation abstention passing vacuously)
+
+### The directness exclusion and the description bound
+
+- [ ] `COVERAGE_SYSTEM_PROMPT` carries the caveat sentence verbatim, and `validate_coverage` plus the coverage schema shape are unchanged -> AC-16
+- [ ] Over the 6 gate runs after the instruction change, count the decision facet's covered rows whose named sentences cite no `decision.chosen` chunk of the expected record, and record it **as a fraction with its denominator**; 2 or more misses builds the deterministic guard, a denominator of 0 fires nothing -> AC-16 (0 over 0 covered runs, 2026-08-13, experiment 0005)
+- [ ] Exactly one JSON schema property in `openai_generation.py` carries a `description`, it is the pinned `sentence_ids` text, and removing every description leaves every validator outcome unchanged -> AC-17
+- [ ] `/check review` names the validator function enforcing each schema property description (`validate_coverage` for `sentence_ids`) -> AC-17
+
+**Value sourcing rows exercised** (spec Value sourcing table): the gate corpus root, the gate queries and expectations loaded from the manifest, the gate citation co location, the gate abstention cause, the deterministic no sentence reason constant, and the caveat coverage miss count.
+
+## Local checks (superseded contract)
 
 The first implementation passed its earlier checks. The cross check changed the contract, so every local gate below must run again against the corrected behavior.
 
