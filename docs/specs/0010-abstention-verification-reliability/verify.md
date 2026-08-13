@@ -1,6 +1,6 @@
 # Verify: Abstention verification reliability · spec 0010 · updated 2026-08-12
 
-> **The checklist below is out of date as of 2026-08-12 and must not be run.** `/architect` revised AC-4, AC-6, AC-10, AC-11, and AC-12 after experiments 0001 and 0002. The output unit changed from the sub claim fragment to the whole sentence, so almost every local check here describes a mechanism the spec no longer specifies. Build plan task 10 rewrites this file against the revised contract. **The Live findings sections below are kept deliberately**: they are the measured evidence that drove the revision, and they stay as history.
+> **The checklist below is out of date as of 2026-08-12 and must not be run.** `/architect` revised AC-4, AC-6, AC-10, AC-11, and AC-12 after experiments 0001 and 0002. The output unit changed from the sub claim fragment to the whole sentence, so almost every local check here describes a mechanism the spec no longer specifies. Build plan task 12 rewrites this file against the revised contract. **The Live findings sections below are kept deliberately**: they are the measured evidence that drove the revision, and they stay as history.
 
 _Steps derived from spec 0010 acceptance criteria. `/check verify` runs these; `/test` locks the durable ones. The code landed in `/develop abstention verification reliability`. The live gate ran on the finished per sub claim build and does not pass: AC-2, AC-3, and both AC-9 provider assertion bars fail, for one reason recorded under Live findings._
 

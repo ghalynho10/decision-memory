@@ -346,6 +346,106 @@ Pros:
 Cons:
 - This is the pre spec 0010 behaviour that let query 4 answer with a fabricated decision. It undoes the feature.
 
+## Options considered for the three open decisions (2026-08-13)
+
+Experiment 0003 measured the built revision and left three decisions owed. All three were settled on 2026-08-13. Two of them are about the measurement instrument rather than about the mechanism, which is why they were settled before any calibration ran: a tolerance calibrated against a contaminated corpus and a marker poisoned token stream would be calibrated against noise.
+
+### OD-1: inline citation markers in the draft text
+
+The answer model intermittently writes `[ch_...]` markers into `DraftSentence.text`, measured at 11 of 20 sentences. `sentence_tokens` reads a chunk id as a parent content token, and no sub claim can ever match a 64 character hash, so the completeness half fails and the parent is dropped. Experiment 0003 attributed 16 percent of drops to this, and noted the figure is a floor rather than a ceiling: the additive half runs first and claimed 8 of the 11 marker bearing sentences before completeness was reached, so the marker effect is partly masked by check order.
+
+**Strip markers at the generation boundary (chosen).** `validate_draft` removes the marker before constructing the `DraftSentence`.
+
+Pros:
+
+- The marker is a serialization artifact and `chunk_ids` already carries the same data as a validated structured field, so the strip loses nothing.
+- The fix lands where the artifact enters the system, so every later consumer of `text` inherits it instead of re deriving it. The token matcher, the containment shortcut, and the rendered answer are all fixed by one change.
+- It repairs AC-5, which was silently dead: a sentence carrying a marker can never be a verbatim substring of the chunk it cites, so every marker bearing sentence was paying a decomposition call the cost bound said it should not. Roughly half of them were.
+- The marker shape is `ch_` plus 64 lowercase hex, which is what `chunk_id` produces, so no English word can collide with it and the strip carries no false positive risk.
+
+Cons:
+
+- It is a pattern match on model output, not a guarantee about the model. A new way of writing an id would not be covered.
+- Stripping before the one sentence check means the check reads a string the model did not emit; a sentence that parsed as one sentence only because a marker followed its period is now judged on the cleaned text. This is the correct reading, but it is a behaviour change in a validator, not only a cleanup.
+
+**Teach the matcher to ignore chunk id shaped tokens (rejected).** Add a shape test to `sentence_tokens` and drop matching tokens.
+
+Pros:
+
+- Smaller, contained entirely to AC-11, and touches no validator.
+
+Cons:
+
+- Leaves AC-5 dead, because the containment shortcut compares raw text and the marker is still in it.
+- Leaves raw chunk ids in the emitted answer, which is a separate output defect nobody had named.
+- Hands the same problem to every later consumer of `text`, so each one has to learn that a chunk id is not a word. That is the shape of a bug that keeps coming back.
+
+**On the prompt.** `ANSWER_SYSTEM_PROMPT` said to cite ids `exactly as shown in brackets in the evidence`, which is the wording that invites the marker into the prose. It cannot simply be deleted: the code comment beside it records that without the real bracketed ids named, a live model invents its own and every validation attempt fails. So it is reworded rather than removed, keeping the ids named while moving them explicitly into the `chunk_ids` field and forbidding them in the sentence text. The prompt is the soft half and the strip is the hard half; the strip is what makes the guarantee, since the model already complied inconsistently, and the prompt only lowers how often the strip fires. Doing only the prompt was not considered viable for exactly that reason.
+
+### OD-2: what the self corpus gate reads
+
+Task 11's expected answer was written verbatim into this spec's build plan, and this spec lives in the corpus the gate queries, so the first run answered out of that text. Experiment 0003 finding 4.
+
+**Frozen fixture, committed script, this spec held out (chosen).**
+
+Pros:
+
+- Fixes contamination and reproducibility together. The second problem is the one the original framing missed: the live `docs/specs/` tree changes every time any spec is edited, so a gate run against it tests code and corpus content at the same time and can attribute a change to neither. This gate measures code behaviour, which makes it a test fixture, and a test fixture's input should be held constant.
+- A committed script rather than a recorded command, because a manual copy step drifts and a scratch directory is wiped between sessions. The script follows the existing `docs/experiments/data/adr-sweep.sh` pattern, so it sits where the project already keeps reproducible measurement scripts.
+- The output lives outside `docs/specs/`. Discovery reads `corpus_root/docs/specs` and iterates its direct children only, so a fixture whose own `docs/specs/` tree is nested under `docs/experiments/data/` is invisible to `adapt` at the repository root. Without that placement the snapshot would join the corpus it is held out of.
+- The manifest's per record content hashes make drift a diff rather than a silent change of the measurement input.
+
+Cons:
+
+- The fixture goes stale by design, and re baselining is a deliberate step with no trigger. Recorded as a follow up rather than solved now.
+- It duplicates spec content inside the repository, which is the second source problem this project warns about elsewhere. Mitigated by the placement (no tool reads it as a record) and by the manifest naming its source commit, not eliminated.
+
+**Rebuild live each run, excluding this spec (rejected).** Same exclusion, built fresh from the working tree every time.
+
+Pros:
+
+- Simpler to describe, always current, nothing to re baseline.
+
+Cons:
+
+- Fixes contamination and leaves reproducibility broken. Editing any other spec between two runs changes the gate's evidence, so a run to run difference cannot be attributed to the code. That is the property the gate exists for.
+
+**Scrub expected answers from this spec, leave the corpus whole (adopted as hygiene, rejected as the fix).**
+
+Pros:
+
+- Keeps the corpus honest to what the tool really reads.
+- Removes the class rather than the instance: any spec can contaminate any gate this way, and holding one spec out of one gate does nothing about the next one.
+
+Cons:
+
+- Fragile on its own. Nothing checks for it, so it holds only while nobody writes an expected answer into a spec again.
+- Insufficient on its own regardless: it does not touch the reproducibility half.
+
+Taken together with the fixture rather than instead of it. The fixture is the mechanism and the scrub is the hygiene, and the expected answers move to the fixture manifest, which sits outside `docs/specs/` and is therefore never read by the adapter at all.
+
+### Cross check on the settled decisions (2026-08-13, Sonnet 5)
+
+A read only cross check of the settled decisions verified four mechanism claims against the code and found them sound: discovery is non recursive, so a fixture nested under `docs/experiments/data/` is structurally invisible rather than merely filtered; `chunk_id` is `ch_` plus a lowercase 64 character sha256, so no prose token can collide; AC-11's spec text matches `application/verification.py` exactly; and the recorded `DECOMPOSE_SYSTEM_PROMPT` is character for character the shipped string. Every acceptance criterion traces to a build task.
+
+It found the fixture machinery underspecified in the same way AC-11 was twice found underspecified, and all of it was closed before the spec was confirmed. The manifest had no schema although task 10 writes it and task 11 reads it back; the content hash had no named source; the fixture path was never stated; the generator's language was an open fork; the isolation tests had no pytest marker, so under this project's unit only CI they would silently not have run; and the marker strip was prose rather than a pinned regular expression, leaving uppercase hex, comma spacing, and mixed bracket groups undefined. Each is now written into AC-13, AC-14, or the Feature design manifest block.
+
+Three of the findings were judgment calls rather than omissions, and the reasoning is recorded because a later reader will otherwise re open them.
+
+**Raw file bytes over the adapter's `fingerprint()` for the manifest hash.** `fingerprint()` already exists and hashes contributing file paths, bytes, and the adapter version together. It was rejected because this hash answers one question, did the fixture input change, and `fingerprint()` also moves on an `ADAPTER_VERSION` bump. That would report adapter churn as corpus drift, which is precisely the confusion the frozen fixture exists to prevent. Raw bytes also keep the generator reachable from plain bash, which resolved the script language fork at the same time.
+
+**The fixture is chunk faithful, not record faithful.** `_extract_code_paths` resolves inline code spans against the corpus root, and every spec here cites `src/decision_memory/...` paths in backticks. A fixture root holding only `docs/specs/` resolves none of them, so its records carry smaller `evidence` sets and higher `mentions_unresolved` counts than a live adaptation of the same text. Mirroring the code tree into the fixture was rejected: it would drag `src/` and `tests/` into a frozen snapshot, which is a far larger duplicate than the spec copy already is and would go stale in a way that actually matters. The divergence is instead stated and verified once, by comparing a record's active chunk set between a live and a fixture adaptation. The gate reads chunk text and not evidence targets, so identical chunks confine the divergence to fields it never touches. This is the same family as the standing rule about spec 0003 mention counts: a corpus that documents its own reader changes what the reader sees, so the figure has to be measured rather than assumed.
+
+**The duplicate collision is kept, not worked around.** Stripping before the duplicate text check means two sentences whose prose is identical and whose markers differ now collide, and the existing rule fails the whole response. Comparing pre strip identity instead was rejected: the marker was never content, so two sentences with the same prose are genuinely the same sentence, and letting them both through would emit duplicate prose citing different chunks. The rule is unchanged; AC-13 states the consequence and a test pins it, so the behaviour is chosen rather than discovered later in a trace.
+
+### OD-3: `DECOMPOSE_SYSTEM_PROMPT` is out of sync
+
+`/develop` added a completeness instruction to the prompt during the task 5 to 8 build, and this spec treats prompt text as a fixed constant, so the shipped wording had to be either recorded or reverted.
+
+Recorded, not reverted. The instruction is load bearing rather than a drift: the validity test measures two directions, and a prompt asking only that the model add nothing leaves the completeness half firing on correct behaviour, because a model told only to avoid additions has no reason to preserve every clause. Reverting it would restore a hard gate that fails good decompositions. The exact shipped string is now written into Provider contracts.
+
+One assumption in the original framing turned out wrong and is worth recording, because it changed the order of work. OD-3 was written as sequenced behind OD-1, on the reading that OD-1 `may change the same prompt`. It does not: OD-1 changes `ANSWER_SYSTEM_PROMPT` and OD-3 changes `DECOMPOSE_SYSTEM_PROMPT`. They are independent, and OD-3 is pure transcription.
+
 ## Rationale
 
 Sub claim decomposition is the chosen option because it removes the hiding place the spec 0008 evidence identified. Three entailment prompt variants failed on the whole sentence, which rules out prompt tuning and points at the unit. Verifying each sub claim alone means the invented decision no longer carries its verbatim support inside the sentence it is verified against. The deterministic span floor was rejected because it would reject legitimate paraphrases and can regress query 2; the generation rewrite was rejected because it is the largest surface change for the same goal; the stronger model was rejected because the documented failure is structural, not model capability; deterministic clause splitting (Option 5) was rejected because it only catches fusion at a syntactic seam, and the model call generalizes to fusions that have none.
@@ -389,6 +489,7 @@ Two independent cross checks then pushed the matcher from a described rule to a 
 - the fresh baseline runs, 2026-08-12, recorded above
 - the post build `/debug` traces, 2026-08-12, recorded above
 - the AC-9 live gate runs and the instrumented rejected sub claim pull, 2026-08-12, recorded above
+- the settled decisions cross check, 2026-08-13, Sonnet 5, recorded above; its four verified mechanism claims were checked against `infrastructure/jsmastery_adapter.py` (discovery and code path resolution), `application/chunking.py` (chunk id shape), `application/verification.py` (the matcher), and `infrastructure/openai_generation.py` (the prompts)
 - `docs/experiments/0003-whole-sentence-gate-and-a-misdiagnosis.md`, the measured drop rates on the built revision: 19 of 20 draft sentences dropped and 1 query of 12 answered, with `not_additive` at 74 percent of drops, inline citation markers at 16 percent, and `unsupported_sub_claim` at zero. Read it before the next design pass; it reorders the work
 - `src/decision_memory/application/verification.py`, `application/query.py`, `application/dto.py`, `infrastructure/openai_generation.py`, the code this feature changes
 
