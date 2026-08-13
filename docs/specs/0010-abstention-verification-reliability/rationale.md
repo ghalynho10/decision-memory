@@ -65,6 +65,37 @@ The rationale summary sentence requires decomposition, and the whole response le
 
 The whole response rejection discarded the clean sub claims (S1.1 to S1.5, S2.1, S2.3) because of the few violators. The S2.8 fabrication proves the guard catches real fabrication, and the fix must keep that property. Decision: reject per sub claim, drop only the violating sub claim, keep the clean sub claims (each still individually verified), and broaden the matching rule: common inflections with a three character floor (a dropped final `e`, a doubled final consonant, a final `y` changed to `i`) plus a content neutral function word allowance. This is the tolerance the post build diagnostic deferred until strict coverage landed.
 
+## The AC-4 and AC-12 conflict (2026-08-12, experiments 0001 and 0002)
+
+The per sub claim build shipped and failed its live gate. Rather than tune it a third time, the tool was pointed at this repository's own `docs/specs/`, where the author wrote every record the same week and can therefore grade every answer. Full records: [experiment 0001](../../experiments/0001-self-query-on-own-specs.md) and [experiment 0002](../../experiments/0002-corpus-gap-fix-and-coverage-conflict.md).
+
+Two failures showed up that six days of fixture tuning never surfaced, because the fixtures measure abstention rates and neither failure is one.
+
+**Fragment output is unreadable.** Asked why the adapter warns instead of inventing fields, the tool returned `It passes only when it is absent from discovery.` The pronoun has no referent: its parent sentence bound it, and the fragment does not. A second query turned one sentence listing five items into five sentences repeating one stem. Nothing was fabricated and every citation resolved. The output was simply bad prose.
+
+**A correct answer was discarded.** This is the load bearing finding. Asked what was decided about hybrid retrieval, with spec 0008 present in the corpus, the pipeline produced this draft:
+
+```text
+S1: The hybrid retrieval system uses a combination of lexical BM25 and semantic
+    Chroma retrieval, followed by reciprocal rank fusion to combine their scores,
+    but it does not claim general retrieval superiority at scale due to the
+    limitations of the JobPilot corpus.
+```
+
+That is a correct, complete, appropriately hedged answer. It decomposed into four sub claims; three came back `entailment=supported`, and the fourth was dropped by the lexical guard. Coverage then returned `F1 covered=False` and the query abstained.
+
+The mechanism is the interaction of two acceptance criteria. AC-4 shatters the parent and emits only fragments. AC-12 says a facet is covered only when one sentence directly states its answer, and coverage cannot combine sentences. This decision needs three clauses to state. The parent stated it; no fragment did. So a verified correct answer was thrown away at the final step.
+
+**This is the mirror of the JobPilot query 5 failure.** There, vacuous fragments (`The original approach was changed`) were individually supported and wrongly covered their facets, so the query answered when it should have abstained. Here, informative fragments each carried part of the truth and covered nothing, so the query abstained when it should have answered. One cause, opposite symptoms: **fragmenting the answer makes coverage unreliable in both directions.** No setting of the lexical guard can fix that, which is why both settings moved every gate the wrong way.
+
+**It also falsifies a diagnosis this spec recorded.** `verify.md` explains query 3's abstention as the directness rule working as intended, and enrolls a generation quality follow up. Generation in the trace above was excellent. The abstention had nothing to do with generation quality, and the enrolled follow up would not have fixed it.
+
+### What the cross check actually ruled out
+
+The independent cross check rejected parent restoration, and this revision restores parents, so the two need reconciling. The check rejected **unconditional** restoration: restore the parent whenever every returned sub claim is kept. That is unsafe, because a decomposition can omit the fabricated clause, return only grounded material, and make the parent look verified.
+
+It never evaluated restoration gated on **completeness**. The guard as built checks that sub claims do not *add* content to the parent. The missing check is the mirror: that they do not *omit* it. With both halves required, the omission attack fails at the completeness check and never reaches entailment. The cross check's finding stands; it simply does not reach the option chosen here.
+
 ## Options considered
 
 ### Option 1: Sub claim decomposition with per sub claim verification
@@ -250,6 +281,71 @@ Pros:
 Cons:
 - Query 3 abstains because the generated answer does not directly state the not ratified facet, which the directness rule correctly refuses to cover. Forcing a pass would require relaxing directness, which would undo the query 4 fix, or improving generation, which is a separate follow up, not this change.
 
+### Cross check on the revision (2026-08-12, Sonnet 5)
+
+A read only cross check of the revised spec found one defect that would have shipped, plus five underspecified rules. All were fixed before the spec was confirmed. Recorded because the first finding is the third time on this feature that a passing local reading hid a failing real one.
+
+**The additive check's scope was unstated, and the natural reading broke the query the revision exists to fix.** The draft said every sub claim content token must match an *unused* parent token, without saying whether the pool is consumed across the response or reset per sub claim. Checked against the real experiment 0002 decomposition: the parent names `hybrid` once, `system` once, and `retrieval` three times, while the three sub claims each restate the subject, using `hybrid` three times, `system` three times, and `retrieval` five. A response wide pool rejects that as `not_additive`, so the revision would have abstained on its own motivating example through a brand new mechanism.
+
+The fix makes the two halves deliberately asymmetric. The additive half is per sub claim against a fresh parent pool, because a decomposition restating a shared subject adds nothing and is the normal shape of a correct split. The completeness half is response wide and presence based, because omission is the attack and a dropped clause removes its content words from the response entirely. Multiset completeness was rejected: it would reject ordinary splits without catching anything the presence reading misses.
+
+The other five, all now pinned in AC-11 or Provider contracts: exact equality was subject to the three character floor, so a verbatim `db` could not match itself (`_stem_match` already exempted equality and its docstring called the clarification owed, so the code was right and the spec was wrong); completeness was multiset versus set ambiguous; a token eligible against several parent tokens had no tie break, which is exactly the "two conforming builds disagree" failure AC-11 was pinned to prevent, now fixed as greedy first unused in parent order; the malformed row check had no stated position and now runs before empty, over cap, and duplicate, so two empty strings cannot pair as a duplicate; and the under splitting follow up tracked only the degenerate single sub claim case, not a multi way split that still co locates a fabricated clause with its camouflage.
+
+**One finding changed a bar rather than a rule.** AC-9 credited the rationale summary's 5 of 6 recovery to the per sub claim guard, which this revision removes, so the criterion contradicted AC-11 in the same document. The evidence is against simply restating the bar: one rejected sub claim substituted the synonym `goal`, and no stem rule can match a synonym. The bar is therefore re measured rather than asserted, and a single decomposition retry was added for the stochastic paraphrase case, mirroring the schema repair the other provider calls already make.
+
+## Options considered for the AC-4 and AC-12 conflict
+
+### Judge the parent, emit the parent (chosen)
+
+Decomposition becomes a check, not a rewrite. A response must be valid (adds nothing, omits nothing) and every sub claim must be supported; then the parent sentence is emitted verbatim. Otherwise the parent is dropped whole. Coverage judges whole sentences.
+
+Pros:
+- Fixes both failure directions with one change. Vacuous fragments cannot cover a facet because no fragment is emitted; multi part decisions are answerable because the parent states them.
+- Restores readable prose without a second generation pass, so no new fabrication surface appears.
+- Ends the guard granularity question permanently. Removing a sub claim breaks completeness by construction, so per sub claim dropping stops being a coherent option.
+- The completeness half closes the omission attack that the cross check raised against unconditional restoration.
+- Makes the additive tolerance safe to loosen, because sub claims never reach output.
+
+Cons:
+- One unsupported or unverifiable sub claim costs the whole sentence, including grounded clauses that sat beside it.
+- The lexical tolerance now drives the abstention rate, since an unverifiable sub claim and an unsupported one have the same effect. Experiment 0002's `S1.4` shows this is not hypothetical, and it means the revision does not automatically pass that query.
+- Content token completeness cannot see a dropped negation or a reversed relation. Entailment alone catches those.
+
+### Let coverage combine fragments from the same parent (rejected)
+
+Keep fragment output, and relax AC-12 so coverage may combine sentences that came from one parent.
+
+Pros:
+- Smaller change; touches coverage only.
+- Fixes the multi part abstention directly.
+
+Cons:
+- Does not fix readability at all, which experiment 0001 showed is the failure a reader meets first.
+- Makes the vacuous fragment problem worse, not better: combination gives coverage more ways to assemble a facet answer out of material that individually states nothing.
+- Re-opens the question the directness rule was written to settle, so it trades a known failure for the one that came before it.
+
+### Regenerate prose from the verified fragments (rejected)
+
+Add a second generation pass that rewrites the kept fragments into flowing text.
+
+Pros:
+- Produces the best looking output of any option.
+- Keeps per fragment verification exactly as built.
+
+Cons:
+- The regenerated text is unverified by construction. Every claim would have to be re-verified, or the pipeline would emit model output that no check ever saw, which is the exact failure this whole feature exists to prevent.
+- Adds a provider call and a new failure mode to every non verbatim answer.
+
+### Accept the fragments and lower the coverage bar (rejected)
+
+Keep everything and let a facet be covered by the union of fragments without a directness requirement.
+
+Pros:
+- No mechanism change.
+
+Cons:
+- This is the pre spec 0010 behaviour that let query 4 answer with a fabricated decision. It undoes the feature.
+
 ## Rationale
 
 Sub claim decomposition is the chosen option because it removes the hiding place the spec 0008 evidence identified. Three entailment prompt variants failed on the whole sentence, which rules out prompt tuning and points at the unit. Verifying each sub claim alone means the invented decision no longer carries its verbatim support inside the sentence it is verified against. The deterministic span floor was rejected because it would reject legitimate paraphrases and can regress query 2; the generation rewrite was rejected because it is the largest surface change for the same goal; the stronger model was rejected because the documented failure is structural, not model capability; deterministic clause splitting (Option 5) was rejected because it only catches fusion at a syntactic seam, and the model call generalizes to fusions that have none.
@@ -258,7 +354,7 @@ Fabrication only was the scope decision, on the fresh baseline. Query 4 and quer
 
 The post build trace narrows that earlier statement. Query 2 citation completeness remains a separate direction, but query 4 complete facet coverage is part of the same acceptance path. The fabricated decision is gone, yet the binary result is still wrong because the remaining reasons do not answer what was decided. This spec cannot call that result acceptable without either weakening spec 0007 AC-15 or adding an explicit partial result state.
 
-Strict complete facet coverage is chosen. Coverage uses the same fixed model as facet extraction and answer generation because the task is direct semantic answer matching, not the narrower entailment task. The prompt judges only what each kept sentence states. It explicitly says that a reason, context, consequence, or premise does not answer what was decided unless the sentence states the decision. Deterministic validation then enforces referential integrity for the sentence ids. A covered row has at least one known kept sentence, and an uncovered row has none.
+Strict complete facet coverage is chosen. Coverage uses the same fixed model as facet extraction and answer generation because the task is direct semantic answer matching, not the narrower entailment task. The prompt judges only what each emitted sentence states. It explicitly says that a reason, context, consequence, or premise does not answer what was decided unless the sentence states the decision. Deterministic validation then enforces referential integrity for the sentence ids. A covered row has at least one known emitted sentence, and an uncovered row has none.
 
 The facet tuple comes from one extraction call over the original question and remains fixed through answer generation and coverage. This makes the completeness boundary explicit, but it does not prove that extraction found every required facet. Query 4 therefore asserts separate decision and reason facets in the live gate. Using the same model family for extraction, generation, and coverage can produce correlated errors, so the six run gate remains a smoke result rather than a proof. Typed facets or an independent evaluator are the next design step if the directness error remains unstable.
 

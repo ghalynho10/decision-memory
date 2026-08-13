@@ -28,6 +28,7 @@ _You are in charge. Every box below is a suggestion, not a gate: run any, skip a
 | 15 | CLI presentation redesign | Slice 4 | planned |
 | 16 | Abstention verification reliability | Slice 3 | in-progress |
 | 17 | Retrieval query hardening | Slice 2 | planned |
+| 18 | Corpus gap and staleness awareness | Slice 3 | planned |
 
 ## Foundations
 
@@ -177,9 +178,20 @@ spec [0010](../specs/0010-abstention-verification-reliability/index.md) · code 
   - [x] Remove parent restoration and enforce the accepted context citation boundary (AC-1, AC-4, AC-5, AC-8)
   - [x] Add exact decomposition outcomes and the lexical guard contract (AC-6, AC-7, AC-10, AC-11)
   - [x] Tighten canonical facet coverage and classify query 4 failures by stage (AC-2, AC-4, AC-12)
-  - [ ] Replace the whole response lexical guard with the per sub claim guard, then replace the affected tests and complete two live `--runs 3` batches (AC-1 to AC-12) (code and tests done; the two live batches ran and fail AC-2, AC-3, AC-9, see spec 0010 `verify.md`)
+  - [x] Replace the whole response lexical guard with the per sub claim guard (AC-6, AC-10, AC-11) — built, and **falsified by its live gate**. Experiments 0001 and 0002 showed the fragment output contract itself was the fault, not the guard granularity. Spec 0010 revised 2026-08-12; the milestones below replace this direction
+  - [ ] Make decomposition a check, not a rewrite: two directional lexical validity (additive per sub claim, completeness response wide), whole sentence output, and the `dropped_sentences` trace (AC-1, AC-4 to AC-8, AC-10, AC-11)
+  - [ ] Re-lock the deterministic tests against the new contract, including both AC-1 attacks and the additive scope regression the cross check caught (AC-1, AC-4 to AC-8, AC-10 to AC-12)
+  - [ ] Calibrate the additive tolerance by measurement, then rewrite `verify.md` and run `/check verify` and `/test` (AC-1 to AC-12)
+  - [ ] Gate cheapest first: this repo's own corpus, then two live `--runs 3` JobPilot batches; re-measure the rationale summary rather than assume its old bar (AC-2, AC-3, AC-9, AC-12)
 - [ ] Verify it: `/check verify abstention verification reliability`
 - [ ] Test it: `/test abstention verification reliability`
+
+### 18. Corpus gap and staleness awareness · needs a decision · from spec 0010
+The tool cannot tell when it is answering from an incomplete or outdated corpus, and says nothing when it is. Two halves of one gap, both measured in `docs/experiments/`. First, `adapt` reports the records it skipped and that signal dies there: nothing carries it to query time, so an answer drawn from a knowingly incomplete corpus looks identical to one drawn from a complete corpus. Second, the adapter never populates `supersedes`, so even a complete corpus cannot mark a decision as later reversed. Experiment 0001 recorded the cost: with spec 0008 skipped for a malformed status line, the tool answered a question about hybrid retrieval fluently and with a correct citation, and inverted a decision that had already shipped. Nothing was fabricated; the pipeline behaved correctly on the evidence it had.
+**Done when:** a query answered from a corpus with known skipped records says so, and a query whose evidence is superseded either says so or declines, with the behaviour proven against a deliberately incomplete corpus.
+**Needs a decision on:** where the signal lives (the manifest, the store, or the query result), whether it warns or blocks, and whether `supersedes` is populated by the adapter or resolved at query time.
+**Carried from:** spec 0010 Follow-up, experiments 0001 (finding F4) and 0002. Not a verification defect, so deliberately kept out of feature 16.
+- [ ] Design it (spec): `/architect corpus gap and staleness awareness`
 
 ## Slice 4: Presentation
 
