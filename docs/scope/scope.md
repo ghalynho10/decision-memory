@@ -113,6 +113,7 @@ spec [0006](../specs/0006-adapter-conformance-test-adapter/index.md) · code in 
 ### 8. Built-in ADR adapters · needs a decision
 Ship built-in adapters for common ADR formats such as MADR and plain ADR, versioned as adapter ids like `madr@1`, calibrated against real corpora rather than synthetic examples.
 **Done when:** `doctor` has surveyed 2 to 3 real MADR or plain ADR repositories, the adapters produce valid records for standard corpora, pass `test-adapter` including format drift tests, and adapt at least 80 percent of documents in each survey corpus or report that the corpus is not a fit.
+**Candidate corpora already surveyed (2026-08-12):** `docs/experiments/data/adr-candidates.tsv` lists 257 real ADR and MADR corpora with exact record counts, plus the script that produced it. Median 12 records and 85 corpora with 20 or more, so the 80 percent bar above is supportable without rescoping. Two findings to carry into the spec: discovery cannot assume a directory, because ten conventions appear in the top twenty repos alone (`docs/adr`, `docs/decisions`, `doc/architecture/decisions`, `src/adr`, `ADR`, `decisions`, and more); and the deepest two corpora look agent generated, so prefer a long lived human corpus such as `apache/james-project` (77 records) when calibrating. The survey is discovery only. Running `doctor` across the shortlist, to see whether the heading shapes are consistent enough for one adapter, is still owed and belongs in the design pass.
 - [ ] Design it (spec): `/architect built-in ADR adapters`
 
 ## Slice 1: Core cited query
