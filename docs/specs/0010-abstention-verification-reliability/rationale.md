@@ -446,6 +446,121 @@ Recorded, not reverted. The instruction is load bearing rather than a drift: the
 
 One assumption in the original framing turned out wrong and is worth recording, because it changed the order of work. OD-3 was written as sequenced behind OD-1, on the reading that OD-1 `may change the same prompt`. It does not: OD-1 changes `ANSWER_SYSTEM_PROMPT` and OD-3 changes `DECOMPOSE_SYSTEM_PROMPT`. They are independent, and OD-3 is pure transcription.
 
+## Options considered for the two open decisions and the schema ratification (2026-08-13)
+
+Experiment 0004 ran the gate on the cleaned instrument and left two decisions owed plus one deviation to ratify. All three were settled the same day. Both open decisions came out of a single trace: the decision query answered, the sentence stating the decision had been dropped, and coverage covered the decision facet with a caveat instead. OD-4 is about the gate that could not see that; OD-5 is about the behaviour it failed to see.
+
+### OD-4: the self corpus gate's oracle cannot detect a wrong answer
+
+The manifest asserted `expected_record` (`DM-0008`) and `expected_state` (`answered`). Both were satisfied by an answer whose covering sentence was `The JobPilot corpus cannot establish that hybrid retrieval is better at scale, and it does not claim general retrieval superiority.` Record plus state cannot see answer content, which is the one thing this gate exists to judge. A second defect arrived with it: the same query returned different states across two runs on identical input, so the gate passes and fails stochastically as well.
+
+**Co located citation plus an abstention cause, run as a battery under `evaluate` (chosen).**
+
+Pros:
+
+- It reuses an oracle that already exists and has already been hardened for this exact failure shape. `QueryOracle.required_value_path_prefixes` carries the co location rule, and its docstring records that "a prefix matched only by an unrelated citation does not satisfy the oracle" was closed in review. Reimplementing that rule in a bespoke gate script is how two builds end up with two subtly different oracles, which is the gap the AC-14 manifest pin exists to close.
+- `decision.chosen` is a tight target rather than a nominal one: 6 chunks out of 244 in the fixture store, against 168 body chunks, and the caveat sentence that caused the false pass was not one of them. The assertion would have caught the observed failure.
+- The abstention half closes the older and more common hole. Experiments 0002, 0003, and 0004 each recorded a query meeting an `abstained` expectation only because every draft sentence had been dropped. Naming the cause is what separates the behaviour being gated from a pipeline collapse that happens to look the same from outside.
+- `run_evaluation` already takes its fixtures as a parameter and already runs each query `--runs N` times with per fixture rate reporting, so the run count and the bar come from machinery that exists. A standalone script would have had to re grow the adapt, ingest, run, and report plumbing beside it.
+- The expectations stay in the manifest, outside `docs/specs/`, and the code now reads them from there rather than relying on a person copying them into a script. AC-14's property holds by construction instead of by discipline.
+
+Cons:
+
+- `evaluate` grows a way to load a battery from a file. That is genuine CLI surface plus a loader that can be wrong on its own.
+- It asserts which chunk the answer must cite, not what it must say. An answer citing `decision.chosen` and still stating the wrong thing would pass.
+- Requiring `decision.chosen` can fail a good answer that states the decision while citing a rationale chunk. Deliberate: that failure is visible and worth looking at, where the current silent pass is not.
+
+**A hand written phrase list on the answer text (deferred, not rejected).** Assert required substrings the answer must contain.
+
+Pros:
+
+- It checks the thing the gate is actually about, what the answer says, and it would also have caught the observed miss (the caveat contains neither `lexical` nor `semantic`).
+- Purely additive to the manifest shape, so adding it later costs nothing that doing it now would save.
+
+Cons:
+
+- It is a hand written content assertion that has to be maintained alongside the fixture, and a phrase list is a weak proxy for meaning in either direction.
+- The failure it uniquely catches, a correctly cited answer that states the wrong thing, has not been observed. This spec has already paid once for pinning detail ahead of the measurement that would have shaped it (AC-11, twice). Recorded as a follow up with a named trigger instead.
+
+**Keep the oracle and label the gate indicative (rejected).** Stop calling it a gate and have a person read the two answers.
+
+Pros:
+
+- Honest about what state plus record can prove, and costs nothing to adopt.
+
+Cons:
+
+- It gives up the only cheap gate this feature has, and this is the gate that falsified the previous build. A gate that cannot fail is not a weaker gate, it is a different thing.
+
+**On the bar.** Two batches rather than one is not a preference. `verify.md` records query 2 going 0 of 3 then 3 of 3 on identical code, a whole batch flip, and the rationale summary at 2 of 3 then 0 of 3. A single batch would have reported either totally broken or totally fine, and both readings would have been wrong. The two halves then get different treatment on purpose. All seven existing 6 of 6 style bars in this spec are abstention gates; the decision query is the first that requires an answer, and the two are not equally hard, because a stochastic pipeline fails toward abstention. So the answering half's 6 of 6 is provisional and gets confirmed or relaxed from the first post calibration measurement, in the same way AC-9's 5 of 6 was set from observed query 1 variance rather than chosen. The abstaining half stays 6 of 6 unconditionally, matching AC-2 and AC-3 exactly.
+
+**On the loud loader.** A missing key defaulting to no constraint would reproduce OD-4 itself: a gate silently running under a weaker oracle than the one written down. So every key is present on every query, including the ones that do not apply, and an unrecognized key stops the run.
+
+### OD-5: coverage accepted a caveat as covering a decision facet
+
+The other half of the same trace, and a defect in behaviour rather than in the gate that observed it. AC-12 already says a reason, context, consequence, premise, or anaphoric fragment cannot cover a decision facet unless that same sentence states the decision. A sentence about what the corpus cannot establish is a limitation, and coverage covered the decision facet with it anyway. The rule was specified and unstated: `COVERAGE_SYSTEM_PROMPT` never mentioned this case.
+
+**State the exclusion, count the miss, hold the guard behind a number (chosen).**
+
+Pros:
+
+- The cheapest thing that could work had never been tried. The instruction listed four fragment kinds and did not name the one that walked through, which is the same gap experiment 0004 found and fixed on the coverage schema an hour earlier: nothing had ever told the model the rule.
+- The measurement is free. A caveat covering a decision facet fails the AC-15 `decision.chosen` requirement by construction, so the OD-4 oracle counts OD-5's misses out of runs that were happening anyway.
+- A numbered trigger (2 or more misses in the 6 runs after the change) makes the next step a reading rather than an argument. An unnumbered one is the undocumented judgment call AC-9 was rewritten to remove.
+
+Cons:
+
+- It leaves a specified rule enforced only by a prompt for now, which is the arrangement that already failed once.
+- Two of six is a floor for acting, not a measured rate, and it rests on a gate that currently answers rarely, so the sample it draws from is thin.
+
+**Add the deterministic guard now (rejected for now, not on principle).** Drop meta sentences at the generation boundary in the AC-13 hard guard plus soft guidance shape.
+
+Pros:
+
+- It is the pattern that worked for AC-13, and it was kept there precisely because prompt compliance was inconsistent.
+- A deterministic guard cannot regress the way an instruction can.
+
+Cons:
+
+- Its false positive class is real and unsized. A decision can legitimately be stated negatively ("we decided not to use entry point discovery"), and a caveat blocklist cannot tell that from "the corpus cannot establish". One observed miss does not size a lexical rule.
+- Building it now means designing it from a single example. Waiting means designing it from whatever the 6 runs actually record, which is the same argument that put task 13's calibration behind task 11's measurement.
+
+**Accept and only measure (rejected).** Change nothing, count the misses.
+
+Pros:
+
+- Keeps the sample clean of any confound from the instruction change.
+
+Cons:
+
+- Leaves a known, already specified rule stated in no place the model can read, when adding it is one sentence. Measuring a miss rate you have not tried to fix measures the wrong thing.
+
+### OD-6: the coverage schema description, ratified as instance and pattern
+
+Experiment 0004 added a `description` to the coverage schema's `sentence_ids` property after the coverage model returned a correct uncovered verdict in an invalid shape on 4 of 4 attempts, turning a correct abstention into a hard `provider.coverage` failure. `validate_coverage` was left unchanged as the hard gate. Measured either side: 4 of 4 attempts rejected before, 0 of 3 after. The repair attempt was not already absorbing it, since both attempts failed every time before the change.
+
+Ratified, instance and pattern. Reverting was rejected on the evidence: the rule was missing from the prompt and the field list alike, and moving it into `COVERAGE_SYSTEM_PROMPT` instead would put a field level rule in a task level instruction, further from the field it constrains. Ratifying the instance alone was rejected because it settles nothing; no other schema in `openai_generation.py` uses `description`, so the next one would arrive as an unreviewed build time choice.
+
+Two bounds keep a description from becoming a shadow spec. It may only restate a rule a named validator function already enforces, and it may never be the only place a rule is stated. Together they make a description deletable: removing every one of them must leave every test outcome unchanged.
+
+The bound needs an owner or it is prose nobody checks, which is exactly how AC-11 ended up described rather than pinned across two build cycles. `/check review` is that owner: every schema property description must name the validator enforcing the same rule, and the review names that function. For the ratified instance it is `validate_coverage`, whose uncovered row check does the enforcing.
+
+### Cross check on the round two decisions (2026-08-13, Sonnet 5)
+
+A read only cross check of AC-15, AC-16, and AC-17 against the code confirmed the mechanism claims that matter: `Citation` carries both `record_id` and `value_path`, so the co location rule is computable from a `QueryResult`; `run_evaluation` and the runner are generic over corpus root and fixture list and assume no re ingest fixture, so a query only battery works today; regenerating the manifest with new fields leaves the copied files and their hashes untouched; `decision.chosen` is one unit per record in the chunker, so the fixture's chunk count claim holds; and AC-17's bound does not conflict with the live behaviour change, because a description is provider facing metadata that no validator reads.
+
+It found seven things, and all seven are now written into the criteria. Three were defects rather than omissions, and the reasoning is recorded because each is the kind of thing that comes back.
+
+**The oracle was whole answer scoped while the miss rule was sentence scoped.** `_satisfies` scans every citation in the answer, so record scope is the only narrowing it does. That catches the failure actually observed, where no emitted sentence cited `decision.chosen` at all, and it stops catching it the moment calibration lets a second sentence through: a caveat could cover the decision facet while some other sentence supplies the required citation. That is OD-4 reproduced one level down, in the criterion written to close OD-4. The narrowing is applied to the manifest battery only, because changing the semantics under the eight live JobPilot fixtures to keep one shape would trade a documented difference for an undocumented regression in gates this spec is not otherwise touching.
+
+**The abstention cause was vacuously satisfiable.** A retrieval stage abstention carries an empty coverage tuple, and every row of an empty tuple satisfies any test, so a query that abstained before generation ever ran would have been reported as the deterministic no sentence case. This is the same shape the re ingest oracle already had to guard against, and the codebase carries a comment saying so. The cause is now read only from a claim verification abstention with a nonempty coverage tuple; any other stage is neither cause and fails with that stage named.
+
+**The AC-16 trigger could be structurally unable to fire.** With the decision query abstaining in every run, the miss count is 0 by construction, and 0 reads as though the instruction worked. The first draft called this a thin sample, which is the weaker and wrong claim: a thin sample updates as runs accumulate, and a counter gated behind an event that never occurs does not. The count is now a fraction whose denominator is the runs in which the decision facet was covered at all, and a zero denominator reports as not exercised.
+
+The remaining four were gaps rather than errors, closed the same way the earlier cross checks closed theirs, by pinning what was described. The `evaluate` flag is named and the corpus root is derived from the manifest's parent rather than paired by hand, since a battery run against the wrong corpus fails on record ids and looks like a broken pipeline. The loader validates that each expected record exists and each prefix matches a chunk, because an unsatisfiable oracle fails forever and cannot be told from a real failure. The deterministic reason string gets a named constant before a third reader arrives. And a covered row may name several sentences, so a miss requires that none of them cites the decision statement.
+
+Worth stating plainly, because it is the cost of this shape: the directness rule now lives in three places, AC-12, `validate_coverage`, and the schema description. Only one of them enforces anything, which is the right arrangement, and it is still three things that have to move together. That is the argument for pinning the description text here as a spec constant rather than leaving it to the build, and it is also why the AC-16 caveat exclusion does not get a description of its own: no validator enforces it, so under the first bound it belongs in the instruction and nowhere else.
+
 ## Rationale
 
 Sub claim decomposition is the chosen option because it removes the hiding place the spec 0008 evidence identified. Three entailment prompt variants failed on the whole sentence, which rules out prompt tuning and points at the unit. Verifying each sub claim alone means the invented decision no longer carries its verbatim support inside the sentence it is verified against. The deterministic span floor was rejected because it would reject legitimate paraphrases and can regress query 2; the generation rewrite was rejected because it is the largest surface change for the same goal; the stronger model was rejected because the documented failure is structural, not model capability; deterministic clause splitting (Option 5) was rejected because it only catches fusion at a syntactic seam, and the model call generalizes to fusions that have none.
@@ -491,6 +606,8 @@ Two independent cross checks then pushed the matcher from a described rule to a 
 - the AC-9 live gate runs and the instrumented rejected sub claim pull, 2026-08-12, recorded above
 - the settled decisions cross check, 2026-08-13, Sonnet 5, recorded above; its four verified mechanism claims were checked against `infrastructure/jsmastery_adapter.py` (discovery and code path resolution), `application/chunking.py` (chunk id shape), `application/verification.py` (the matcher), and `infrastructure/openai_generation.py` (the prompts)
 - `docs/experiments/0003-whole-sentence-gate-and-a-misdiagnosis.md`, the measured drop rates on the built revision: 19 of 20 draft sentences dropped and 1 query of 12 answered, with `not_additive` at 74 percent of drops, inline citation markers at 16 percent, and `unsupported_sub_claim` at zero. Read it before the next design pass; it reorders the work
+- `docs/experiments/0004-clean-pipeline-re-measurement.md`, the gate re measured on the cleaned instrument: 19 of 21 draft sentences dropped and 0 queries of 12 answered, `not_additive` at 68 percent of drops, `unsupported_sub_claim` newly at 16 percent through over splitting, the coverage schema failure and its before and after figures, and the gate's stochastic pass on a wrong answer. It raised OD-4, OD-5, and the ratification
+- `src/decision_memory/application/evaluation.py`, `QueryOracle` and `_satisfies`, the co location rule AC-15 reuses, and `run_evaluation`, which already takes its fixtures as a parameter
 - `src/decision_memory/application/verification.py`, `application/query.py`, `application/dto.py`, `infrastructure/openai_generation.py`, the code this feature changes
 
 **Practices & standards**:
