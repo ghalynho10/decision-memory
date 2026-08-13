@@ -245,7 +245,7 @@ None. Decomposition and entailment stay fixed to `gpt-4o-mini`. Coverage uses `M
 
 ## Build plan
 
-Ordered by the Skateboard approach: get the smallest honest whole working, then widen it. Tasks 1 to 3 shipped. Task 4 shipped and was reverted by evidence. **Tasks 5 to 8 shipped** (529 unit tests passing, ruff, format, strict mypy, and build green). Tasks 5 to 7 change the contract in the order the pipeline runs (validity test, then output unit, then trace), and task 8 re-locks the tests.
+Ordered by the Skateboard approach: get the smallest honest whole working, then widen it. Tasks 1 to 3 shipped. Task 4 shipped and was reverted by evidence. **Tasks 5 to 8 shipped** (529 unit tests passing, ruff, format, strict mypy, and build green). Tasks 5 to 7 change the contract in the order the pipeline runs (validity test, then output unit, then trace), and task 8 re-locks the tests. **Tasks 9 to 11 shipped** (540 unit tests passing); task 11's measurement is [experiment 0004](../../experiments/0004-clean-pipeline-re-measurement.md), and it hands task 13 a calibration target of 68 percent, 13 of 19 drops, read from a clean instrument.
 
 Tasks 9 and 10 clean the measurement instrument before anything is measured with it, which is why they come before the gate rather than after it. Task 9 removes a failure cause no calibration can reach, and task 10 removes a contaminated input. Tasks 11 to 14 then measure, cheapest gate first: this repository's own corpus before the live JobPilot batches, because the cheap gate is the one that falsified the previous build. The gate and the calibration were written the other way round and were swapped on 2026-08-12: calibration needs a measurement to calibrate against, so the cheap gate runs first.
 

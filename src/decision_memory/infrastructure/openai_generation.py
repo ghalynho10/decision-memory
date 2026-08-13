@@ -181,9 +181,23 @@ def _coverage_schema() -> dict[str, Any]:
                         "facet_id": {"type": "string"},
                         "covered": {"type": "boolean"},
                         "reason": {"type": "string"},
+                        # Soft guidance only. ``validate_coverage`` is the hard
+                        # gate and rejects an uncovered row that names
+                        # sentences (spec 0010 AC-12); this description exists
+                        # because neither the fixed instruction nor the field
+                        # list ever stated the rule, so the model kept naming
+                        # the sentence it had judged and a correct uncovered
+                        # verdict failed the query instead of abstaining.
                         "sentence_ids": {
                             "type": "array",
                             "items": {"type": "string"},
+                            "description": (
+                                "Sentence ids that directly state this "
+                                "facet's answer, in the order the sentences "
+                                "were given. Leave this empty when covered "
+                                "is false: never name a sentence you judged "
+                                "and rejected."
+                            ),
                         },
                     },
                     "required": ["facet_id", "covered", "reason", "sentence_ids"],
