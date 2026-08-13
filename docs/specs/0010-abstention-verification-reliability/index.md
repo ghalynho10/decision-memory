@@ -368,6 +368,28 @@ Tasks 9 and 10 clean the measurement instrument before anything is measured with
 - No trace field is added for either new assertion. The citation co location check reads citations, and the abstention cause reads the coverage rows that already exist.
 - The JobPilot battery is unchanged. `expected_abstention` is optional and defaults to no constraint, so no existing fixture changes behaviour.
 
+## Open decisions
+
+**OD-7: coverage rejects a sentence that states what the system does, when the facet asks what was decided.** Raised by experiment 0006, which isolated it by controlling for both the AC-16 exclusion and sentence survival.
+
+The evidence. Against the frozen fixture, the gate's decision query emitted this sentence and coverage left the facet uncovered:
+
+```text
+S1: The hybrid retrieval system uses a combination of lexical BM25 and semantic
+    Chroma retrieval, followed by reciprocal rank fusion to combine their
+    contributions.
+
+uncovered F1: What was decided about hybrid lexical and semantic retrieval?
+```
+
+Across 6 runs, 11 sentences reached coverage and none covered the single facet. AC-16's exclusion is not the cause: removing it produced one coverage in 6 runs, and that one covered with the caveat sentence, which is the OD-5 defect AC-16 was written to close. The exclusion is working, and this is a separate fourth cause alongside `not_additive`, inline markers, and over splitting.
+
+The mismatch is one of framing. The facet asks what was **decided**; the sentence says what the system **uses**. AC-12's directness rule reads a statement of fact about the system as not a statement of a decision, which is a defensible reading of the rule as written. The corpus stores decisions, generation writes descriptions of systems, and coverage asks for a decision framing it never receives.
+
+**This blocks the AC-15 answering bar, and task 13 cannot move it.** Calibration raises how many sentences survive verification; survival is not the binding constraint, since 11 sentences already reached coverage and none covered.
+
+The decision owed: may a facet asking what was decided be covered by a sentence stating what the system does, and if so, where is that expressed? Three places it could live, each with a cost. In `COVERAGE_SYSTEM_PROMPT`, which risks reopening the caveat hole AC-16 has just closed, since a caveat is also a statement about the system. In facet extraction, so the facet asks a question a generated sentence can answer rather than one only a decision record phrases. Or in answer generation, so a sentence answering a decision facet states the decision rather than describing the system; closest to what a reader wants, and the largest surface change.
+
 ## Settled decisions
 
 Six decisions have been settled, in two rounds on 2026-08-13, and all six are written into the criteria above. Recorded here as a short index, with the reasoning in [rationale.md](rationale.md). Nothing is open.
