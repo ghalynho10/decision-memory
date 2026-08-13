@@ -4,7 +4,7 @@ A local, cited RAG system that makes software decision history queryable.
 
 Point it at a project's decision records and ask why something is built the way it is. Answers come back cited to a source spec, commit, or file, or an honest "not enough evidence here" when the history doesn't support one.
 
-**Status: early development.** Seven commands ship (`version`, `validate`, `doctor`, `adapt`, `test-adapter`, `ingest`, `query`), verified live against a real project's specs: a known-answer question returns a correct, cited answer, and an unsupported question returns `not enough evidence here`, exit `0`. Hybrid retrieval ships with the query index: explicit metadata filters, BM25 keyword and cosine semantic search, reciprocal rank fusion, and record diversity. Built-in ADR adapters are planned, not shipped yet.
+**Status: early development.** Eight commands ship (`version`, `validate`, `doctor`, `adapt`, `test-adapter`, `ingest`, `query`, `evaluate`), verified live against a real project's specs: a known-answer question returns a correct, cited answer, an unsupported question returns `not enough evidence here`, exit `0`, and the evaluation harness runs the five defining queries plus two assertions against the real corpus and reports PASS or FAIL per fixture. Hybrid retrieval ships with the query index: explicit metadata filters, BM25 keyword and cosine semantic search, reciprocal rank fusion, and record diversity. Built-in ADR adapters are planned, not shipped yet.
 
 ## What this is for
 

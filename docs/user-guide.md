@@ -153,6 +153,30 @@ A rebuild stages a fresh generation, verifies it completely, then switches to it
 - `2` invalid usage, including an empty question or a malformed filter value
 - `3` a missing records directory or missing store path
 
+### The evaluation harness
+
+`evaluate` runs a fixed battery of correctness checks against a corpus to prove the whole pipeline end to end. It adapts the corpus into canonical records, ingests them into a fresh store, and runs the five defining queries plus two further assertions. Each fixture reports PASS or FAIL with a legible reason, and the command exits `0` only when every fixture passes.
+
+```bash
+uv run decision-memory evaluate <corpus-root>          # one live run per fixture
+uv run decision-memory evaluate <corpus-root> --runs 5 # measure the rate across runs
+```
+
+The battery is fixed and calibrated to the built in adapter:
+
+- query 1 (the private beta access gate) must answer and cite `DM-0012` including a rejected alternative chunk.
+- query 2 (resume generation) must answer and cite both `DM-0004` and `DM-0019`.
+- query 3 (provisional decisions) must answer and cite every proposed record, derived from the records themselves.
+- query 4 (server and browser database clients) must honestly abstain, because its evidence is outside the adapted corpus.
+- query 5 (uploaded files) must abstain in v1, because the supersession evidence that would answer it is not mapped.
+- the rationale summary assertion asks a question only the comparative synthesis can answer, and requires a citation to a `rationale_summary` chunk.
+- the unverifiable claim fixture asks for a specific fact no record states, and requires abstention, proving the verification step catches a fabricated claim.
+- the incremental re ingest assertion edits a copy of a `rationale.md`, re adapts, re ingests, and confirms the record's chunks changed.
+
+`--runs N` runs each query fixture N times and reports the observed pass rate, because a single run does not estimate reliability. N is capped at 20, so a typo does not fire hundreds of paid live queries by accident. The command needs `OPENAI_API_KEY` and the real corpus, exactly like a live `ingest` then `query` run. Known live blockers are reported as FAIL rather than hidden; the harness measures correctness, it does not patch it.
+
+`--records PATH` and `--store PATH` point the harness at specific directories instead of a temporary one it cleans up on exit. The harness always adapts and rebuilds: pointing either option at a path you use for something else overwrites its records and manifest, or replaces its store's active generation, and the command warns loudly (but does not refuse) when it detects existing content there.
+
 ### When an answer is wrong: the triage map
 
 Reviewer guidance for working backward from a bad answer. It applies only after you've confirmed the fact really is in the canonical record; if the record itself is wrong or missing the fact, the failure belongs to adaptation or ingestion, not this chain.

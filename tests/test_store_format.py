@@ -171,6 +171,76 @@ def test_real_store_is_format_two_and_semantic_search_exact(tmp_path) -> None:
     )
 
 
+@pytest.mark.integration
+def test_active_chunks_keeps_value_path_and_fingerprint_separate(
+    tmp_path: Path,
+) -> None:
+    """active_chunks must not swap value_path with active_fingerprint.
+
+    A regression lock for the column swap found by the feature 11 evaluation
+    harness: the descriptor used to read the fingerprint hash into value_path
+    and the real value path into fingerprint, which silently broke the
+    ``--value-path`` filter and corrupted citation value paths against the
+    real store. The chunk table stores both columns distinctly, so the
+    descriptor must round trip them separately.
+
+    Deliberately kept ``integration`` rather than moved to the fast suite:
+    ``fake_embed`` only removes the network dependency, but this test still
+    exercises the real ``SqliteChromaIndexWriter``/``SqliteChromaIndexReader``
+    against a real store on disk, exactly like its two siblings in this file
+    (``test_real_store_is_format_two_and_semantic_search_exact`` and
+    ``test_rebuild_preserves_format_two_and_format_one_refuses_query``). This
+    file's convention is real store implies integration, fake provider or
+    not; moving only this one test would be inconsistent with that, not a
+    fix.
+    """
+    records_dir = _adapt_dm0012(tmp_path)
+    store = tmp_path / "store"
+    writer = SqliteChromaIndexWriter(store)
+    try:
+        result = ingest_records(
+            IngestRequest(
+                records_dir=records_dir,
+                store_dir=store,
+                rebuild=False,
+                dry_run=False,
+            ),
+            IngestDependencies(
+                load_manifest=lambda: load_manifest(manifest_path(records_dir)),
+                read_record=record_loader(records_dir),
+                count_tokens=tiktoken_count,
+                embed=fake_embed,
+                raw_manifest_digest=lambda: raw_manifest_digest(
+                    manifest_path(records_dir)
+                ),
+                require_api_key=lambda: None,
+                store=writer,
+            ),
+        )
+    finally:
+        writer.close()
+    assert result.exit_code == 0
+
+    reader = SqliteChromaIndexReader(store)
+    chunks = reader.active_chunks()
+    assert chunks
+    # Every value path is a real canonical path, not a fingerprint hash, and
+    # every fingerprint is a real fingerprint, not a value path.
+    for chunk in chunks:
+        assert chunk.value_path in {
+            "context.problem",
+            "decision.chosen",
+            "decision.alternatives[0]",
+            "decision.alternatives[1]",
+            "rationale_summary",
+            "consequences.positive[0]",
+            "consequences.negative[0]",
+            "body[0]",
+        }, chunk.value_path
+        assert "[" not in chunk.fingerprint
+        assert chunk.fingerprint != chunk.value_path
+
+
 def _real_ingest(records_dir: Path, store: Path, *, rebuild: bool) -> IngestState:
     writer = SqliteChromaIndexWriter(store)
     try:
