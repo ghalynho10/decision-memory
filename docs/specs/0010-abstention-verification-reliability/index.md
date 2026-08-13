@@ -304,6 +304,16 @@ Tasks 9 and 10 clean the measurement instrument before anything is measured with
 - No store change, no rebuild, no new configuration.
 - Query 2 citation completeness remains out of scope. Fixed facet coverage cannot demand an omitted record that no facet names.
 
+## Open decisions
+
+Raised by experiment 0004 (spec task 11). Both concern AC-14, and neither is a build time call.
+
+**OD-4: the self corpus gate's oracle cannot detect a wrong answer.** In the run where the decision query answered, the sentence that stated the decision was dropped as `not_additive`, and coverage marked the decision facet covered by a caveat instead: *"The JobPilot corpus cannot establish that hybrid retrieval is better at scale."* That satisfied the manifest's `expected_record` (`DM-0008`) and `expected_state` (`answered`), so the gate passed while the answer was wrong. Record plus state cannot see answer content, which is the one thing this gate exists to judge. A second defect came with it: the decision query returned different states across two runs on identical input, so the gate also passes and fails stochastically.
+
+Recommended, in two parts. Add a **content assertion** to the fixture manifest, naming what the answer must state rather than only which record it must come from. This does not reintroduce the contamination AC-14 was built to prevent, because the manifest already lives outside `docs/specs/` precisely so expectations are not corpus. And give the gate a **run count and a bar**, in the shape AC-2 already uses (6 of 6 across two batches), or label it indicative only; a gate that disagrees with itself on identical input cannot gate anything.
+
+**OD-5: coverage accepted a caveat as covering a decision facet.** This is the other half of the same trace, and it is a defect in behaviour rather than in the gate that observed it. AC-12's directness rule already says a reason, context, consequence, premise, or anaphoric fragment cannot cover a decision facet unless that same sentence states the decision. A sentence about what the corpus cannot establish is a limitation, not a decision, and the coverage model covered the facet with it anyway. The rule is specified and the model did not honour it, so the question is what to do about that: strengthen the fixed instruction, add a deterministic post check that a covering sentence is not purely a caveat, or accept the miss rate and measure it. Related to the AC-13 pattern, where a deterministic guard was kept as the hard half precisely because prompt compliance was inconsistent.
+
 ## Settled decisions
 
 The three decisions this spec owed were settled on 2026-08-13 and are now written into the criteria above. Recorded here as a short index, with the reasoning in [rationale.md](rationale.md).
