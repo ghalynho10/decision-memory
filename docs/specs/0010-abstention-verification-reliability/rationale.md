@@ -389,6 +389,7 @@ Two independent cross checks then pushed the matcher from a described rule to a 
 - the fresh baseline runs, 2026-08-12, recorded above
 - the post build `/debug` traces, 2026-08-12, recorded above
 - the AC-9 live gate runs and the instrumented rejected sub claim pull, 2026-08-12, recorded above
+- `docs/experiments/0003-whole-sentence-gate-and-a-misdiagnosis.md`, the measured drop rates on the built revision: 19 of 20 draft sentences dropped and 1 query of 12 answered, with `not_additive` at 74 percent of drops, inline citation markers at 16 percent, and `unsupported_sub_claim` at zero. Read it before the next design pass; it reorders the work
 - `src/decision_memory/application/verification.py`, `application/query.py`, `application/dto.py`, `infrastructure/openai_generation.py`, the code this feature changes
 
 **Practices & standards**:

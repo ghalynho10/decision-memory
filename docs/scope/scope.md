@@ -184,6 +184,7 @@ spec [0010](../specs/0010-abstention-verification-reliability/index.md) · code 
   - [x] Re-lock the deterministic tests against the new contract, including both AC-1 attacks and the additive scope regression the cross check caught (AC-1, AC-4 to AC-8, AC-10 to AC-12)
   - [ ] Calibrate the additive tolerance by measurement, then rewrite `verify.md` and run `/check verify` and `/test` (AC-1 to AC-12)
   - [ ] Gate cheapest first: this repo's own corpus, then two live `--runs 3` JobPilot batches; re-measure the rationale summary rather than assume its old bar (AC-2, AC-3, AC-9, AC-12)
+**Measured state (2026-08-12):** tasks 5 to 8 are built and green (529 unit tests), and the feature does not yet work: `docs/experiments/0003-whole-sentence-gate-and-a-misdiagnosis.md` records 19 of 20 draft sentences dropped and 1 query of 12 answered. `not_additive` is 74 percent of drops, so task 9 is the critical path and is larger than calibration implies. Inline `[ch_...]` markers written into the draft text are 16 percent and need a small decision (strip at the generation boundary, since `chunk_ids` already carries them and the marker also defeats the AC-5 containment shortcut). The gate itself must hold spec 0010 out of the corpus, because task 11 names its expected answer inside the corpus it queries.
 - [ ] Verify it: `/check verify abstention verification reliability`
 - [ ] Test it: `/test abstention verification reliability`
 
