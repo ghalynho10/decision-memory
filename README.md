@@ -40,15 +40,16 @@ Here's a real run against this repo's own specs:
 
 ```console
 $ decision-memory query "why was the entry point discovery approach rejected for third party adapters?"
-The entry point discovery approach was rejected because it adds packaging work
-before any external adapter exists, introduces new product behavior with discovery
-and duplicate name policy, and still requires runtime object validation after
-loading. [C1]
+The entry point discovery approach was rejected. [C1]
+The entry point discovery approach adds packaging work before any external adapter exists. [C1]
+The entry point discovery approach introduces new product behavior for discovery. [C1]
+The entry point discovery approach introduces a duplicate name policy. [C1]
+The entry point discovery approach still requires runtime object validation after loading. [C1]
 Sources
-C1 DM-0005 ch_b728a86a8b08... decision.alternatives[0] docs/specs/0005-runtime-adapter-loading/rationale.md Options considered
+C1 DM-0005 ch_c5895e9ab5af... decision.alternatives[0] docs/specs/0005-runtime-adapter-loading/rationale.md Options considered
 ```
 
-The citation resolves to the exact spec section the claim came from, so you can check it yourself. On an unsupported question:
+The citation resolves to the exact spec section the claim came from, so you can check it yourself. Answers currently arrive as separate short sentences rather than flowing prose, because each claim is verified independently before it is emitted; see [Known limitations](#known-limitations). On an unsupported question:
 
 ```console
 $ decision-memory query "why is the subscription priced at nine dollars per month?"
@@ -70,10 +71,20 @@ Sources (project-specific)
                 ↓
     Canonical decision record
                 ↓
-    Generic RAG core     ingestion · semantic retrieval (hybrid planned) · citation
+    Generic RAG core     ingestion · hybrid retrieval · citation
 ```
 
-See the [user guide](docs/user-guide.md) for the canonical record schema, adapter internals, exit codes, and how to triage a bad answer.
+New here? [What is decision-memory?](docs/what-is-this.md) is a one-page plain-language explanation. See the [user guide](docs/user-guide.md) for the canonical record schema, adapter internals, exit codes, and how to triage a bad answer.
+
+## Known limitations
+
+Measured against this repo's own specs on 2026-08-12 (`docs/experiments/`):
+
+- **Answers arrive as separate short sentences, not prose.** Each claim is verified independently and emitted on its own, so a single source sentence can become several. The content is correct and the citations resolve, but it reads poorly. Under active revision.
+- **A decision that takes more than one clause to state can be refused.** Coverage requires one sentence to state a full answer and cannot combine sentences, so a correct multi-part answer sometimes returns `not enough evidence here`. Same revision as above.
+- **One source format.** The built-in adapter reads directory-style specs (`docs/specs/NNNN-title/index.md`). Flat single-file specs are skipped, and ADR/MADR corpora need an adapter that does not exist yet.
+- **A malformed `Status` line silently drops a record.** The status must be a known value; a parenthetical note attached to it causes the whole spec to be skipped at `adapt` time, and nothing warns you again at query time.
+- **Requires an `OPENAI_API_KEY`** for `ingest` and `query`. Everything else runs offline.
 
 ## Scope
 
@@ -81,7 +92,7 @@ See the [user guide](docs/user-guide.md) for the canonical record schema, adapte
 
 - Canonical record schema, with a validator
 - First adapter, for spec-driven pipeline output
-- `doctor`, runtime adapter loading, a conformance suite, and built-in ADR adapters
+- `doctor`, runtime adapter loading, and a conformance suite (built-in ADR adapters still to come)
 - Ingestion: parse, chunk on canonical field boundaries, embed, index; metadata stays queryable as structured fields
 - Hybrid retrieval: structured filters, keyword, and semantic search, filtering able to constrain the candidate set before semantic similarity chooses among it
 - Query interface (CLI) returning answers with resolving citations, plus a debug view showing what was retrieved and why an answer was refused
