@@ -176,7 +176,9 @@ None. Decomposition and entailment stay fixed to `gpt-4o-mini`. Coverage uses `M
 
 ## Build plan
 
-Ordered by the Skateboard approach: get the smallest honest whole working, then widen it. Tasks 1 to 3 shipped. Task 4 shipped and was reverted by evidence. **Tasks 5 to 8 shipped** (529 unit tests passing, ruff, format, strict mypy, and build green). Tasks 5 to 7 change the contract in the order the pipeline runs (validity test, then output unit, then trace), task 8 re-locks the tests, and tasks 9 to 12 measure it, cheapest gate first: this repository's own corpus before the live JobPilot batches, because the cheap gate is the one that falsified the previous build.
+Ordered by the Skateboard approach: get the smallest honest whole working, then widen it. Tasks 1 to 3 shipped. Task 4 shipped and was reverted by evidence. **Tasks 5 to 8 shipped** (529 unit tests passing, ruff, format, strict mypy, and build green). Tasks 5 to 7 change the contract in the order the pipeline runs (validity test, then output unit, then trace), task 8 re-locks the tests, and tasks 9 to 12 measure it, cheapest gate first: this repository's own corpus before the live JobPilot batches, because the cheap gate is the one that falsified the previous build. Tasks 9 and 11 were written the other way round and were swapped on 2026-08-12: calibration needs a measurement to calibrate against, so the cheap gate runs first.
+
+**Blocked on `## Open decisions`.** OD-1 (inline citation markers) accounts for 16 percent of sentence drops measured in experiment 0003, and no calibration reaches it. Settle OD-1 and implement it before task 11, otherwise the tolerance is calibrated against a corpus where one sentence in two is failing for an unrelated reason.
 
 1. Remove parent restoration from `query.py`. Resolve available citations before whole containment, emit only verified fragments after decomposition, keep output citations inside accepted context, and make abstained public output empty while preserving trace rows, satisfies **AC-1**, **AC-4**, **AC-5**, **AC-8**
 2. Complete the decomposition contract and trace. Add exact provider serialization, duplicate rejection, the three rejection dispositions, and `rejected_decompositions` rendering without rejected text, satisfies **AC-6**, **AC-7**, **AC-10**, **AC-11**
@@ -186,9 +188,9 @@ Ordered by the Skateboard approach: get the smallest honest whole working, then 
 6. Switch the output unit to the sentence in `query.py`, satisfying AC-4. Emit the parent verbatim when the decomposition is valid and every sub claim is supported; drop the parent whole when either fails. Remove fragment emission, remove the `kept` field from the sub claim row, and preserve draft order, satisfies **AC-1**, **AC-4**, **AC-5**
 7. Replace `dropped_sub_claims` with `dropped_sentences` and record exactly one closed reason per unemitted sentence, pairing `decomposition_invalid` with its specific disposition, satisfies **AC-6**, **AC-10**
 8. Rewrite the deterministic tests the contract change invalidates, and add the two AC-1 attack tests against the new mechanism: an explicit fabricated sub claim (unsupported, parent dropped) and an omitted fabricated clause (incomplete, parent dropped). Cover both lexical directions, the closed disposition set, one drop reason per sentence, whole sentence output, coverage directness over sentences, and schema stability, satisfies **AC-1**, **AC-4** to **AC-8**, **AC-10** to **AC-12**
-9. Calibrate the additive tolerance against the harness rather than by argument. The additive half is now safe to loosen, because a sub claim never reaches output and its only job is to stop substitution; the completeness half is the safety critical direction. Record the measured setting and its evidence in `rationale.md`, satisfies **AC-11**
+9. Re-run experiment 0002's two queries against this repository's own corpus, before calibration and before JobPilot. This runs first because calibration needs a measurement to calibrate against, and this is the cheapest one; experiment 0003 confirmed the ordering by finding it the gate that falsifies a build. `What was decided about hybrid lexical and semantic retrieval?` must answer from DM-0008 with a whole sentence; `Why did we choose hybrid lexical and semantic retrieval?` must keep abstaining. This is the cheapest gate and it is the one that falsified the previous build, satisfies **AC-4**, **AC-12**
 10. Rewrite `verify.md` for the revised contract (the existing local checks describe the fragment mechanism and no longer apply), then run `/check verify` and `/test`, satisfies **AC-1** to **AC-12**
-11. Re-run experiment 0002's two queries against this repository's own corpus before touching JobPilot. `What was decided about hybrid lexical and semantic retrieval?` must answer from DM-0008 with a whole sentence; `Why did we choose hybrid lexical and semantic retrieval?` must keep abstaining. This is the cheapest gate and it is the one that falsified the previous build, satisfies **AC-4**, **AC-12**
+11. Calibrate the additive tolerance against the measurement task 9 produced, not by argument. Experiment 0003 measured `not_additive` at 74 percent of all sentence drops, so this is the critical path, not a finishing touch. The additive half is now safe to loosen, because a sub claim never reaches output and its only job is to stop substitution; the completeness half is the safety critical direction. Record the measured setting and its evidence in `rationale.md`, satisfies **AC-11**
 12. Run `evaluate --runs 3` twice against the real JobPilot corpus. Confirm query 4 has separate decision and reason facets, that its fabricated decision leaves its parent sentence dropped, that the decision facet is uncovered, and that it abstains 6 of 6. Confirm query 5 abstains 6 of 6. Confirm the rationale summary, unverifiable claim, and incremental reingest assertions meet their AC-9 bars. Query 3 is expected to pass now rather than abstain, since its two clause answer is one sentence again; if it still abstains, the generation directness follow up is real and separate, satisfies **AC-2**, **AC-3**, **AC-9**, **AC-12**
 
 ## Consequences
@@ -222,6 +224,21 @@ Ordered by the Skateboard approach: get the smallest honest whole working, then 
 - `schema_version` stays 2; the five trace fields are additive and query results are not read back from persistence.
 - No store change, no rebuild, no new configuration.
 - Query 2 citation completeness remains out of scope. Fixed facet coverage cannot demand an omitted record that no facet names.
+
+## Open decisions
+
+Owed before the build can finish. Recorded here rather than settled in a build step, because each changes what AC-4, AC-5, or AC-11 mean.
+
+**OD-1: inline citation markers in the draft text.** The answer model intermittently writes `[ch_...]` markers into `DraftSentence.text`, measured at 11 of 20 sentences in experiment 0003. `sentence_tokens` reads a chunk id as a parent content token, and no sub claim can ever match it, so completeness fails and the parent is dropped. Two options:
+
+- **Strip markers at the generation boundary (recommended).** `validate_draft` removes any chunk id marker from `text` before constructing the `DraftSentence`. The marker is redundant: `chunk_ids` already carries the same data as a validated structured field. This also repairs AC-5, which is silently dead today, because a sentence carrying a marker can never be a verbatim substring of a cited chunk, so every such sentence pays a decomposition call the cost bound says it should not.
+- **Teach the matcher to ignore chunk id shaped tokens.** Smaller change, contained to AC-11. Leaves the marker in the text, so AC-5 stays broken, the emitted answer can still show a raw marker, and every later consumer of `text` inherits the same problem.
+
+The recommendation is the first: the marker is a serialization artifact, and the fix belongs where the artifact enters the system, not in every rule that later trips over it. Deciding this also settles whether `ANSWER_SYSTEM_PROMPT` should stop saying `exactly as shown in brackets in the evidence`, which is the wording that invites the marker.
+
+**OD-2: what the self corpus gate reads.** Task 9's expected answer is written verbatim into this spec's own build plan, and this spec lives in the corpus the gate queries. The gate must either hold spec 0010 out of the corpus it builds, or stop naming expected answers inside it. Experiment 0003 finding 4.
+
+**OD-3: `DECOMPOSE_SYSTEM_PROMPT` is out of sync.** `/develop` added a completeness instruction to it, because without one the AC-11 hard gate fires on correct behaviour. Provider contracts above treats prompt text as a fixed constant, so the shipped wording belongs in this spec. Record the exact text when OD-1 is settled, since OD-1 may change the same prompt.
 
 ## Follow-up
 
