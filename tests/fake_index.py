@@ -314,9 +314,10 @@ def fake_entail(sentence, evidence, attempts=None) -> tuple[bool, str]:
 def fake_decompose(sentence_text, evidence, attempts=None) -> tuple[str, ...]:
     """An under split: the whole sentence as a single sub claim.
 
-    Combined with ``fake_entail`` returning supported, every non verbatim
-    sentence survives as one fragment carrying a sub claim id. The parent
-    sentence is never re emitted after decomposition (spec 0010 AC-4).
+    Valid in both directions of the AC-11 test, since it adds nothing to the
+    parent and omits nothing from it. Combined with ``fake_entail`` returning
+    supported, every non verbatim sentence is emitted whole under its own
+    parent sentence id (spec 0010 AC-4).
     """
     return (sentence_text,)
 

@@ -31,7 +31,7 @@ from decision_memory.application.dto import (
     CoverageRow,
     DiversityTrace,
     DraftSentence,
-    DroppedSubClaim,
+    DroppedSentence,
     Facet,
     Failure,
     FilterState,
@@ -81,6 +81,7 @@ from decision_memory.application.pipeline import (
 )
 from decision_memory.application.store_format import STORE_FORMAT_VERSION
 from decision_memory.application.verification import (
+    RETRYABLE_DISPOSITIONS,
     classify_decomposition,
     deterministic_containment,
 )
@@ -556,25 +557,29 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
     )
 
     # Verify each sentence: whole containment shortcut, then sub claim
-    # decomposition and per sub claim verification (spec 0010). A sentence
-    # that is verbatim in one of its available cited chunks is kept and never
-    # pays a decomposition call (AC-5). Before any containment or provider
-    # call, the parent citation ids are deduplicated in parent order and split
-    # into available and missing citations: every containment, decomposition,
-    # entailment, and output citation uses only the available ids, and a
-    # missing id is trace only (AC-8). Any other sentence is decomposed into
-    # atomic sub claims and each sub claim is verified alone, so a verbatim
-    # borrowed clause can no longer hide an invented decision inside the same
-    # sentence. A decomposed parent is never restored; only individually
-    # verified fragments are emitted (AC-1, AC-4).
-    kept_sentences: list[DraftSentence] = []
+    # decomposition and per sub claim verification (spec 0010). Decomposition
+    # is a check on the draft sentence, not a rewrite of it: the verification
+    # unit is the sub claim, the output unit is the sentence (AC-4).
+    #
+    # A sentence that is verbatim in one of its available cited chunks is
+    # emitted and never pays a decomposition call (AC-5). Before any
+    # containment or provider call, the parent citation ids are deduplicated
+    # in parent order and split into available and missing citations: every
+    # containment, decomposition, entailment, and output citation uses only
+    # the available ids, and a missing id is trace only (AC-8). Any other
+    # sentence is decomposed, the response is tested for validity as a whole,
+    # and each sub claim is verified alone. The parent is emitted verbatim
+    # only when its decomposition is valid and every sub claim is supported;
+    # either failure drops the whole parent, so a verbatim borrowed clause can
+    # no longer survive on its own carrying an invented decision (AC-1, AC-4).
+    emitted_sentences: list[DraftSentence] = []
     containment_rows: list[tuple[str, bool]] = []
     entailment_rows: list[tuple[str, str, str]] = []
     removed: list[str] = []
     decomposed_rows: list[SubClaim] = []
     empty_decompositions: list[str] = []
     rejected_decompositions: list[RejectedDecomposition] = []
-    dropped_sub_claims: list[DroppedSubClaim] = []
+    dropped_sentences: list[DroppedSentence] = []
     missing_chunk_refs: list[tuple[str, tuple[str, ...]]] = []
     chunk_text_by_id = {chunk.chunk_id: chunk.text for chunk in accepted_chunks}
     for sentence in draft:
@@ -597,9 +602,9 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
         contained = deterministic_containment(sentence.text, available_texts)
         containment_rows.append((sentence.sentence_id, contained))
         if contained:
-            # Whole sentence contained: keep the parent, narrowed to its
+            # Whole sentence contained: emit the parent, narrowed to its
             # available citations only (AC-5, AC-8).
-            kept_sentences.append(
+            emitted_sentences.append(
                 DraftSentence(sentence.sentence_id, sentence.text, available_ids)
             )
             continue
@@ -607,54 +612,68 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
             # Verified against empty evidence: never supported (AC-8). The
             # missing refs are already recorded above.
             removed.append(sentence.sentence_id)
+            dropped_sentences.append(
+                DroppedSentence(sentence.sentence_id, "no_available_citations")
+            )
             continue
-        try:
-            sub_claim_texts = deps.decompose(
-                sentence.text, available_evidence, attempts
-            )
-        except Exception as exc:  # noqa: BLE001 - provider failure is a result
-            return _failed_result(
-                request,
-                freshness,
-                Failure("provider.decompose", "claim_verification", _safe(exc)),
-                EXIT_ERROR,
-                attempts,
-            )
+        # Decompose, then test the response for validity. A two half failure
+        # earns one retry at the same fixed settings, because an invalid
+        # decomposition is usually a stochastic paraphrase rather than a
+        # property of the sentence; an over cap or duplicate response is
+        # rejected outright (AC-11).
+        rejection: str | None = None
+        sub_claim_texts: tuple[str, ...] = ()
+        for attempt in range(2):
+            try:
+                sub_claim_texts = deps.decompose(
+                    sentence.text, available_evidence, attempts
+                )
+            except Exception as exc:  # noqa: BLE001 - provider failure is a result
+                return _failed_result(
+                    request,
+                    freshness,
+                    Failure("provider.decompose", "claim_verification", _safe(exc)),
+                    EXIT_ERROR,
+                    attempts,
+                )
+            if not sub_claim_texts:
+                break
+            rejection = classify_decomposition(sub_claim_texts, sentence.text)
+            if rejection is None or rejection not in RETRYABLE_DISPOSITIONS:
+                break
+            if attempt == 1:
+                break
         if not sub_claim_texts:
-            # Genuine empty response: remove the sentence and record the
-            # empty signal, distinct from a rejected response (AC-6).
+            # Genuine empty response: drop the sentence and record the empty
+            # signal, which is distinct from a rejected response and carries
+            # no disposition of its own (AC-6).
             empty_decompositions.append(sentence.sentence_id)
             removed.append(sentence.sentence_id)
+            dropped_sentences.append(
+                DroppedSentence(sentence.sentence_id, "decomposition_invalid")
+            )
             continue
-        outcome = classify_decomposition(sub_claim_texts, sentence.text)
-        if outcome.rejection is not None:
-            # Rejected nonempty response: a closed rejection disposition. A
-            # wholesale rejection writes no dropped sub claim rows, so one
-            # event is never counted twice, and rejected claim text is never
-            # recorded (AC-6, AC-11).
+        if rejection is not None:
+            # Invalid response: one closed disposition, paired with one
+            # dropped sentence row, so the two are one event described at two
+            # levels. No entailment call is made, and rejected claim text is
+            # never recorded (AC-6, AC-11).
             rejected_decompositions.append(
                 RejectedDecomposition(
-                    sentence.sentence_id, len(sub_claim_texts), outcome.rejection
+                    sentence.sentence_id, len(sub_claim_texts), rejection
                 )
             )
             removed.append(sentence.sentence_id)
-            continue
-        # Accepted response: the lexical guard dropped each violating sub
-        # claim on its own, and every remaining sub claim keeps its provider
-        # position, so an accepted id skips only where a drop accounts for it
-        # (AC-6, AC-11).
-        for position in outcome.dropped:
-            dropped_sub_claims.append(
-                DroppedSubClaim(
-                    f"{sentence.sentence_id}.{position + 1}",
-                    sentence.sentence_id,
-                    "lexical_guard",
-                )
+            dropped_sentences.append(
+                DroppedSentence(sentence.sentence_id, "decomposition_invalid")
             )
-        # Verify each accepted sub claim alone, in provider order (AC-6).
+            continue
+        # Valid response: verify every sub claim alone, in provider order,
+        # containment first then entailment. A sub claim is never removed
+        # from a valid response, so the ids are contiguous (AC-6).
         rows: list[SubClaim] = []
-        fragments: list[DraftSentence] = []
-        for position, text in outcome.accepted:
+        all_supported = True
+        for position, text in enumerate(sub_claim_texts):
             sub_claim_id = f"{sentence.sentence_id}.{position + 1}"
             matching_ids = tuple(
                 chunk_id
@@ -670,11 +689,9 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
                         contained=True,
                         entailment="skipped",
                         reason="",
-                        kept=True,
                         citations=matching_ids,
                     )
                 )
-                fragments.append(DraftSentence(sub_claim_id, text, matching_ids))
                 continue
             try:
                 supported, reason = deps.entail(text, available_evidence, attempts)
@@ -694,31 +711,35 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
                     contained=False,
                     entailment="supported" if supported else "unsupported",
                     reason=reason,
-                    kept=supported,
                     citations=available_ids,
                 )
             )
-            if supported:
-                fragments.append(DraftSentence(sub_claim_id, text, available_ids))
+            if not supported:
+                all_supported = False
         decomposed_rows.extend(rows)
-        if fragments:
-            # Only individually verified fragments are emitted. A decomposed
-            # parent sentence is never restored, even when every returned sub
-            # claim is grounded (AC-1, AC-4).
-            kept_sentences.extend(fragments)
+        if all_supported:
+            # Every sub claim supported: emit the parent sentence verbatim,
+            # with its available citations and its own sentence id. Sub claims
+            # stay in the trace and are never emitted (AC-4).
+            emitted_sentences.append(
+                DraftSentence(sentence.sentence_id, sentence.text, available_ids)
+            )
         else:
-            # Every accepted sub claim unsupported: the sentence is fully
-            # removed. The kept=False rows above distinguish this from an
-            # empty decomposition, and from a lexical drop (AC-6).
+            # Any unsupported sub claim drops the whole parent, so a grounded
+            # clause cannot survive on its own. The unsupported row above
+            # names the exact claim that caused the drop (AC-1, AC-6).
             removed.append(sentence.sentence_id)
+            dropped_sentences.append(
+                DroppedSentence(sentence.sentence_id, "unsupported_sub_claim")
+            )
 
     # Independent coverage over the original question, the unchanged
-    # canonical facet tuple, and the kept sentences. With no kept sentences,
-    # every facet is deterministically uncovered and no coverage call is
-    # made (spec 0010 AC-12).
-    if kept_sentences:
+    # canonical facet tuple, and the emitted sentences, in draft order. With
+    # no emitted sentences, every facet is deterministically uncovered and no
+    # coverage call is made (spec 0010 AC-12).
+    if emitted_sentences:
         try:
-            coverage_rows = deps.coverage(question, facets, kept_sentences, attempts)
+            coverage_rows = deps.coverage(question, facets, emitted_sentences, attempts)
         except Exception as exc:  # noqa: BLE001 - provider failure is a result
             return _failed_result(
                 request,
@@ -729,7 +750,7 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
             )
     else:
         coverage_rows = tuple(
-            CoverageRow(facet.facet_id, False, "no kept answer sentence", ())
+            CoverageRow(facet.facet_id, False, "no emitted answer sentence", ())
             for facet in facets
         )
     uncovered = tuple(
@@ -746,7 +767,7 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
         decomposed=tuple(decomposed_rows),
         empty_decompositions=tuple(empty_decompositions),
         rejected_decompositions=tuple(rejected_decompositions),
-        dropped_sub_claims=tuple(dropped_sub_claims),
+        dropped_sentences=tuple(dropped_sentences),
         missing_chunk_refs=tuple(missing_chunk_refs),
     )
     if uncovered:
@@ -768,7 +789,7 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
         if desired is not None and deps.store.active_fingerprint(record_id) != desired
     )
     chunk_citations, chunk_sentence_ids = _allocate_citations(
-        kept_sentences, chunk_by_id, stale_record_ids, deps.resolve_source
+        emitted_sentences, chunk_by_id, stale_record_ids, deps.resolve_source
     )
     try:
         manifest = deps.load_manifest()
@@ -789,7 +810,7 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
                 text=sentence.text,
                 citation_ids=chunk_sentence_ids.get(sentence.sentence_id, ()),
             )
-            for sentence in kept_sentences
+            for sentence in emitted_sentences
         )
         + disclosure_sentences
     )
@@ -1232,7 +1253,7 @@ def _empty_verification() -> VerificationTrace:
         decomposed=(),
         empty_decompositions=(),
         rejected_decompositions=(),
-        dropped_sub_claims=(),
+        dropped_sentences=(),
         missing_chunk_refs=(),
     )
 

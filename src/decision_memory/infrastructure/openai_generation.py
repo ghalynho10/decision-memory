@@ -54,13 +54,20 @@ ANSWER_SYSTEM_PROMPT = (
     "sentences S1, S2, and so on. Never invent facts outside the evidence. "
     "If the evidence cannot answer a facet, write nothing for it."
 )
+# The decomposition is a check on the candidate sentence, not a rewrite of
+# it (spec 0010 AC-11). The prompt asks for both directions the validity test
+# measures: add nothing the sentence does not contain, and leave none of it
+# out. A response that omits a clause is rejected as ``incomplete`` and takes
+# its whole parent sentence down, so asking only for the additive direction
+# would drop correct sentences.
 DECOMPOSE_SYSTEM_PROMPT = (
     "Split the candidate sentence into atomic factual sub claims. Each sub "
     "claim must be one atomic assertion stated nearly verbatim, using only "
     "words and facts already present in the candidate sentence. Return at "
     "most 8 sub claims. Never introduce content that is not in the candidate "
-    "sentence. If the sentence is already a single atomic claim, return it "
-    "as one sub claim."
+    "sentence. Cover the whole sentence: every clause of it must appear in "
+    "some sub claim, and leaving a clause out is an error. If the sentence "
+    "is already a single atomic claim, return it as one sub claim."
 )
 # The fixed directness instruction for facet coverage (spec 0010 AC-12): one
 # sentence must directly state the answer; a reason, context, consequence,

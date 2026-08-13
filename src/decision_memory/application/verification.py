@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import unicodedata
 from collections.abc import Sequence
-from dataclasses import dataclass
 
 
 def normalize_for_containment(text: str) -> str:
@@ -43,8 +42,9 @@ def deterministic_containment(sentence: str, chunk_texts: Sequence[str]) -> bool
 # The closed function word set (spec 0010, Feature design). It is exhaustive
 # by decision, not a grammatical category the builder extends: a word outside
 # it is a content token that must find a parent match, so an unlisted word
-# makes the guard drop a sub claim, which loses content but never admits a
-# fabrication. Adding a word is a spec edit, not a build time judgment.
+# makes the test drop the parent sentence, which loses content but never
+# admits a fabrication. Adding a word is a spec edit, not a build time
+# judgment.
 FUNCTION_WORDS = frozenset(
     {
         "a",
@@ -153,13 +153,7 @@ def _stem_match(a: str, b: str) -> bool:
 
     The four inflection rules require ``shorter`` to reach
     ``MIN_STEM_LENGTH``, measured on the untransformed token. Exact equality
-    carries no floor: it manipulates no suffix, so the floor has nothing to
-    guard there, and a token already present in the parent multiset is not
-    new vocabulary however short it is. (AC-11 states the floor once for all
-    five rules; that literal reading would drop a sub claim reusing a short
-    parent token such as ``db`` or a bare number, which contradicts the same
-    criterion's opening multiset rule. Owed as a one line spec
-    clarification.)
+    carries no floor, and ``tokens_match`` settles it before reaching here.
     """
     if a == b:
         return True
@@ -179,97 +173,132 @@ def _stem_match(a: str, b: str) -> bool:
     )
 
 
-def sub_claim_is_lexical_subset(
-    sub_tokens: Sequence[str], parent_counts: dict[str, int]
-) -> bool:
-    """Whether one sub claim introduces no unmatched content vocabulary.
+def tokens_match(a: str, b: str) -> bool:
+    """Whether two tokens are the same word under the AC-11 rules.
 
-    Each token consumes an unused parent token by exact equality; failing
-    that, a function word may be added without a parent match, up to
-    ``MAX_ADDED_FUNCTION_WORDS`` instances per sub claim, and a content token
-    may consume an unused parent content token that shares its stem (spec
-    0010 AC-11). A function word never matches by stem, and a content token
-    never consumes a parent function word. Matching is per sub claim, never
-    across the response, so ``parent_counts`` is copied here.
+    Exact equality always matches, and carries no character floor: it
+    transforms no suffix, so the floor guards nothing there, and a token
+    already present in the parent is not new vocabulary however short it is
+    (``db`` reused verbatim must match). Otherwise a function word never
+    matches, on either side, since a function word matches only by exact
+    normalized token equality. Two content tokens match when they share a
+    stem. This is the one matcher both halves of the validity test use.
     """
-    counts = dict(parent_counts)
+    if a == b:
+        return True
+    if a in FUNCTION_WORDS or b in FUNCTION_WORDS:
+        return False
+    return _stem_match(a, b)
+
+
+def sub_claim_is_additive_free(
+    sub_tokens: Sequence[str], parent_tokens: Sequence[str]
+) -> bool:
+    """Whether one sub claim adds no content the parent sentence lacks.
+
+    The additive half of the AC-11 validity test, scoped **per sub claim**:
+    the sub claim is checked alone against the full parent token pool, and
+    the caller resets the pool for the next sub claim. A decomposition
+    restates the shared subject in each part, which is normal and adds
+    nothing, so consuming those tokens across the response would reject a
+    correct split of any sentence with a repeated subject.
+
+    Each token takes the first unused parent token it matches, in parent
+    order; the assignment is greedy and never backtracks, so two conforming
+    builds reach the same verdict. A content token with no match fails the
+    sub claim. A function word with no match is instead counted against
+    ``MAX_ADDED_FUNCTION_WORDS`` instances per sub claim, whatever the words
+    are, and fails only past that bound.
+    """
+    used = [False] * len(parent_tokens)
     added_function_words = 0
     for token in sub_tokens:
-        if counts.get(token, 0) > 0:
-            counts[token] -= 1
-            continue
-        if token in FUNCTION_WORDS:
-            added_function_words += 1
-            if added_function_words > MAX_ADDED_FUNCTION_WORDS:
-                return False
-            continue
         matched = False
-        for parent_token, count in counts.items():
-            if (
-                count > 0
-                and parent_token not in FUNCTION_WORDS
-                and _stem_match(token, parent_token)
-            ):
-                counts[parent_token] -= 1
+        for index, parent_token in enumerate(parent_tokens):
+            if not used[index] and tokens_match(token, parent_token):
+                used[index] = True
                 matched = True
                 break
-        if not matched:
+        if matched:
+            continue
+        if token not in FUNCTION_WORDS:
+            return False
+        added_function_words += 1
+        if added_function_words > MAX_ADDED_FUNCTION_WORDS:
             return False
     return True
 
 
-@dataclass(frozen=True)
-class DecompositionOutcome:
-    """How one nonempty decomposition response was classified (AC-6, AC-11).
+def response_is_complete(
+    sub_claim_texts: Sequence[str], parent_tokens: Sequence[str]
+) -> bool:
+    """Whether the sub claims omit no content of the parent sentence.
 
-    ``rejection`` is None when at least one sub claim survives, else one
-    closed whole response disposition: ``over_cap``, ``duplicate``, or
-    ``lexical_guard`` (here meaning no sub claim was acceptable). A wholesale
-    rejection carries no ``accepted`` and no ``dropped`` positions, so one
-    event is never counted twice. ``accepted`` and ``dropped`` hold zero
-    based provider positions, so a dropped sub claim keeps its position and
-    the accepted ids skip only where a drop accounts for them.
+    The completeness half of the AC-11 validity test, scoped **across the
+    whole response**: every distinct content token of the parent must match
+    a token in at least one sub claim. Matching is presence based, not
+    multiset based, so one occurrence in one sub claim satisfies every
+    occurrence of that token in the parent, and a response that splits one
+    parent clause across two sub claims still passes. Parent function words
+    need no match.
+
+    This is the half that stops the decomposition quietly dropping a clause,
+    the omission attack of AC-1: a dropped clause takes its content words out
+    of the response entirely.
     """
+    response_tokens = [
+        token for text in sub_claim_texts for token in sentence_tokens(text)
+    ]
+    return all(
+        any(tokens_match(parent_token, token) for token in response_tokens)
+        for parent_token in parent_tokens
+        if parent_token not in FUNCTION_WORDS
+    )
 
-    rejection: str | None
-    accepted: tuple[tuple[int, str], ...] = ()
-    dropped: tuple[int, ...] = ()
+
+# The dispositions the two half validity test can return, the only ones that
+# earn a decomposition retry (spec 0010 AC-11). An ``over_cap`` or
+# ``duplicate`` response is rejected outright.
+RETRYABLE_DISPOSITIONS = frozenset({"not_additive", "incomplete"})
 
 
 def classify_decomposition(
     sub_claim_texts: Sequence[str], parent_text: str
-) -> DecompositionOutcome:
-    """Classify a nonempty decomposition response (spec 0010 AC-6, AC-11).
+) -> str | None:
+    """Test one nonempty decomposition response for validity (AC-6, AC-11).
 
-    The whole response checks run first, in this order: more than the sanity
-    bound is ``over_cap``, then a normalized duplicate row is ``duplicate``,
-    each without calling entailment. The per sub claim guard runs only on a
-    response that survives both, dropping each sub claim that introduces
-    unmatched content vocabulary as an individual and rejecting the whole
-    response as ``lexical_guard`` only when no sub claim is acceptable.
+    Returns None when the response is a faithful division of the parent
+    sentence, so that verifying its sub claims is the same as verifying the
+    parent. Otherwise it returns one closed disposition: ``over_cap``,
+    ``duplicate``, ``not_additive``, or ``incomplete``.
 
-    The guard is only a lexical no new content vocabulary guardrail. It is
-    not a proof that actors, negation, scope, order, or factual relations
-    were preserved: deletion and reordering are allowed, which is safe only
-    because individually verified sub claims are what get emitted.
+    The whole response checks run first, in this fixed order and each without
+    calling entailment: more than the sanity bound is ``over_cap``, then a
+    normalized duplicate row is ``duplicate``. (A malformed row, empty after
+    trimming, already failed as ``provider.decompose`` before this, and a
+    genuine empty array is handled by the caller.) The two half test runs
+    only on a response that survives both: not additive per sub claim
+    against a fresh parent pool, then complete across the whole response.
+
+    Validity is a property of the **response**, never of an individual sub
+    claim. There is no per sub claim drop: removing a sub claim from a
+    response would break the completeness half by construction.
+
+    The test proves only that the sub claims neither add content to the
+    parent nor omit content from it, under its token rules. It is not a proof
+    that actors, negation, scope, order, or factual relations were preserved.
+    A decomposition that preserves every content token while inverting the
+    meaning passes it; entailment is the only check that can catch that.
     """
     if len(sub_claim_texts) > MAX_SUB_CLAIMS:
-        return DecompositionOutcome("over_cap")
+        return "over_cap"
     normalized = [normalize_for_containment(text) for text in sub_claim_texts]
     if len(set(normalized)) != len(normalized):
-        return DecompositionOutcome("duplicate")
-    parent_counts: dict[str, int] = {}
-    for token in sentence_tokens(parent_text):
-        parent_counts[token] = parent_counts.get(token, 0) + 1
-    accepted: list[tuple[int, str]] = []
-    dropped: list[int] = []
-    for position, text in enumerate(sub_claim_texts):
-        if parent_counts and sub_claim_is_lexical_subset(
-            sentence_tokens(text), parent_counts
-        ):
-            accepted.append((position, text))
-        else:
-            dropped.append(position)
-    if not accepted:
-        return DecompositionOutcome("lexical_guard")
-    return DecompositionOutcome(None, tuple(accepted), tuple(dropped))
+        return "duplicate"
+    parent_tokens = sentence_tokens(parent_text)
+    for text in sub_claim_texts:
+        if not sub_claim_is_additive_free(sentence_tokens(text), parent_tokens):
+            return "not_additive"
+    if not response_is_complete(sub_claim_texts, parent_tokens):
+        return "incomplete"
+    return None

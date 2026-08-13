@@ -176,7 +176,7 @@ None. Decomposition and entailment stay fixed to `gpt-4o-mini`. Coverage uses `M
 
 ## Build plan
 
-Ordered by the Skateboard approach: get the smallest honest whole working, then widen it. Tasks 1 to 3 shipped. Task 4 shipped and was reverted by evidence. Tasks 5 to 7 change the contract in the order the pipeline runs (validity test, then output unit, then trace), task 8 re-locks the tests, and tasks 9 to 12 measure it, cheapest gate first: this repository's own corpus before the live JobPilot batches, because the cheap gate is the one that falsified the previous build.
+Ordered by the Skateboard approach: get the smallest honest whole working, then widen it. Tasks 1 to 3 shipped. Task 4 shipped and was reverted by evidence. **Tasks 5 to 8 shipped** (529 unit tests passing, ruff, format, strict mypy, and build green). Tasks 5 to 7 change the contract in the order the pipeline runs (validity test, then output unit, then trace), task 8 re-locks the tests, and tasks 9 to 12 measure it, cheapest gate first: this repository's own corpus before the live JobPilot batches, because the cheap gate is the one that falsified the previous build.
 
 1. Remove parent restoration from `query.py`. Resolve available citations before whole containment, emit only verified fragments after decomposition, keep output citations inside accepted context, and make abstained public output empty while preserving trace rows, satisfies **AC-1**, **AC-4**, **AC-5**, **AC-8**
 2. Complete the decomposition contract and trace. Add exact provider serialization, duplicate rejection, the three rejection dispositions, and `rejected_decompositions` rendering without rejected text, satisfies **AC-6**, **AC-7**, **AC-10**, **AC-11**

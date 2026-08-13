@@ -555,14 +555,18 @@ class CoverageRow:
 class SubClaim:
     """One atomic sub claim of a decomposed sentence (spec 0010).
 
-    Held only in the verification trace, never persisted. ``contained`` is
-    whether the whole sub claim is verbatim in a cited chunk;
+    Held only in the verification trace, never persisted, and never emitted:
+    a sub claim decides the fate of the sentence it came from. ``contained``
+    is whether the whole sub claim is verbatim in a cited chunk;
     ``entailment`` is one of ``skipped`` (contained, no model call),
-    ``supported``, or ``unsupported``; ``kept`` is
-    ``contained or entailment == "supported"``. ``citations`` narrows to the
-    specific matching chunk ids for a contained sub claim, else keeps the
-    parent sentence's full cited set, since ``entail_verdict`` returns no
+    ``supported``, or ``unsupported``. ``citations`` narrows to the specific
+    matching chunk ids for a contained sub claim, else keeps the parent
+    sentence's full available cited set, since ``entail_verdict`` returns no
     per chunk attribution.
+
+    There is no ``kept`` field. A sub claim does not survive or fail on its
+    own; it contributes its verdict to the parent sentence, and the parent is
+    what survives or fails (spec 0010 AC-4).
     """
 
     sub_claim_id: str
@@ -571,7 +575,6 @@ class SubClaim:
     contained: bool
     entailment: str
     reason: str
-    kept: bool
     citations: tuple[str, ...]
 
 
@@ -580,9 +583,9 @@ class RejectedDecomposition:
     """One rejected nonempty decomposition, held only in the trace (spec 0010).
 
     ``returned_count`` is the number of rows the provider returned before the
-    rejection. ``disposition`` is one closed value: ``over_cap``, ``duplicate``,
-    or ``lexical_guard`` (spec 0010 AC-6). Rejected claim text is never
-    recorded.
+    rejection. ``disposition`` is one closed value: ``over_cap``,
+    ``duplicate``, ``not_additive``, or ``incomplete`` (spec 0010 AC-6).
+    Rejected claim text is never recorded.
     """
 
     sentence_id: str
@@ -591,20 +594,21 @@ class RejectedDecomposition:
 
 
 @dataclass(frozen=True)
-class DroppedSubClaim:
-    """One individually dropped sub claim, held only in the trace (spec 0010).
+class DroppedSentence:
+    """One draft sentence that did not reach the answer (spec 0010 AC-6).
 
-    A sub claim the lexical guard dropped on its own while at least one other
-    sub claim in the same response survived. ``disposition`` is the one closed
-    value ``lexical_guard`` (spec 0010 AC-6). ``sub_claim_id`` keeps the
-    position the sub claim held in the provider response, so the accepted ids
-    skip only where a drop accounts for them. Dropped claim text is never
-    recorded.
+    Held only in the verification trace. Every unemitted sentence records
+    exactly one row, so the trace answers one question for each draft
+    sentence: did this sentence reach the answer, and if not, why.
+    ``reason`` is one closed value: ``no_available_citations``,
+    ``decomposition_invalid``, or ``unsupported_sub_claim``. A
+    ``decomposition_invalid`` row pairs with the ``RejectedDecomposition``
+    row carrying the specific disposition, so the two are one event described
+    at two levels. No claim text is recorded.
     """
 
-    sub_claim_id: str
     sentence_id: str
-    disposition: str
+    reason: str
 
 
 @dataclass(frozen=True)
@@ -613,10 +617,10 @@ class VerificationTrace:
 
     The five trailing fields are the additive spec 0010 signal: which
     sentences were decomposed, which decompositions came back empty, which
-    nonempty decompositions were rejected and why, which sub claims the
-    lexical guard dropped on their own, and which parent chunk ids retrieval
-    did not surface. They default to empty tuples so an older constructor
-    call remains valid (AC-10).
+    nonempty decompositions were rejected and why, which sentences did not
+    reach the answer and why, and which parent chunk ids retrieval did not
+    surface. They default to empty tuples so an older constructor call
+    remains valid (AC-10).
     """
 
     containment: tuple[tuple[str, bool], ...]
@@ -627,7 +631,7 @@ class VerificationTrace:
     decomposed: tuple[SubClaim, ...] = ()
     empty_decompositions: tuple[str, ...] = ()
     rejected_decompositions: tuple[RejectedDecomposition, ...] = ()
-    dropped_sub_claims: tuple[DroppedSubClaim, ...] = ()
+    dropped_sentences: tuple[DroppedSentence, ...] = ()
     missing_chunk_refs: tuple[tuple[str, tuple[str, ...]], ...] = ()
 
 
@@ -716,6 +720,7 @@ __all__ = [
     "CoverageRow",
     "DiversityTrace",
     "DraftSentence",
+    "DroppedSentence",
     "Facet",
     "Failure",
     "FilterExclusionReason",

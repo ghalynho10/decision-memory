@@ -990,8 +990,7 @@ def _print_query_debug(result: QueryResult) -> None:
         )
         typer.echo(
             f"    contained={sub_claim.contained} "
-            f"entailment={sub_claim.entailment} kept={sub_claim.kept} "
-            f"[{markers}]"
+            f"entailment={sub_claim.entailment} [{markers}]"
         )
         if sub_claim.reason:
             typer.echo(f"    reason={sub_claim.reason}")
@@ -1002,11 +1001,8 @@ def _print_query_debug(result: QueryResult) -> None:
             f"  rejected_decomposition {rejected.sentence_id} "
             f"count={rejected.returned_count} disposition={rejected.disposition}"
         )
-    for dropped in trace.verification.dropped_sub_claims:
-        typer.echo(
-            f"  dropped_sub_claim {dropped.sub_claim_id} ({dropped.sentence_id}) "
-            f"disposition={dropped.disposition}"
-        )
+    for dropped in trace.verification.dropped_sentences:
+        typer.echo(f"  dropped_sentence {dropped.sentence_id} reason={dropped.reason}")
     for sentence_id, missing_ids in trace.verification.missing_chunk_refs:
         markers = ",".join(missing_ids)
         typer.echo(f"  missing_chunk_refs {sentence_id} [{markers}]")

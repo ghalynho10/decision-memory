@@ -179,8 +179,8 @@ spec [0010](../specs/0010-abstention-verification-reliability/index.md) · code 
   - [x] Add exact decomposition outcomes and the lexical guard contract (AC-6, AC-7, AC-10, AC-11)
   - [x] Tighten canonical facet coverage and classify query 4 failures by stage (AC-2, AC-4, AC-12)
   - [x] Replace the whole response lexical guard with the per sub claim guard (AC-6, AC-10, AC-11) — built, and **falsified by its live gate**. Experiments 0001 and 0002 showed the fragment output contract itself was the fault, not the guard granularity. Spec 0010 revised 2026-08-12; the milestones below replace this direction
-  - [ ] Make decomposition a check, not a rewrite: two directional lexical validity (additive per sub claim, completeness response wide), whole sentence output, and the `dropped_sentences` trace (AC-1, AC-4 to AC-8, AC-10, AC-11)
-  - [ ] Re-lock the deterministic tests against the new contract, including both AC-1 attacks and the additive scope regression the cross check caught (AC-1, AC-4 to AC-8, AC-10 to AC-12)
+  - [x] Make decomposition a check, not a rewrite: two directional lexical validity (additive per sub claim, completeness response wide), whole sentence output, and the `dropped_sentences` trace (AC-1, AC-4 to AC-8, AC-10, AC-11)
+  - [x] Re-lock the deterministic tests against the new contract, including both AC-1 attacks and the additive scope regression the cross check caught (AC-1, AC-4 to AC-8, AC-10 to AC-12)
   - [ ] Calibrate the additive tolerance by measurement, then rewrite `verify.md` and run `/check verify` and `/test` (AC-1 to AC-12)
   - [ ] Gate cheapest first: this repo's own corpus, then two live `--runs 3` JobPilot batches; re-measure the rationale summary rather than assume its old bar (AC-2, AC-3, AC-9, AC-12)
 - [ ] Verify it: `/check verify abstention verification reliability`
