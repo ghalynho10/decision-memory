@@ -1,0 +1,45 @@
+error generation provider.answer: GenerationError
+Freshness
+  state: current
+  stored_pipeline_signature: 30fdcd31aad5fbdee45e156713092dfaf171b24b2f390c7680d090ac65bdf7f8
+  running_pipeline_signature: 30fdcd31aad5fbdee45e156713092dfaf171b24b2f390c7680d090ac65bdf7f8
+  records_manifest_path: /private/tmp/claude-501/-Users-ghaly-Documents-Work-Personal-decision-memory/0d6fb357-32a0-4e6e-9339-37ce1bbbfd32/scratchpad/task18/unver/records/manifest.json
+  manifest_available: True
+  start_semantic_digest: None
+  end_semantic_digest: None
+  start_raw_digest: None
+  end_raw_digest: None
+Filter
+Lexical
+Semantic
+Fusion
+Diversity
+  accepted_limit: 8
+  record_cap: 2
+  accepted: 
+Settings
+  tokenizer: lexical-tokenizer-v1
+  stopword_set: lexical-stopwords-v1
+  stopword_digest: fe2b3373712ce97c07caa0da916d1e2bc8bff4f3ba44a109ad059bd8f2459db6
+  bm25: BM25Okapi (k1=1.5,b=0.75)
+  lexical_limit: 24
+  semantic_limit: 24
+  rrf_constant: 60
+  accepted_limit: 8
+  diversity_cap: 2
+  collection_metric: cosine
+  relevance_floor: None
+Facets
+Draft
+Verification
+Sub claims
+Providers
+  embedding attempt=1 elapsed_ms=554 outcome=success prompt_tokens=0 completion_tokens=0
+  facets attempt=1 elapsed_ms=787 outcome=success prompt_tokens=131 completion_tokens=30
+  answer attempt=1 elapsed_ms=862 outcome=success prompt_tokens=2412 completion_tokens=38
+  answer attempt=1 elapsed_ms=788 outcome=success prompt_tokens=2441 completion_tokens=38
+Citations
+Result
+  state: failed
+  freshness: current
+  stale_markers: 

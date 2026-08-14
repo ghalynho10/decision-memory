@@ -1,0 +1,12 @@
+records: /var/folders/6v/q6d9mcg54sj81160wq5ffpgc0000gn/T/decision-memory-evaluate-records-5hzin2m2 (temporary, removed on exit)
+store: /var/folders/6v/q6d9mcg54sj81160wq5ffpgc0000gn/T/decision-memory-evaluate-store-lgl_r_h1 (temporary, removed on exit)
+FAIL query-1-private-beta-gate (0/3 runs): 0/3 runs passed; expected answered, got abstained
+FAIL query-2-resume-generation (0/3 runs): 0/3 runs passed; expected answered, got abstained
+FAIL query-3-provisional (0/3 runs): 0/3 runs passed; expected answered, got abstained
+PASS query-4-db-clients (3/3 runs): 3/3 runs passed
+PASS query-5-uploaded-files (3/3 runs): 3/3 runs passed
+FAIL assertion-rationale-summary (0/3 runs): 0/3 runs passed; expected answered, got abstained
+FAIL assertion-unverifiable-claim (0/3 runs): 0/3 runs passed; expected abstained, got failed (citations: none)
+PASS assertion-incremental-reingest: record DM-0006 chunks changed after the rationale.md edit (23 -> 46 chunk ids)
+result: 3 passed, 5 failed
+final: failed

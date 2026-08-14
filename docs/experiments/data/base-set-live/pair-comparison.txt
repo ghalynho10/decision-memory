@@ -1,0 +1,39 @@
+morphology-v1 replica agrees with all 25 pinned stems in spec 0011's normative table
+
+Vocabulary
+  rule            lowercase alphabetic tokens from docs/**/*.md,
+                  appearing at least 3 times,
+                  with the AC-11 function word set removed
+  files read      78
+  tokens scanned  224374
+  vocabulary      3374 distinct content tokens
+  unordered pairs 5690251
+
+Matched pairs, out of 5690251
+  _stem_match as shipped       1115
+  base set intersection        1753
+  morphology-v1, as pinned now 1824
+  morphology-v1, single round  1747
+
+                                 fixes   loses  invents
+  base set intersection            638       0        0
+  morphology-v1, as pinned now     709       0       71
+  morphology-v1, single round      660      28       24
+
+Samples, so the categories can be read rather than trusted
+  base set intersection
+    fixes    638  abstained/abstaining, abstained/abstains, abstaining/abstains, accepted/accepting, accepted/accepts, accepting/accepts
+    loses      0  (none)
+    invents    0  (none)
+  morphology-v1, as pinned now
+    fixes    709  abstained/abstaining, abstained/abstains, abstaining/abstains, ac/access, accepted/accepting, accepted/accepts
+    loses      0  (none)
+    invents   71  ac/access, bar/bare, bare/bars, choose/chose, choosing/chose, decid/decide
+  morphology-v1, single round
+    fixes    660  abstained/abstaining, abstained/abstains, abstaining/abstains, accepted/accepting, accepted/accepts, accepting/accepts
+    loses     28  agree/agreed, agree/agrees, embed/embedded, embed/embedding, embed/embeds, embedding/embeddings
+    invents   24  bar/bare, bare/bars, decid/decide, fal/fall, fal/falls, fil/file
+
+Construction properties, checked rather than assumed
+  every shipped pair survives the base set:  True
+  every base set pair is joined by a common base the five rules reach:  True

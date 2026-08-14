@@ -1,0 +1,25 @@
+corpus:   /Users/ghaly/Documents/Work/Personal/job_pilot
+question: What is the exact dollar cost of a single Adzuna API search request?
+runs:     3
+adapt exit 0
+ingest exit 0
+run 1 exit 0
+run 2 exit 0
+run 3 exit 1
+
+--- run 1 ---
+  state: current
+  F1 covered=False [] reason=no emitted answer sentence
+  uncovered F1: exact dollar cost of a single Adzuna API search request
+  rejected_decomposition S1 count=4 disposition=duplicate additive_failure= failure_side= failure_token=
+  dropped_sentence S1 reason=decomposition_invalid
+  state: abstained
+  abstention_stage: claim_verification
+--- run 2 ---
+  state: current
+  uncovered F1: exact dollar cost of a single Adzuna API search request
+  state: abstained
+  abstention_stage: claim_verification
+--- run 3 ---
+  state: current
+  state: failed
