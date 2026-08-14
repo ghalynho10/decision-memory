@@ -1,0 +1,1249 @@
+not enough evidence here
+Freshness
+  state: current
+  stored_pipeline_signature: 30fdcd31aad5fbdee45e156713092dfaf171b24b2f390c7680d090ac65bdf7f8
+  running_pipeline_signature: 30fdcd31aad5fbdee45e156713092dfaf171b24b2f390c7680d090ac65bdf7f8
+  records_manifest_path: /Users/ghaly/Documents/Work/Personal/decision-memory/docs/experiments/data/abstention-attribution/query-1/records/manifest.json
+  manifest_available: True
+  start_semantic_digest: None
+  end_semantic_digest: None
+  start_raw_digest: None
+  end_raw_digest: None
+Filter
+  ch_00f8bef877bf5f3aa71422995429b45334680ce1682df54db48be81419c578b9 DM-0003 status=accepted tags=source-status:Accepted consequences.positive[0] state=accepted reasons=
+  ch_0182f84276d06dc43f3fe3b1e96f3ee54992425f55b19cc31ce592207e021716 DM-0005 status=accepted tags=source-status:Accepted consequences.positive[0] state=accepted reasons=
+  ch_0203bc358fffde562b1a5840fd59c46749b5552463096a53e4b012d594396c89 DM-0006 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_037fb0dd8d21d3ede8d984bea512db104b84fb67beb7f7bb7b4c14840ad47ef5 DM-0010 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_0426677058fcff7510dd76b0b1774125d634f1e1e23836e10f5bb3d8dbd7cb48 DM-0007 status=accepted tags=source-status:Accepted body[4] state=accepted reasons=
+  ch_04c9ee86217371a194cddd19e658ac532215c7b32f068ae5e8198f23544aea7f DM-0002 status=accepted tags=source-status:Accepted rationale_summary state=accepted reasons=
+  ch_05021610fce543fa6c1b9d533038c1d2f7436bf217ce74c50f8db3108835deaf DM-0012 status=accepted tags=source-status:Accepted decision.alternatives[2] state=accepted reasons=
+  ch_050ed0b1a21f8103ce1cd5b65936f00325cf5b49aad87d0834bba126dddc5a27 DM-0002 status=accepted tags=source-status:Accepted body[7] state=accepted reasons=
+  ch_0528621091b60609d6b51a213b0baf6f2bf43d5a7911f6fcdc4e62bb206dcbea DM-0001 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_05699a7a3f63d2f90a6462295ab7144b8d59ca82ddf1fcd481ca98f08046f6de DM-0002 status=accepted tags=source-status:Accepted body[4] state=accepted reasons=
+  ch_05fa28cf6b8dc02438bc2fce0c0a66531c86d419d4ae2421e7d79001ec4363ef DM-0001 status=accepted tags=source-status:Accepted context.problem state=accepted reasons=
+  ch_0600f3e96faa55a6504ba06eff1ab3d15e544dd76c28442fcfbe06d6a34da711 DM-0012 status=accepted tags=source-status:Accepted body[4] state=accepted reasons=
+  ch_06747391d2a4b2d83e38c7091f4b397af63b9ddea689000e86eb1d93c5f2b090 DM-0012 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_07e44020efbb0362d8ada3f25473901c68ac6037f3fe46b4841970fae6ca73dc DM-0001 status=accepted tags=source-status:Accepted body[4] state=accepted reasons=
+  ch_082996f724b9c1b116dea8c2da9bc0ffd5173af9c273432e973fff0f84ac9ffc DM-0015 status=proposed tags=source-status:In Progress body[0] state=accepted reasons=
+  ch_08bb728c5a65b5202d188bcb4a90254edcb743070562f412d4561e9175cf651d DM-0019 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_08d9cc34689bd459d6344b9f69fe1518c4f9f6a7865226c2a4b6a0dd08c0c274 DM-0011 status=accepted tags=source-status:Accepted consequences.positive[2] state=accepted reasons=
+  ch_09fb5d7f976b196b0aa85a9a517a02d1b931925f5d28e5abedc7e77abd086b71 DM-0009 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_0a324f192209f93e6b23abe290ba69a40b22fdbbafbb1fa01133189f5002ab62 DM-0008 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_0a3413920cb7199556fb404da7f796dee2d94412a316a14b8b6314409f5ee14a DM-0012 status=accepted tags=source-status:Accepted consequences.positive[0] state=accepted reasons=
+  ch_0a686ef0d4e9ae2466c1fe32ceb0b2cf4214f5e1ce77cedc8fa55ba67f0697d4 DM-0009 status=accepted tags=source-status:Accepted context.problem state=accepted reasons=
+  ch_0ceb58839feff037d7e7f312f95eae18aa89ef725605eba5b67bc257216a5edf DM-0002 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_0d8f9e67b0c8cf5b20e710a41c3dac79d4a965b9e4dcd9c73a3d0be1531c6d44 DM-0009 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_0d9cc3469090c59b92136f4fb5ea9b5f7c04546b6b4da933109d5216d645701e DM-0004 status=accepted tags=source-status:Accepted body[4] state=accepted reasons=
+  ch_0eaa3f1d2eb848aa814fc7456db1b1ddef1f46f52d29e8c21707d2147f693a79 DM-0010 status=accepted tags=source-status:Accepted body[4] state=accepted reasons=
+  ch_0f2d436399f9480704e2778171faa3c3ddb258c0d1ac36885b131a740834cf23 DM-0007 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_0ff65df183f69fe6120fba2e6011491d148b04a7cffcbe3da59a40bad44346aa DM-0001 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_102dc8fbae6bf21d3b45d4367ed9118932d4fbbba87b615e20193142995061ab DM-0007 status=accepted tags=source-status:Accepted body[5] state=accepted reasons=
+  ch_1039d271331f689ac2a7d00c4fd0607110b5a2f29b4290b7f38e02c187b03cb6 DM-0007 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_11017cddb511170da6a01fc8e19abf8058ef116a6ae83f470485dcf953ce822b DM-0002 status=accepted tags=source-status:Accepted context.problem state=accepted reasons=
+  ch_11586902fedd4d22ee32ca8f88ec24f2f2c3a692b6868138b1e63fda72ea3f46 DM-0001 status=accepted tags=source-status:Accepted consequences.negative[0] state=accepted reasons=
+  ch_13f53eda98759d416f2ccc91e9c56afc924acde17bcdc7495b62a2e2729c3e23 DM-0004 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_147886425998d1921563fbe688eafc6af3a8c70138d29da1cb63dcab2983797d DM-0010 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_14d0666c97b0a46c8949e5878cd426648508c966b6fe17695ba2387ada679fdf DM-0002 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_15845966b486f242d6fe8575763f8fea6ff3e2b3f9480076d6259426605d973e DM-0012 status=accepted tags=source-status:Accepted decision.alternatives[3] state=accepted reasons=
+  ch_15ed089b9f4b6340da48dac71d33a50d9db1b7f4a467fe0446139a3a64622518 DM-0012 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_165f1ec45cc309bb35bfd707f973d6ab3e01479c128cbfcbc70922b9b8c022a8 DM-0002 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_173043159a7c94f862cd7452957a151bc46402b8bc95515ebcfb29a1015af95b DM-0011 status=accepted tags=source-status:Accepted body[0] state=accepted reasons=
+  ch_1b9e52518ff2b4d494b06c2a90130772ba274428bc5d19edee648e53bd2e10cc DM-0002 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_1c866509463c2e0e997bf62ea62b89b2e7d9a6d0066b0e39a3d03d1bdb0dbe0a DM-0002 status=accepted tags=source-status:Accepted body[10] state=accepted reasons=
+  ch_1d19d3e359510f4ee8f7e49c08d8fc63e0e5e614b86987fa196818ce802de139 DM-0013 status=accepted tags=source-status:Accepted consequences.positive[2] state=accepted reasons=
+  ch_1dda06fffafeb7f509902a91b69f89ea7793f61fe0b9ea67f786e5de267ce07c DM-0007 status=accepted tags=source-status:Accepted consequences.positive[1] state=accepted reasons=
+  ch_1e2b4726bf0cabed8202e8e5487e9c4c61a7a705e724d659bcbecbd1115704d8 DM-0002 status=accepted tags=source-status:Accepted body[6] state=accepted reasons=
+  ch_1fbfa69a0fffa5e5fce56338b7381e44ce97ca2111c964e73ed6c9faab9fa883 DM-0012 status=accepted tags=source-status:Accepted context.problem state=accepted reasons=
+  ch_20c1d0d1d687cbc611c163f3b31434854ce45159f468ba7f10b5effbbc07c4db DM-0013 status=accepted tags=source-status:Accepted consequences.positive[0] state=accepted reasons=
+  ch_2220c2288c957fe87d7e5332f22b1b9072614b680275d9d1361b24562e7025fd DM-0002 status=accepted tags=source-status:Accepted consequences.positive[3] state=accepted reasons=
+  ch_22b0feca89d9f165769d4ce28796dbe2eea70cccac56f033c64573dae8de8546 DM-0005 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_232d79aac6f420aa0e3a0764e87250f3a206c421257d8ecc7b3a2aa41de9977d DM-0002 status=accepted tags=source-status:Accepted body[0] state=accepted reasons=
+  ch_2381942b03f8922989e4f8a221c21a97a216fa9b640788789cdd7c48814454f3 DM-0004 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_23cfbbbd391d8c74c1b79a5f1327fa94d3f38e2f03dcf0fdac6985ef80b9c7d9 DM-0012 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_25ac9430bd3fa30885b07b9dc2c0e13b85e460d14631b9d8aaae4078f7f6a902 DM-0006 status=accepted tags=source-status:Accepted decision.chosen state=accepted reasons=
+  ch_26026b5d92cca7b53a67470f6514f4d798edd8a1287f53303a8a1f957578131d DM-0002 status=accepted tags=source-status:Accepted decision.chosen state=accepted reasons=
+  ch_26bc90c5ee7e9dc0d66b28bfb1d57f8c6356cf189ae3a36d24887e89095ba1a3 DM-0006 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_26d031adc8177a9d68a1b961c3ee7957f352486200dfbc5f36ab0aca66d0068f DM-0010 status=accepted tags=source-status:Accepted decision.alternatives[0] state=accepted reasons=
+  ch_26f2aba12f77470b606a7e7de8a4a1555b6381eb7900c603567086967a0e3109 DM-0010 status=accepted tags=source-status:Accepted consequences.positive[0] state=accepted reasons=
+  ch_2721ba8534e73b535aec75564e075ebdf4493d749c6d76ffb90eb5edd4480f29 DM-0010 status=accepted tags=source-status:Accepted consequences.negative[1] state=accepted reasons=
+  ch_279847b2c202e9957b7795c2ddf58d5d4b24a6c3da0a8d1343fca20eea711c42 DM-0012 status=accepted tags=source-status:Accepted consequences.negative[1] state=accepted reasons=
+  ch_29b3de47634ce5da4eea43e63b0028da1db8192caf275472ef93fff69363f55a DM-0002 status=accepted tags=source-status:Accepted body[5] state=accepted reasons=
+  ch_29c27eec47563c12637a5114bbb299e31c575918c5d43e7ef15fdf98051d7f11 DM-0009 status=accepted tags=source-status:Accepted consequences.positive[1] state=accepted reasons=
+  ch_29d2e749658a005853ca6c4ec4651364af26d32c7acce515c0919a7282e68951 DM-0011 status=accepted tags=source-status:Accepted consequences.positive[1] state=accepted reasons=
+  ch_29e4da917aa18a12634fedcf91edcb0df7b3b8b4444beb7d1a4d1c95de932828 DM-0005 status=accepted tags=source-status:Accepted decision.alternatives[0] state=accepted reasons=
+  ch_2a856dc3fa3ac19145020f465941f0311204b016efafb66ef16d8a8b0435c596 DM-0019 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_2a8776eed37e3357956fab60f281f33475d60d1d354d4e235a33381e99a1dd1c DM-0001 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_2b53d4c4e32b641c9bca5df1c1fab320f76ff66864b576a0799d38efc6a60dd3 DM-0012 status=accepted tags=source-status:Accepted decision.alternatives[5] state=accepted reasons=
+  ch_2bbc7ad990c6855f0d5f8c16acdf9ea3df1477eeb44d23ab07d685b1cb8f2d01 DM-0005 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_2bfd2a577f0f2d9e9a2f399d476a376b2901e2bd6f0380e2d7795d8a326bd359 DM-0019 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_2c241f4a5fb9e6d9ff2fa7b8e14a6b8d9d64495d6c064c58af4b337850a74da0 DM-0008 status=accepted tags=source-status:Accepted decision.chosen state=accepted reasons=
+  ch_2c6e8f43705565b771c0995dc151d0027c4ee54eb26ab1c12003ae79188d80d3 DM-0013 status=accepted tags=source-status:Accepted decision.chosen state=accepted reasons=
+  ch_2cddcf5b8775032aef01f0cb929a0310d5a8b66fbceefc68dcf4cafe933d03b2 DM-0012 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_2db31dec839513d01746252e64fab9281421b11132e2e884664913d75bf2e2d4 DM-0001 status=accepted tags=source-status:Accepted consequences.positive[1] state=accepted reasons=
+  ch_2e20138f371b7ee3e8a13933922124a7e94b0cd406bc88f3321f70e838dcd81b DM-0019 status=accepted tags=source-status:Accepted consequences.positive[1] state=accepted reasons=
+  ch_2eaed169e356e76234698a4053afcee80b9f3fb4c33202b0ebdac0909a178634 DM-0009 status=accepted tags=source-status:Accepted rationale_summary state=accepted reasons=
+  ch_30a1af9eb04d5bdfa8e6458f7290549e1960ba34605bd067367149bc9976425d DM-0008 status=accepted tags=source-status:Accepted consequences.positive[0] state=accepted reasons=
+  ch_311d195dbaa4a4f6131a6f9e4b833536e72344b9c4968ba880df9487e2ab0ba1 DM-0012 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_31436b6b0dda3801dcd03e6dc93e846926073fa1525d37bcc68abe1d8654a75d DM-0002 status=accepted tags=source-status:Accepted body[8] state=accepted reasons=
+  ch_31cd71fbff5598b065f90eb9a9f04cc9cdbaf8307052330e8fdb9c99f3c1c0af DM-0012 status=accepted tags=source-status:Accepted consequences.positive[2] state=accepted reasons=
+  ch_31f58f0c3d181659085e64a316d3ec38cb63dbb32403c9dd0d1d8061e002bef5 DM-0005 status=accepted tags=source-status:Accepted consequences.negative[0] state=accepted reasons=
+  ch_3209b87d30711701af5ebe9db5a23546b5ac39f013edb78fa934bc765d99a2d6 DM-0019 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_32246b4a210e24609d792c5dca09a5276b4b999eeffd0812156ac1ff7ec1d47e DM-0019 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_329b0b8933c3c4a58feec4455eeda9253c4f278be7e80c284b6213308b22da3c DM-0008 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_3866544486a2fd14a203ee6b9c8db97379540898fc80521654d61ff0801393fe DM-0009 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_38f32dcc1ec66f3db8bd2812bf2f9e91d785210da0cb709dc3ba940f8c8ccdfb DM-0003 status=accepted tags=source-status:Accepted consequences.negative[0] state=accepted reasons=
+  ch_39738ae0b8ac3a7ab66bb24185a4ebd34b47b040ade8bdbc8ae50472b721e13c DM-0013 status=accepted tags=source-status:Accepted context.problem state=accepted reasons=
+  ch_39f9f0f2905db9cf115500b63c8d7efce4e809d1a9d42cfa3d5548c368351ed7 DM-0011 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_3bf52ae6b5d25f7f243a4f16b6dacb9830293ba00f71764b664d022b4180f965 DM-0012 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_3d435927f83ab5c5975f33afc31f1856901850c48642124c22338ad929ad352a DM-0001 status=accepted tags=source-status:Accepted body[5] state=accepted reasons=
+  ch_3e21e4f93c8775b163ca683e735be9fe03527552d5156b5120bc2ca57226f1ad DM-0004 status=accepted tags=source-status:Accepted decision.alternatives[0] state=accepted reasons=
+  ch_3ecde34c67a1aac838e4e0bbcb9e428f4086b2df0edaaaeb862b4cd378e56e2e DM-0004 status=accepted tags=source-status:Accepted consequences.negative[0] state=accepted reasons=
+  ch_3ee79e109422e28433721393105b823632e50ac1b924bf6307b71a6afe51b6eb DM-0011 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_3fc1c4ee0a268953dbce48483975e97bb5f135df248d35488f2670a313e5ade0 DM-0001 status=accepted tags=source-status:Accepted consequences.positive[0] state=accepted reasons=
+  ch_400bd8c2d44092f3ba61459966777a9c1bc81b375b057c773305afa70126e383 DM-0008 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_403b275d7866d23b4da93ea81334e8ee925f5eba8c8a3fd5ce3a09b3530aa817 DM-0011 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_40ecd89fdd3cf9eb380cf7a3f185f821185a00bdc37b0a5e0d7ba308587e4b48 DM-0007 status=accepted tags=source-status:Accepted rationale_summary state=accepted reasons=
+  ch_41d4a5a36622260e816840b1f842e36ddf3423a8b7c1578f58b4a54eabaac5d6 DM-0005 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_41eb20654bb4c258408c53f19a676f043e261da4c74d2eb34964d390334530ce DM-0012 status=accepted tags=source-status:Accepted consequences.negative[0] state=accepted reasons=
+  ch_4281f389ee91f666d5b8b45de60b513b452e10dcd7d39067a573cbebeef4e7e3 DM-0010 status=accepted tags=source-status:Accepted decision.chosen state=accepted reasons=
+  ch_4284cbc45bb9c14416505f83a866844052c0a1c683575e5ce83df4e1667bda09 DM-0015 status=proposed tags=source-status:In Progress consequences.negative[1] state=accepted reasons=
+  ch_435a37b3de8c848ca3122ca991fa82867da87570733d6f513abb535dffcf55bc DM-0001 status=accepted tags=source-status:Accepted consequences.negative[1] state=accepted reasons=
+  ch_43ff9cd0211c22d6bf6e5cf624aa982a73f36dcb7061ee56b45361408ebc7490 DM-0002 status=accepted tags=source-status:Accepted consequences.positive[2] state=accepted reasons=
+  ch_4508009eee3b10eed73cd5f9f581784f1b55d665c2f728dff87570136ace888e DM-0010 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_462ff735d052e14b84cefc6eec9b22b641e6de84c1c92b95821adf92c626d4fb DM-0002 status=accepted tags=source-status:Accepted body[10] state=accepted reasons=
+  ch_46ebaa0cb56df8d9fd063939cf2c46de892007cc02925cfee539c97efad94586 DM-0008 status=accepted tags=source-status:Accepted context.problem state=accepted reasons=
+  ch_47061ce74f81e203d4a9d139a52ca21c2996a22980aaf204fc37450760210e18 DM-0002 status=accepted tags=source-status:Accepted consequences.negative[3] state=accepted reasons=
+  ch_47283b28a05b81e3f1bf30bd585a42a0445f9cbda5408e02343638e19b0cffbc DM-0015 status=proposed tags=source-status:In Progress rationale_summary state=accepted reasons=
+  ch_4756f47206895bb3c55bd64d54ac6611d14a3029a28c22e791fb9d3931939903 DM-0009 status=accepted tags=source-status:Accepted decision.alternatives[0] state=accepted reasons=
+  ch_47840c7c6d2d383ffbb1d653329b77366082ef4743ba3097c74f377e9752ed7b DM-0002 status=accepted tags=source-status:Accepted body[7] state=accepted reasons=
+  ch_49b77d746dc437c8ef0c9cb6b1e15690086d3d83f0cdb66d725d71df52c3747b DM-0012 status=accepted tags=source-status:Accepted decision.alternatives[6] state=accepted reasons=
+  ch_4a565edb2d9fcbb1d2bf650c409b2743904e3b37d9ea35500d9500fac5a646bc DM-0003 status=accepted tags=source-status:Accepted consequences.negative[2] state=accepted reasons=
+  ch_4a9823440b14ccbb47ec75fdc8a158afdad927e0e0c04697d3abda0997425bdb DM-0002 status=accepted tags=source-status:Accepted consequences.positive[0] state=accepted reasons=
+  ch_4ad267d27485dad1a8c88ad991f143c3be3f5d245663311a23515096cbdb6929 DM-0003 status=accepted tags=source-status:Accepted body[0] state=accepted reasons=
+  ch_4b24b17d3f9cf64e71619ef749fbcde7a84e3ac45f1959c25b071b90b1f27ae4 DM-0010 status=accepted tags=source-status:Accepted context.problem state=accepted reasons=
+  ch_4b861c839838ba4140cb5de38645876ba5b4dfbfd0c87f51db64c11ac2c89799 DM-0001 status=accepted tags=source-status:Accepted decision.alternatives[1] state=accepted reasons=
+  ch_4be41cdf7c5095fb9d9d37aec7871371f122b3d64629bbe9f4fe2aa11cc8ccf6 DM-0011 status=accepted tags=source-status:Accepted consequences.negative[0] state=accepted reasons=
+  ch_4c084fea69d047da13483120e5c94da8b96be0629b161ce8211f2bfcd3f5ae66 DM-0006 status=accepted tags=source-status:Accepted decision.alternatives[1] state=accepted reasons=
+  ch_4ca2af27e9e00369673a7dee11207d6fba1c460ee1e41547bbfdb0ba4c7e05b4 DM-0010 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_4ca7371eb775f26da6b219848937ed77143922d3c906e17196474f1df451a862 DM-0006 status=accepted tags=source-status:Accepted why[1] state=accepted reasons=
+  ch_4d07bec8dc02aea50362d79a7962f9974c52568675ec600b4a6b0d06530cc26f DM-0011 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_4da237b8bdb2c5ffee4ee7297148b10c94d9139c1b88d5a0f620d980908a9212 DM-0012 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_4e7ccc542a7bd26cf02ffd4951b9f835e0c6845bb30c06fd5b1f3fa5e0fa6222 DM-0011 status=accepted tags=source-status:Accepted context.problem state=accepted reasons=
+  ch_4ecf1039050226c0a0cfdcf41c9f2d21e654ef308bce5750c05723208df7de64 DM-0002 status=accepted tags=source-status:Accepted consequences.positive[4] state=accepted reasons=
+  ch_4f340745ea17069f7a2e2ce3500df1a68540dac5b649bac036c03cd3c5c8f797 DM-0008 status=accepted tags=source-status:Accepted body[0] state=accepted reasons=
+  ch_4fc3fd04f687125dcce9b5cd6d2f50ca81d8fc9f537f8585b8b70a8a9129db05 DM-0004 status=accepted tags=source-status:Accepted body[0] state=accepted reasons=
+  ch_4fe7d20be2bf3d177a05e5eec97133e5fe731d32c63bc590b2b27db4356b035e DM-0010 status=accepted tags=source-status:Accepted body[0] state=accepted reasons=
+  ch_51a13b9a2290e0970aad99442b1ed73a2dce335bce5243c2080bd290991f4af0 DM-0019 status=accepted tags=source-status:Accepted body[5] state=accepted reasons=
+  ch_52e7e008cf5a648b49a05d8ef18fd10ba34a621908a4edbc08d10a10b0584393 DM-0013 status=accepted tags=source-status:Accepted body[6] state=accepted reasons=
+  ch_531af4fa8b1c9c54e751b32628746a12b34305407caae0554780a91f5775b845 DM-0015 status=proposed tags=source-status:In Progress rationale_summary state=accepted reasons=
+  ch_5320cffaef3cc2b9104698e85c5c42cf29adba2e7dce5faa932737ee0f1f84bd DM-0006 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_53649d3b32fa3e6db6187a2f25ec97a1abd2b2f10386450312b4bbf4d42dc107 DM-0013 status=accepted tags=source-status:Accepted decision.alternatives[0] state=accepted reasons=
+  ch_550b76edb266c17f5b9921a3a95f24eb4d8431c6f06a328ab1f5b493cb711730 DM-0002 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_561e57378cfeda8404561890f10ae3c572197b04c73e53dbc4f87e599b86cb67 DM-0002 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_571c3d9b558dcc41d4a52b6ceae82a0d200c6b1119d982ccf0323c74a85bf6fb DM-0002 status=accepted tags=source-status:Accepted consequences.positive[5] state=accepted reasons=
+  ch_589d252c9e6e8b35b8c0fa0b771cda42f2a9d58120992a4030622af53d7d51c5 DM-0004 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_595e39b927dceb7e30161e7963bfb4ff22344b06fedec3639df716683f2c0685 DM-0013 status=accepted tags=source-status:Accepted body[6] state=accepted reasons=
+  ch_59660ae5a9cd941e044a5243386b444f1dc19aba0f4d2ca4241ec086b51674a1 DM-0004 status=accepted tags=source-status:Accepted decision.alternatives[1] state=accepted reasons=
+  ch_59e1c7283e1656e4cfa643255a6e85e6c27861c863caf217413e55899addf7b8 DM-0001 status=accepted tags=source-status:Accepted decision.alternatives[0] state=accepted reasons=
+  ch_5a56f89b925b153e401dbf43457c6a77df911536bc47ab21effc5925dbb320ec DM-0006 status=accepted tags=source-status:Accepted consequences.negative[0] state=accepted reasons=
+  ch_5a5f036ee2b8ee0bbf7ab6d881352bfaa17da150c53ffb6ee1b855a0102b5bdf DM-0004 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_5c767ef34859576c7ab51c13de033323e2d7d73f04d234e8eee8b9215a4e35c8 DM-0002 status=accepted tags=source-status:Accepted body[5] state=accepted reasons=
+  ch_5d0668e539d56c2be3cb47c24803d22147164f23388e30e94cbdbd1f529cd862 DM-0006 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_5d0bc123b69511589b6f20a75d260e4a61f6cef3282db1b95c225813f9276f59 DM-0012 status=accepted tags=source-status:Accepted consequences.negative[3] state=accepted reasons=
+  ch_5dc9684ac4068abbec66c4d4c082b81acc3093cacd76259e8518332913772d80 DM-0004 status=accepted tags=source-status:Accepted consequences.positive[0] state=accepted reasons=
+  ch_5e578954537eae4475f56a66adaa5dd3fed02bd1af54bd23d631c90d7202c7ce DM-0007 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_5ec94b516d7431c3e3d732db4e818e329207f4f857caa08feedfb4c6ab7f83b0 DM-0004 status=accepted tags=source-status:Accepted rationale_summary state=accepted reasons=
+  ch_60960bf50b0cf4e3b1c8f754f25c1aba4ad3f10199a6286a9763b246c640e708 DM-0013 status=accepted tags=source-status:Accepted consequences.positive[1] state=accepted reasons=
+  ch_6107e0dd1a5f8dd8c76b94422b93c8505cd554ec195341ac6302f367453035a6 DM-0005 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_6120cfa45e06c3098a3aae65f98f9126c25abbd2819fdfc72c7d8917d361f766 DM-0009 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_615767635ba7d6e7cc8c5690e7d9fbba8786104bc0a7a1f52438df3582681cdf DM-0019 status=accepted tags=source-status:Accepted decision.alternatives[0] state=accepted reasons=
+  ch_61a7c9cbc52c32e963bb8c8e1dd6971e3316c6d49d13bc325bf5bb7cb6c06076 DM-0002 status=accepted tags=source-status:Accepted body[8] state=accepted reasons=
+  ch_6206d9546d354892a26155e873758d52b6c109f2d6c9a90688e02766383d1912 DM-0019 status=accepted tags=source-status:Accepted consequences.negative[1] state=accepted reasons=
+  ch_624daf371f59f8a9f82acc48ace833d5f23a2f527abf1abf2bb11021532c41d5 DM-0015 status=proposed tags=source-status:In Progress body[4] state=accepted reasons=
+  ch_6257c26d91637d24d482b80ffa25063be0722f96e4084fbc0ad48fa00bdb78b1 DM-0013 status=accepted tags=source-status:Accepted consequences.positive[3] state=accepted reasons=
+  ch_62b373b077fbe7cd319960fbebef1d8d68186ca68ccf74f2b2ecf92ff1a28116 DM-0005 status=accepted tags=source-status:Accepted consequences.negative[1] state=accepted reasons=
+  ch_62c23be5fdfb7adb7f7d79cdf24d075cb323a06907c50a77eb27cf1330438568 DM-0001 status=accepted tags=source-status:Accepted decision.chosen state=accepted reasons=
+  ch_645d1b3d663655c07ee4538f0f2ebc7bf00de1a147dc3fd7d004188ba971be69 DM-0008 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_648226adb6b233e01862665e5a778c70095b2f4f6936b5a56ef4e00cc2d74ea7 DM-0003 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_67f8801d2a1f191e2fc7ffcac0b836a84058368ac2774defbe431d4a9d515d94 DM-0012 status=accepted tags=source-status:Accepted consequences.positive[1] state=accepted reasons=
+  ch_686c679d70d2e9a116e29bbbf829188835bc99c06c4fda7a50c62b69ed847d3d DM-0006 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_68b128d607b1d2de9adbc29a3d124762e94a4ffd781121de4f5571aad3cef3b8 DM-0012 status=accepted tags=source-status:Accepted decision.chosen state=accepted reasons=
+  ch_68c74b24ca3851b8535b27e3cee9d4091ecd7e8cb483002e62217e05a4123b73 DM-0012 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_6a4a2fca63f8355af7ff32c7c4546c5c24fa1c378cd24610288f753245ea0810 DM-0019 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_6a9fe56fd70d20e4b0785df3f11e824e0898e7b7adbe7638a65c7b99594e43ed DM-0010 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_6ab4d46dd88b2f3409ffdaf83dd22afb946ef06b657b0b4e125e32fdcddb7d9e DM-0012 status=accepted tags=source-status:Accepted body[0] state=accepted reasons=
+  ch_6aef311927f7716dcc63928c375c0c7a499d4725e6a17d116a6d29e8ef4d762c DM-0001 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_6afab39726b573e2df5f29d8e6571c6b0a6a87957b3c959f744d485c00fc12e4 DM-0006 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_6d3c5c805ae6d21c9810a0a796ca3cb3924b41c55ed59275bb580412dc9a718d DM-0002 status=accepted tags=source-status:Accepted body[10] state=accepted reasons=
+  ch_6e50c25e82af89beb7defbfd9d3565182ad3b3e39095e319c641fa165ff7f5d7 DM-0013 status=accepted tags=source-status:Accepted body[6] state=accepted reasons=
+  ch_6efcf149ee2763341e7ce63337f84edbf882d0cb1752de5c6e287635768d95ae DM-0012 status=accepted tags=source-status:Accepted decision.alternatives[0] state=accepted reasons=
+  ch_6f3df1d24a0542c69b536db136f5ecd6e94db3cbd8ec595800dd2fee0ee8bcf3 DM-0008 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_6f5bb3a761b9ef6816f1642275758f55282b9af930f07e736de20189e4e79b06 DM-0011 status=accepted tags=source-status:Accepted decision.alternatives[1] state=accepted reasons=
+  ch_7072298cd016ccfc1c1a3dbc975cb321039284d6cb9a89ab5d700d1d04679cbc DM-0007 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_711301386ffe26849525e50115aa32b2f74c2eb8cc30133f8c06b3126536f10a DM-0011 status=accepted tags=source-status:Accepted rationale_summary state=accepted reasons=
+  ch_726982e01d21ee9eae70a0e90ce14f6902b8ef05db70be92210491031a63ec63 DM-0006 status=accepted tags=source-status:Accepted decision.alternatives[0] state=accepted reasons=
+  ch_72e13c01c99cbe5a726ac24f24f4018cd86457701ffe0e469adb37b6224c59e3 DM-0001 status=accepted tags=source-status:Accepted consequences.positive[2] state=accepted reasons=
+  ch_72e4e44ec0f2f172a0e74692349bd5c4691bc1a4b7b2993bb4ae19fc8431e442 DM-0012 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_7320d9c206b1a64e334c2a1e3d528be3460fcf372686407505dbceda1d57f32f DM-0002 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_75abbb01de3171d8dda72e2dbb2a23dac0b892d7706f70cd7b602ba4fde0611e DM-0007 status=accepted tags=source-status:Accepted body[0] state=accepted reasons=
+  ch_75eb2c6c0a3f86c19da20866f3c21d214704b0795f80714a98c2cad4d41bebe4 DM-0009 status=accepted tags=source-status:Accepted decision.alternatives[2] state=accepted reasons=
+  ch_76d1b97dad68ad308e08d3ba3d710ca4c46a3cf7b7eef2a742c04f50e7816d7d DM-0019 status=accepted tags=source-status:Accepted context.problem state=accepted reasons=
+  ch_7842b2cd22b4dfd1c5ef7e9839ce6d6713513006a9d11e91442757239ca6bdad DM-0003 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_79049549ad39d6dbaec7a9773a8bd15bae6934bb1ec5a77e87e0c10c1809c1a9 DM-0006 status=accepted tags=source-status:Accepted consequences.negative[1] state=accepted reasons=
+  ch_799895d71f92bca84c84886d854bfa85cb882b6cad5031944d2d94d28daaf61f DM-0001 status=accepted tags=source-status:Accepted body[0] state=accepted reasons=
+  ch_79b60208e7e8b3111e49250afd256326bc6defa34212e74d709eb011e6bc3c19 DM-0002 status=accepted tags=source-status:Accepted consequences.negative[4] state=accepted reasons=
+  ch_7acff3e086a0f7ff2299113d1e7aa89977c8bd4b7c840414ca5b551b80c556d7 DM-0001 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_7b29c5605018a7516a94da98961790f22e719ade81cce63c109222698bf9b7a9 DM-0002 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_7c2474bde622c4c40aa866f897f6c4a2867f70758e9066331d5ea31be89d1239 DM-0009 status=accepted tags=source-status:Accepted consequences.negative[0] state=accepted reasons=
+  ch_7c30accf496db42bde9ce9132c59f11c732dc5a64ba2fe206e320c2b564ca637 DM-0013 status=accepted tags=source-status:Accepted consequences.negative[1] state=accepted reasons=
+  ch_7e3898630c6933ed0fc902017cb89b9e55dc691febe3c463ffd793763612a4c5 DM-0006 status=accepted tags=source-status:Accepted consequences.positive[1] state=accepted reasons=
+  ch_7f5456d63365477bd7966fe97b150f046e44447cac092d3275a2515f3258e3c2 DM-0003 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_8142375a57fc598ece26fc1eb6d9d1491e7707127803e5aba089788f3f684283 DM-0012 status=accepted tags=source-status:Accepted body[4] state=accepted reasons=
+  ch_827a4f432511c04689d2f043e7fa105d9f1b3bb9397bf767225378504ce12f8c DM-0006 status=accepted tags=source-status:Accepted body[0] state=accepted reasons=
+  ch_83009a6fcc6dbda981c18bed7961bec0cffbdbb0d5df13fab7c10f32121ef076 DM-0007 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_83b6d24ca592fe6df9f1ddada061d2ccaf3893fe9b7d3190c1930c56ebf77658 DM-0005 status=accepted tags=source-status:Accepted decision.chosen state=accepted reasons=
+  ch_855af60eee9c7af633b2927ceeaeee853776e929e2897bbbde7f69d69e1d7036 DM-0008 status=accepted tags=source-status:Accepted body[4] state=accepted reasons=
+  ch_856db714053d034a048129e7317a8e581d0a776e224b6102699db950e83bc58e DM-0007 status=accepted tags=source-status:Accepted decision.chosen state=accepted reasons=
+  ch_874373ccec0fa92c5bdccbb8e4fc24cc47f7985b28c4286e287d8d3d014e3f47 DM-0013 status=accepted tags=source-status:Accepted rationale_summary state=accepted reasons=
+  ch_880fe6f34f1382b7aa462ca6d46aa9d3dc0deb0a6cca40e378582b371be58d9c DM-0012 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_888dcda652cde8715bf00e9d8d6477a19fffa4d39461ea00284d8b38b84226c6 DM-0009 status=accepted tags=source-status:Accepted decision.alternatives[1] state=accepted reasons=
+  ch_898ce03db820f1b3c462c3f3395aba0d6f9c5acd8da09a02638859ccbec9d1dc DM-0009 status=accepted tags=source-status:Accepted consequences.negative[2] state=accepted reasons=
+  ch_8a1daf3a457283b0fa07584744eaeff3851c805e1e7df6d996c619d5583ba02e DM-0004 status=accepted tags=source-status:Accepted consequences.negative[1] state=accepted reasons=
+  ch_8a855b4a22065940fde7f823ce32f1887d2c5da6000e13e993a390bc71935262 DM-0007 status=accepted tags=source-status:Accepted consequences.positive[2] state=accepted reasons=
+  ch_8ae0b29d9596c27811a756725ba60957fcfb2ddf38dd63a3bc510a96e5f8077a DM-0008 status=accepted tags=source-status:Accepted consequences.negative[0] state=accepted reasons=
+  ch_8c84172f6073f32266dd0c45c8110e1a300dda1fd7eea93b4d3f0baaa3f6b5ef DM-0008 status=accepted tags=source-status:Accepted consequences.negative[2] state=accepted reasons=
+  ch_8c8e43af26c57874e2e5e0dc39bff0f2c9fcae10c44856ac726bbd84edb8fdda DM-0005 status=accepted tags=source-status:Accepted context.problem state=accepted reasons=
+  ch_8da297e4290f9f953e593cb54e86a357d57d9c4c11960c97bb19c9e09808eec8 DM-0002 status=accepted tags=source-status:Accepted decision.alternatives[0] state=accepted reasons=
+  ch_8dcec8416eb9218d5ae57686d8b54c285b43f36a6cae8b7c83302712c6b45585 DM-0006 status=accepted tags=source-status:Accepted why[0] state=accepted reasons=
+  ch_8dd20ede3933a511c8e8334df8b66623b1761056431bc7ca8a366c33e2f45139 DM-0009 status=accepted tags=source-status:Accepted body[4] state=accepted reasons=
+  ch_8e62dfe54eaf67df38411752b544a643e65a69d373e3a8f5b278d72a0bffb4ac DM-0015 status=proposed tags=source-status:In Progress context.problem state=accepted reasons=
+  ch_8e7ffbbfcdf31646497e15307cc971c22cbf7f8099eb611f0971135b1e9809d7 DM-0005 status=accepted tags=source-status:Accepted body[4] state=accepted reasons=
+  ch_8fad42a8cf9240c69764bd954c9fb907623a10885544b69944111729def20116 DM-0005 status=accepted tags=source-status:Accepted consequences.positive[3] state=accepted reasons=
+  ch_8fad55e5f4351bf9de4cb72b58bd5beaed5bab9629533b8caa5e663f8a990244 DM-0004 status=accepted tags=source-status:Accepted decision.chosen state=accepted reasons=
+  ch_90ec32810d2cc5f84cdaa921d5eabc77e7334885389136bc1fd3ca10c2812450 DM-0004 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_921e273d348d28525f150dfbfa07ae9bdc454380c5b6a2368cf622e447d03d86 DM-0015 status=proposed tags=source-status:In Progress consequences.negative[0] state=accepted reasons=
+  ch_929e439b0c539e84dbd70a3d32b8b81de02ba7be344dd2551f1f703e1d37c2e3 DM-0007 status=accepted tags=source-status:Accepted consequences.negative[0] state=accepted reasons=
+  ch_92c35ba51cdfda9385a04e1566080a563570eedc02e582dd326f534f8793282f DM-0005 status=accepted tags=source-status:Accepted body[5] state=accepted reasons=
+  ch_92f107a5f68dd02a8356e0ae902b20213f19cc82e85b98502d7e891c4636e625 DM-0011 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_94c68d25181bebaf1f9d198852df506a954fd13f46fd365d6629be96f76e8450 DM-0013 status=accepted tags=source-status:Accepted body[5] state=accepted reasons=
+  ch_94fbc4182a9036eb804446917a0040d59d64950fa9690c11af5c146a1db0d450 DM-0019 status=accepted tags=source-status:Accepted body[0] state=accepted reasons=
+  ch_95ed47b5cbc2bdc022c5f9f8c8eca554bd49920feb0976aa59f75efa7612bdec DM-0005 status=accepted tags=source-status:Accepted body[0] state=accepted reasons=
+  ch_9640718b5315f34a51bbd1a3005762c8d9a2a0dd3967e5f1d8aca7d0bb13dd8a DM-0006 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_975a28e696402941d91979464a436c6449e665a64516b9462b7d0eaf8b61649f DM-0013 status=accepted tags=source-status:Accepted rationale_summary state=accepted reasons=
+  ch_97c55393a1c5d3ec85c5168ccaa6cb66af9f6f0a61bfbe28462979815b58ed21 DM-0009 status=accepted tags=source-status:Accepted consequences.negative[1] state=accepted reasons=
+  ch_97fad07e979f7ef6ad3d316695281fb2ee007f1e3ebc1c0b2a0d76fdfc190172 DM-0011 status=accepted tags=source-status:Accepted decision.chosen state=accepted reasons=
+  ch_988096974be38b5d048777a3aaffa07e4be500a3a68b84fbd836ba8c9fd13c2c DM-0002 status=accepted tags=source-status:Accepted consequences.negative[0] state=accepted reasons=
+  ch_98cfe02ffb97f833f7ae8103b823ab670679240844c37ea8d91f2c3f73cb40d8 DM-0002 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_9a0fd3cbca0c862e0a9162ac20580da2afd0b25650dab4ab2cee80a27006f4d4 DM-0012 status=accepted tags=source-status:Accepted consequences.negative[2] state=accepted reasons=
+  ch_9a4a90d415258b7c17dae47a8d1756a4d339e7cdef9f61acafd9bf715d393947 DM-0002 status=accepted tags=source-status:Accepted body[8] state=accepted reasons=
+  ch_9b15b059ddee5ef133b9608c20c70b4995c6da9b7f43188ad256960330f85436 DM-0002 status=accepted tags=source-status:Accepted consequences.negative[1] state=accepted reasons=
+  ch_9b1fc73c75b9c7055d7eecec4a431a73aebcb4558d609be6280e456080ca324e DM-0003 status=accepted tags=source-status:Accepted consequences.positive[1] state=accepted reasons=
+  ch_9d344e5dbe199bd89b70d24725d7e794877ce03ad4c52ea8e93d63ad72137dc8 DM-0019 status=accepted tags=source-status:Accepted consequences.positive[0] state=accepted reasons=
+  ch_9e194ebe75b500c54bd7913b0bf57f46cddc55037b1e450e54147a7999f8a767 DM-0002 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_a3281e7fbc96f5293ca2e73e4c33c51d22e3e509dd67d91a9b068c0e2b74cdf7 DM-0015 status=proposed tags=source-status:In Progress body[4] state=accepted reasons=
+  ch_a38881d4e8324d1e99e051c8b26d3f4458cd2493ef2dfeaf0c6f36007e2ebf64 DM-0003 status=accepted tags=source-status:Accepted decision.alternatives[0] state=accepted reasons=
+  ch_a4a5da10f303bee582becb3b8665292c2d93e2337ce4647029d7ebda06403677 DM-0012 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_a51ba6a318ba4310b8ba94be03f3396d2a07281fe785f2a929360f0307156343 DM-0004 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_a6d8b5a972f01e2a080342793f5a7fc16315875743d66e560ce76ff17b3294f0 DM-0002 status=accepted tags=source-status:Accepted consequences.negative[5] state=accepted reasons=
+  ch_a75316ff4bdfabdd037dc210ad75536b4dc51043a093b9c306cf900058fe6c15 DM-0005 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_a7a7a08c108b2080f018b473abf6cd90af9172fd47f753e5f9e9e12618ac25bb DM-0002 status=accepted tags=source-status:Accepted body[4] state=accepted reasons=
+  ch_a80a87de408f98f2a897592bed82443cdf53685723d6da34dbcea34b5e235ec4 DM-0001 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_a9057c097e019dc58b7ccaa32ca060bca2717bc9404b3f00aad2e49dc127ecc7 DM-0019 status=accepted tags=source-status:Accepted decision.alternatives[1] state=accepted reasons=
+  ch_aa82ce0a8c645272a7d4b24a6697ffec566e022283f8354363375a42cce210bf DM-0013 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_abd34051894b0b8cd0e59bb32b559c6eadb4b6080f7b7ce537b92e7eb7f9daf4 DM-0001 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_ac09005a4ad2c4a6ef3f52f579de103ca97dfadc45ae67482a2761ddb27c8f0a DM-0009 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_ac19491581561b3f70b0fcd5a0db24d748d7b786ed112eb0b02530915d31c696 DM-0011 status=accepted tags=source-status:Accepted body[4] state=accepted reasons=
+  ch_ac1e4954d2f10cc53c7b303bad1c67b6f7951d174264b72c3f9944b88b005fa9 DM-0001 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_ad1de416a72bcafdbf23529eaec5b0a4557f67b1b98b8c708079b02b3a92f3fb DM-0004 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_ad8fdcb9abb028d5a5b36c338616e5cb1a4b2bcd0dab9d265739e91ef59521c6 DM-0003 status=accepted tags=source-status:Accepted consequences.negative[1] state=accepted reasons=
+  ch_adfea50bad96984d61b248698eff43d0700a3dfb2a8ac4dc4d0b4f04edf66291 DM-0015 status=proposed tags=source-status:In Progress body[4] state=accepted reasons=
+  ch_aebf0da7729cf1da80eec5741366e995157a452a094c48aeec99c42924b904f8 DM-0009 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_af1329f7fa4b8d3306a6354dc0ad63625939667a9e006ca8bc8dd72c0897b328 DM-0010 status=accepted tags=source-status:Accepted decision.alternatives[1] state=accepted reasons=
+  ch_af9f57ba47b75791f0e21c7dd4b7456c54ebef208adc0e64e4d07b9f4adbc94f DM-0009 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_afbc8933b8ac8d3b99f7e1d2b5c1f09ce0dedaa425b36b51ef17724010bbd0bd DM-0007 status=accepted tags=source-status:Accepted context.problem state=accepted reasons=
+  ch_afdb597cd03953cb0a9b5ece55bca53d6d46e53de4e8805fea26959fc26e014d DM-0013 status=accepted tags=source-status:Accepted body[6] state=accepted reasons=
+  ch_b042da72d000ef733792cc4f984d1b448e650f1de1081ec8f96161efdf520feb DM-0002 status=accepted tags=source-status:Accepted body[9] state=accepted reasons=
+  ch_b1396319cc687283741f0e7c37fdd69497e32c05795efd30ae7c3988e04fc2a8 DM-0002 status=accepted tags=source-status:Accepted body[7] state=accepted reasons=
+  ch_b1aae60ab7485a8c7a4ddda7653cd5850906ad826edfbfff665fa15d72a81832 DM-0006 status=accepted tags=source-status:Accepted context.problem state=accepted reasons=
+  ch_b36784acc88dbb0e47be8a18317097a1ea7132babcfc0bb795fb3373ad10d143 DM-0009 status=accepted tags=source-status:Accepted decision.chosen state=accepted reasons=
+  ch_b3762e90bbff85008e60158dd9f05dde32d6e688ea15d7abda0f5237905bf957 DM-0008 status=accepted tags=source-status:Accepted rationale_summary state=accepted reasons=
+  ch_b54380dccd24321a688f911a81cad996dd8861cc3cab51303814e19214441582 DM-0010 status=accepted tags=source-status:Accepted consequences.negative[0] state=accepted reasons=
+  ch_b5fee717e58db295eda622b3d4e18ffeb9c0122e0b8828c826289a0c1c059c82 DM-0011 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_b6391cd8dbe5cbda037069092c94ea65f301f7f521da89cdfc6b5801503d8eb7 DM-0006 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_b6c6d2dcc52a498c2d97f1ee9b228b89a873fc7e9da7fad2d9655cc6b45ada6b DM-0006 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_b71380841d53b4f1c9db10fb8e53c4d4b35c716f6daa9a5716b021cdac9353e9 DM-0007 status=accepted tags=source-status:Accepted consequences.positive[0] state=accepted reasons=
+  ch_b7b4814e87dde4e62aeb7faab2a79f04ab85e68c5fc6a6d5e9d2f746c61e4059 DM-0006 status=accepted tags=source-status:Accepted rationale_summary state=accepted reasons=
+  ch_b84660103efcfd022be95b09e56bd19ff891c5267f39d4cfb9dd77073bbac6a3 DM-0003 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_b8ceeaa91866469890b6a1ba5148563022b92649c7f4a8f79303e96995e6828c DM-0002 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_b965e5c3e205f8c0405fc5903ec4b3c4d1b051d6ac1936dd166c61e91f35159e DM-0003 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_b9f2fffa63b2663571c0d6bcb231b3305f631861fe8d8331b274ed8c1030af45 DM-0004 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_bb2cf376563135753b1a12b70cb82fb611c439026d153bd8674231d46303e0b7 DM-0005 status=accepted tags=source-status:Accepted consequences.positive[1] state=accepted reasons=
+  ch_bc04acba18dad83ba721e89373866796a34a4d1eb9b11626df7237fb4150c359 DM-0003 status=accepted tags=source-status:Accepted body[4] state=accepted reasons=
+  ch_bcf973f46b159f4502d68759113aade17d5a9041fe4e9c3420b5efd1d612cf7f DM-0011 status=accepted tags=source-status:Accepted consequences.positive[0] state=accepted reasons=
+  ch_beccc9f25dbb25922c47c860a595d237908937e4b8ce377f55d195320ceac340 DM-0012 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_beeb6da1650a424f9297c310cd2b9cb55678fdbea143f9b9f87b586748c5dd48 DM-0009 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_c030c76e3e3c5564291fb9ef0c36613fcde4810f8fdd9433e15a0c52e6136464 DM-0011 status=accepted tags=source-status:Accepted decision.alternatives[0] state=accepted reasons=
+  ch_c0dc86a74a5811f59de985b0cb763556bcb364ff30323dc5d9b2ef4a6b810c2f DM-0012 status=accepted tags=source-status:Accepted decision.alternatives[4] state=accepted reasons=
+  ch_c18431cf04315696195fc772985dd10edd948613e18acf0417bddfd6a3d76075 DM-0012 status=accepted tags=source-status:Accepted body[4] state=accepted reasons=
+  ch_c27c96d563e647e154ec9ceba8778ca86b1b42e452bece487ef6aef92eff7c08 DM-0012 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_c289ce1b74673e42b66756136073dd5a3345b53b1cf10c5d7a1ac99c4b2d3ae7 DM-0015 status=proposed tags=source-status:In Progress context.problem state=accepted reasons=
+  ch_c32aad1c89bd37709e8f72e80e27a877e43085880109c7cb089af1299990f463 DM-0003 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_c34fe66dd069d2bae36ecac4ffa01866e275e49401e7cb38dab1cc1bbe4ec5a9 DM-0003 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_c3b6bbbfdbe684a9fabc20195ab0afa0c66182ade538dfdd689fce6f31dbe5a7 DM-0008 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_c5c9f83886c2ddc0566651a0fe7e3c9185adf0216d93e46e5f8e9dba2e611041 DM-0015 status=proposed tags=source-status:In Progress body[2] state=accepted reasons=
+  ch_c67dac2393ba0fd99131ed445c45f90fb4e1e392ac7a6354d3dcda5ce3d06aa5 DM-0019 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_c74d29eac76656f555f95e463e8bf26333847afd8c3bbb0ddfb6976fadf0ae4e DM-0003 status=accepted tags=source-status:Accepted rationale_summary state=accepted reasons=
+  ch_c781bac1729a4f803a48fe2afe34888a2e643f9207d7a4b229bde87dc7b77418 DM-0011 status=accepted tags=source-status:Accepted context.problem state=accepted reasons=
+  ch_c7afd291f8cd8c61368fa7e3a9fae9dec1878bb80d417360c7c2332a8a30dbe5 DM-0015 status=proposed tags=source-status:In Progress body[2] state=accepted reasons=
+  ch_c7d25d2ef629fd589eef06f10f4fbab79deb08f39bb39d10956fce41fe3bdd2d DM-0005 status=accepted tags=source-status:Accepted consequences.positive[2] state=accepted reasons=
+  ch_c8cbffb0218bca7935ae97b93129c5d234e0e7e36464fa90824d1498e7f0a9c8 DM-0005 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_c91b9ccbbda5ae74c6ff389b2c8f9410b9c931a00559384a066285ae826cf26d DM-0010 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_c9c1216078b450f3c13f772ddc74883273fa9ec46d67afd0792e034afa0488f0 DM-0004 status=accepted tags=source-status:Accepted context.problem state=accepted reasons=
+  ch_ca08bcf674b6dc388952366433cf0f28bd6dfbd6e166cef1efbc24267c140693 DM-0013 status=accepted tags=source-status:Accepted consequences.negative[2] state=accepted reasons=
+  ch_cb9749bc94b0217702d43ce6cce7e32d673865184b0c7062a3e774f094d23ba6 DM-0004 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_cc88e45de9101025604ed6e928e76a6d39223dbe61c47de4580b85a9df3932b7 DM-0019 status=accepted tags=source-status:Accepted body[4] state=accepted reasons=
+  ch_cd230f1640c27e229aa2c45c6b5896afeead1b093d7e6620916c0a9b2d6f17cb DM-0015 status=proposed tags=source-status:In Progress body[1] state=accepted reasons=
+  ch_cd7230a20fa75349b7d612d2b3294cf12836dda6eb663b92da70a732e4cee226 DM-0008 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_cd731d9b36ebcb879366fac03b4b73734a254026bbabee0b3d7d7ccde48246d0 DM-0006 status=accepted tags=source-status:Accepted body[4] state=accepted reasons=
+  ch_ce0812335661eb76c692fa2b62ac422bcf67b6efe11417599ad0a55fc7e4a667 DM-0009 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_ce7d55c45dd4aa54572dcba22975cac57fdf5484c06c73362c70e5e0a51dcbe6 DM-0015 status=proposed tags=source-status:In Progress decision.chosen state=accepted reasons=
+  ch_cf7623627f3dcb1e90be9b39f8206f54efad53a57f580cf7467ef7a4288709b1 DM-0002 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_d01eddadd8b871e1cc827c39d3613e77b689e69a06709084e3732657c0db9803 DM-0019 status=accepted tags=source-status:Accepted decision.chosen state=accepted reasons=
+  ch_d0465b6f59e688e5253107e54e3a1d22f703aab737496f69fc554083bcbb47f7 DM-0004 status=accepted tags=source-status:Accepted consequences.positive[1] state=accepted reasons=
+  ch_d0c77319c0e5aea99eb25e8408440bbe7434622e0d3b53fe3a38cab82313c468 DM-0019 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_d11643c03369ddb8b13cd3c5ebc8901d64cd471ac8e9a584b03dec02ab055ba1 DM-0013 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_d1dd865ab94f1bc7d89a035f5e28ac1cb185c1da64fbe79ffc282a31dcbd690a DM-0008 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_d1e6c42001dc34ff258a31aaedfa73061a4b5b1abb3aa427faaab0c20117688a DM-0003 status=accepted tags=source-status:Accepted decision.chosen state=accepted reasons=
+  ch_d35320c410d0e160f841ec978f119a63799bd76618f2bd32e220a05c0adb5d10 DM-0007 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_d360bbc9a2bac3a720b845b47060be324992dfd17092fbfea0188cdb13b8b6a1 DM-0003 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_d3f2bbe07b72c2308b79a90117611c61f8a1311918951758eb46dbaa5d915613 DM-0003 status=accepted tags=source-status:Accepted context.problem state=accepted reasons=
+  ch_d42527e2d51239acc6eab8e36f4f3f76ae5e9a37eb9523557e0de96eeca5ab1f DM-0002 status=accepted tags=source-status:Accepted consequences.negative[2] state=accepted reasons=
+  ch_d4d6a431b77e7a316881b1f49bf4b4742722ebdfbe6194cfac9400e432bcf356 DM-0011 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_d52bf1cce280bce7efe3dc7c40048bcd6a0654aafc81db493953af8e5fdd86d0 DM-0015 status=proposed tags=source-status:In Progress consequences.positive[1] state=accepted reasons=
+  ch_d5930a73d5af4f57ad1efbd6b623427df7f7f1afee82d5cc329cfa79059f93bc DM-0019 status=accepted tags=source-status:Accepted rationale_summary state=accepted reasons=
+  ch_d5c73b149a4bbc8fd22cdb28229fa552b5738e164ed88f29966ff7dad6fad925 DM-0015 status=proposed tags=source-status:In Progress consequences.positive[0] state=accepted reasons=
+  ch_d5e0d0cd8726d515be4b57853b6063af4050da4715871cb72febbed90e6ac295 DM-0015 status=proposed tags=source-status:In Progress body[2] state=accepted reasons=
+  ch_d5f1f43351c5ef8c0e9b23c57df85e3436152facd2f48dfc60caf5847c55642c DM-0012 status=accepted tags=source-status:Accepted rationale_summary state=accepted reasons=
+  ch_d6635e4d0ad3c40e7e0ce295c161f60df56023e062c085ce91853d33ae9460d5 DM-0012 status=accepted tags=source-status:Accepted body[4] state=accepted reasons=
+  ch_d6be2730e7997c9a602d059428d4cf2ff77d24d30145bc78816a82c94fcddd7c DM-0019 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_d7ea7b5a99cd39f6b8d15acc82e60e4e6f13d7a081a0f9f1615077098af346b6 DM-0013 status=accepted tags=source-status:Accepted body[0] state=accepted reasons=
+  ch_d8a87566555f2ee64893dc13a2800a80e7c19e103508f32bc6dd76fa262c1d1c DM-0002 status=accepted tags=source-status:Accepted body[4] state=accepted reasons=
+  ch_d8c28563bfa3839215f388901e77000a55dcfd84c52950cfd835b5ff008612ad DM-0013 status=accepted tags=source-status:Accepted decision.alternatives[1] state=accepted reasons=
+  ch_d91d998de953e7b98700cabf115c797cb4c5247637a1c4843b97470b3c83e22d DM-0008 status=accepted tags=source-status:Accepted consequences.positive[2] state=accepted reasons=
+  ch_d9df59147667fa7042e8f6249524a73a8813e38fae860ca61c313f6e4f4dc2f8 DM-0001 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_da1bbeece2b33363a4b40aa1f5398f3a9c49bd1bf0688c8f2a91ad83728f1f51 DM-0007 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_dac1a70003e8477ddb8132a5f406ac75a5240c6b676a851bf3ae413405e5aec8 DM-0015 status=proposed tags=source-status:In Progress body[2] state=accepted reasons=
+  ch_db23490ed0bffffebb2079a2bc3362137e9d328412ee13e2bc3a440e162225d8 DM-0015 status=proposed tags=source-status:In Progress body[4] state=accepted reasons=
+  ch_dc00ff6b6b5b323d50e866da2f87373380206e42659986951c272d853641c3fc DM-0006 status=accepted tags=source-status:Accepted consequences.positive[0] state=accepted reasons=
+  ch_dc820fb093ea33c15a5983ff4081753de49bb05676757d8a0aec62f369d5f91c DM-0010 status=accepted tags=source-status:Accepted consequences.positive[1] state=accepted reasons=
+  ch_dcd3680794bac273c7b8ea583462ff54c6b5b04b0db1c53d6934252cbec7ecfb DM-0002 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_dce0c71446c33b24f4a788feb05934d4c8c2f79c2610e5dd954dbaf136a1957e DM-0002 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_dd611fcbcee90852831bec4df18cf17cf35df71f127ba62e36f42255345e999d DM-0009 status=accepted tags=source-status:Accepted consequences.positive[0] state=accepted reasons=
+  ch_dd67bab38560bb4655a52794030c40c3abdc9f5dbc36ac7826f149e491a0a4eb DM-0002 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_e0f18a9e099a610d448e24637b24282c8e012e9e37eb452dfdff1e7711b576fe DM-0011 status=accepted tags=source-status:Accepted consequences.negative[1] state=accepted reasons=
+  ch_e212105c02f4618bb27c78b761311af573df6cbcadbd80d38345ef947568c7f1 DM-0019 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_e33cfcc9911bc63c8a18f1c90c61707724951979c200fccfff8215853552d42d DM-0010 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_e3de5fd08ecccc359dfbde7b111737bf9c7c72ee49b9441b5f42f2a337fa833b DM-0002 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_e4c3dfbb90a529475cc22fb40f11fd947d4d08f19f9a44852b5c27f0cdc99f11 DM-0007 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_e5d00d2311ae4f4d3f02f916be69ef2df5381de798950df1b6e231b04bd26d40 DM-0005 status=accepted tags=source-status:Accepted decision.alternatives[1] state=accepted reasons=
+  ch_e75b045631595684c49ce8bf4e9da3e1ffcc6db6eddc3ef24d81dd3b3d7c62af DM-0007 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_e78dc9ab9c0b2df8d86d39c374eefb5b2fcd15b82a1b2606ec719889000f53f9 DM-0012 status=accepted tags=source-status:Accepted consequences.negative[4] state=accepted reasons=
+  ch_e82b143b76fde28c2dfd38dc754cf79f6375c23cc6388ec5af12a12de6a2f8f9 DM-0012 status=accepted tags=source-status:Accepted consequences.positive[3] state=accepted reasons=
+  ch_e9b547e2315bdc514736804df553c3c334050fde175b6d419adcd56dd74868ad DM-0019 status=accepted tags=source-status:Accepted context.problem state=accepted reasons=
+  ch_ebeba43ca59ce4ca60cad3ac0a612bbe3705bff950368b27a0c7050a6fcc4334 DM-0008 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_ec5c53b5aee574b3dbe879fa07dddc756912cbbe0833b7ceae3b2731bafd5c68 DM-0013 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_ed9bf3cc6992ad28158ae8e73bf61fef33bb42b1015f52d095d3def34386150d DM-0001 status=accepted tags=source-status:Accepted rationale_summary state=accepted reasons=
+  ch_eeadd18d81b359b9dc4524e769c563f0c48d4905a08d646fb116424109d6bb03 DM-0013 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_eedf7198c4efd25a75e8e8600bf373c207de0e82857783fd93a3c77c9fb080d5 DM-0011 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_ef18c2e002dca6507b660558bfe1c6326679e900c7d0c5468ff3852d2e09263c DM-0005 status=accepted tags=source-status:Accepted rationale_summary state=accepted reasons=
+  ch_f0418532e2fd11c3e8fe65a60689a933bd025bd9dea757965dac8539840807a9 DM-0012 status=accepted tags=source-status:Accepted decision.alternatives[1] state=accepted reasons=
+  ch_f10618111e25953abf1ab39b24313396c68e70b6a73278a748a5db7e21ddd2ed DM-0002 status=accepted tags=source-status:Accepted body[7] state=accepted reasons=
+  ch_f12004ddb394fa008680bdecf42f6d383050d657f54ffbab84ac2abde10718ec DM-0009 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_f1b5bb217c4f66dda9ee4c3532c188181f74c70c09fb42fbab9c50ff2fd7ea1e DM-0010 status=accepted tags=source-status:Accepted rationale_summary state=accepted reasons=
+  ch_f1c8ca44dffde343b05a5835c7aaf27bf29ba0e5454dbe3be58b0ef2cf050c49 DM-0012 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_f20336719b422c1007143dbe6573f404dfd8039a762d9bc111d21e8ee9db733d DM-0015 status=proposed tags=source-status:In Progress body[3] state=accepted reasons=
+  ch_f33a0b2e6ed63fccdc386d15a5be657bd9e4e9961904bac6289d86f9fc15146a DM-0002 status=accepted tags=source-status:Accepted rationale_summary state=accepted reasons=
+  ch_f3b01ee3429062df1c710d57b86ef034ddc2a4fde95d427598ea815c8e7a05f9 DM-0009 status=accepted tags=source-status:Accepted consequences.positive[2] state=accepted reasons=
+  ch_f44532ef7a936906fa259b5460ae3858406ea090cad47c8f2ddc189da6569815 DM-0003 status=accepted tags=source-status:Accepted decision.alternatives[1] state=accepted reasons=
+  ch_f466a43ff3021d5f9c40a29589d4c6e6da5a40a5d5cce6cece54ac1bc671933f DM-0001 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_f61099f5988e080babf0d1902d805d2d07a9d293a440b3ade6dc3bad3dca9668 DM-0012 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_f66a7f5682ad0d233bae5250537314e33f02ea551ecb39eb8e393987fe4810c7 DM-0012 status=accepted tags=source-status:Accepted body[3] state=accepted reasons=
+  ch_f6912220da9a695292db668018f779872a880f84c45702e69da4fca1aa5bd53b DM-0019 status=accepted tags=source-status:Accepted consequences.negative[0] state=accepted reasons=
+  ch_f7313271f5bb5c110f4e3a00824cc861af7f8c8b068d391efcb1ab203c575da3 DM-0011 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_f73ae5efc06364f6a14b1391712195f9580ac6ce7111f4538bcbf3ace97a5b6e DM-0008 status=accepted tags=source-status:Accepted consequences.positive[1] state=accepted reasons=
+  ch_f768354bc4ad63d64e8d7c6f4331ddab4f09b9a47003627c3d54d0dd6770b40e DM-0002 status=accepted tags=source-status:Accepted body[9] state=accepted reasons=
+  ch_f7b0a5be030e0f441002b01a50323db485bc86c7565e8820d04c11a29f620aeb DM-0006 status=accepted tags=source-status:Accepted consequences.negative[2] state=accepted reasons=
+  ch_f7d1d8b1405f97dcea3e205e9b207b1645bbbbe9923d199e490522a842356b81 DM-0008 status=accepted tags=source-status:Accepted consequences.negative[1] state=accepted reasons=
+  ch_fa6745de0b165cb23cee106927f71d1c359f255675b2baa14789a376a48d2a3e DM-0013 status=accepted tags=source-status:Accepted body[4] state=accepted reasons=
+  ch_fa7f4b73d3dce58cc3edb686eb3286b88f20d7cf5c1ef430955ef641aea9b94e DM-0005 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_fab0ba58f5b7665ac655d6d5eb71efacd0f75c3a684c9651f1ea8d5e28bc908d DM-0013 status=accepted tags=source-status:Accepted consequences.negative[0] state=accepted reasons=
+  ch_fc1032022bb428f7f5d6a2b13a06adabd982d123a425bcd14749e6cf19bffc08 DM-0012 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_fc442664de441e470c44210b940216166403a8f71401b93f4bcd32821d54ecdc DM-0012 status=accepted tags=source-status:Accepted consequences.positive[4] state=accepted reasons=
+  ch_fd1901a2d3a9fd2cdbf0072e07ebab28a97ad9f49ac39baa02a38ccbddef4400 DM-0002 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_fdb215d45a5e06f163688be4caaaa7ca316b6052396dd2f5696421f976919dc7 DM-0002 status=accepted tags=source-status:Accepted decision.alternatives[1] state=accepted reasons=
+  ch_fe688486a09448ef817f7e6d1aa607879374a8c9fcf165361c28217442c57f5e DM-0007 status=accepted tags=source-status:Accepted consequences.negative[1] state=accepted reasons=
+  ch_fe8af3515d016bab4e5e3c90267df4e677838dfbcd02bb89032231901ae7b36c DM-0010 status=accepted tags=source-status:Accepted body[1] state=accepted reasons=
+  ch_fe9c2ed4ce92effe1dc41d89ffd501c1e689597015aeb48b0b31aa83f448c233 DM-0009 status=accepted tags=source-status:Accepted body[2] state=accepted reasons=
+  ch_fe9fd798286dd1a9f47c3946942ad49da929d9befe10bd49e0c4cdba08efa59f DM-0002 status=accepted tags=source-status:Accepted consequences.positive[1] state=accepted reasons=
+  ch_ff1ca62705d111e992e90cdafc764b16962c0b9e90414bb869aedac63b83630f DM-0009 status=accepted tags=source-status:Accepted body[0] state=accepted reasons=
+  ch_ff20289596651d6950cabd8e2bd3993aa3ab0fe9169bf769c8579872328bd1d5 DM-0002 status=accepted tags=source-status:Accepted body[6] state=accepted reasons=
+  ch_ffaa5bb3464f189b5c65780baccebb047adcc4682168117c9a49c0afdef590c4 DM-0002 status=accepted tags=source-status:Accepted body[4] state=accepted reasons=
+Lexical
+  ch_00f8bef877bf5f3aa71422995429b45334680ce1682df54db48be81419c578b9 score=0.000000 rank=None disposition=no_term_match
+  ch_0182f84276d06dc43f3fe3b1e96f3ee54992425f55b19cc31ce592207e021716 score=0.000000 rank=None disposition=no_term_match
+  ch_0203bc358fffde562b1a5840fd59c46749b5552463096a53e4b012d594396c89 score=0.000000 rank=None disposition=no_term_match
+  ch_037fb0dd8d21d3ede8d984bea512db104b84fb67beb7f7bb7b4c14840ad47ef5 score=0.000000 rank=None disposition=no_term_match
+  ch_0426677058fcff7510dd76b0b1774125d634f1e1e23836e10f5bb3d8dbd7cb48 score=2.788180 rank=75 disposition=outside_top_24
+  ch_04c9ee86217371a194cddd19e658ac532215c7b32f068ae5e8198f23544aea7f score=0.000000 rank=None disposition=no_term_match
+  ch_05021610fce543fa6c1b9d533038c1d2f7436bf217ce74c50f8db3108835deaf score=5.086657 rank=32 disposition=outside_top_24
+  ch_050ed0b1a21f8103ce1cd5b65936f00325cf5b49aad87d0834bba126dddc5a27 score=0.000000 rank=None disposition=no_term_match
+  ch_0528621091b60609d6b51a213b0baf6f2bf43d5a7911f6fcdc4e62bb206dcbea score=0.000000 rank=None disposition=no_term_match
+  ch_05699a7a3f63d2f90a6462295ab7144b8d59ca82ddf1fcd481ca98f08046f6de score=0.000000 rank=None disposition=no_term_match
+  ch_05fa28cf6b8dc02438bc2fce0c0a66531c86d419d4ae2421e7d79001ec4363ef score=1.586367 rank=110 disposition=outside_top_24
+  ch_0600f3e96faa55a6504ba06eff1ab3d15e544dd76c28442fcfbe06d6a34da711 score=0.000000 rank=None disposition=no_term_match
+  ch_06747391d2a4b2d83e38c7091f4b397af63b9ddea689000e86eb1d93c5f2b090 score=6.213124 rank=23 disposition=ranked
+  ch_07e44020efbb0362d8ada3f25473901c68ac6037f3fe46b4841970fae6ca73dc score=3.484188 rank=46 disposition=outside_top_24
+  ch_082996f724b9c1b116dea8c2da9bc0ffd5173af9c273432e973fff0f84ac9ffc score=0.000000 rank=None disposition=no_term_match
+  ch_08bb728c5a65b5202d188bcb4a90254edcb743070562f412d4561e9175cf651d score=0.000000 rank=None disposition=no_term_match
+  ch_08d9cc34689bd459d6344b9f69fe1518c4f9f6a7865226c2a4b6a0dd08c0c274 score=0.000000 rank=None disposition=no_term_match
+  ch_09fb5d7f976b196b0aa85a9a517a02d1b931925f5d28e5abedc7e77abd086b71 score=0.000000 rank=None disposition=no_term_match
+  ch_0a324f192209f93e6b23abe290ba69a40b22fdbbafbb1fa01133189f5002ab62 score=0.000000 rank=None disposition=no_term_match
+  ch_0a3413920cb7199556fb404da7f796dee2d94412a316a14b8b6314409f5ee14a score=0.000000 rank=None disposition=no_term_match
+  ch_0a686ef0d4e9ae2466c1fe32ceb0b2cf4214f5e1ce77cedc8fa55ba67f0697d4 score=0.000000 rank=None disposition=no_term_match
+  ch_0ceb58839feff037d7e7f312f95eae18aa89ef725605eba5b67bc257216a5edf score=1.602085 rank=109 disposition=outside_top_24
+  ch_0d8f9e67b0c8cf5b20e710a41c3dac79d4a965b9e4dcd9c73a3d0be1531c6d44 score=0.000000 rank=None disposition=no_term_match
+  ch_0d9cc3469090c59b92136f4fb5ea9b5f7c04546b6b4da933109d5216d645701e score=0.000000 rank=None disposition=no_term_match
+  ch_0eaa3f1d2eb848aa814fc7456db1b1ddef1f46f52d29e8c21707d2147f693a79 score=0.000000 rank=None disposition=no_term_match
+  ch_0f2d436399f9480704e2778171faa3c3ddb258c0d1ac36885b131a740834cf23 score=1.740834 rank=101 disposition=outside_top_24
+  ch_0ff65df183f69fe6120fba2e6011491d148b04a7cffcbe3da59a40bad44346aa score=0.000000 rank=None disposition=no_term_match
+  ch_102dc8fbae6bf21d3b45d4367ed9118932d4fbbba87b615e20193142995061ab score=2.135220 rank=95 disposition=outside_top_24
+  ch_1039d271331f689ac2a7d00c4fd0607110b5a2f29b4290b7f38e02c187b03cb6 score=0.000000 rank=None disposition=no_term_match
+  ch_11017cddb511170da6a01fc8e19abf8058ef116a6ae83f470485dcf953ce822b score=2.861071 rank=71 disposition=outside_top_24
+  ch_11586902fedd4d22ee32ca8f88ec24f2f2c3a692b6868138b1e63fda72ea3f46 score=0.000000 rank=None disposition=no_term_match
+  ch_13f53eda98759d416f2ccc91e9c56afc924acde17bcdc7495b62a2e2729c3e23 score=0.000000 rank=None disposition=no_term_match
+  ch_147886425998d1921563fbe688eafc6af3a8c70138d29da1cb63dcab2983797d score=0.000000 rank=None disposition=no_term_match
+  ch_14d0666c97b0a46c8949e5878cd426648508c966b6fe17695ba2387ada679fdf score=0.000000 rank=None disposition=no_term_match
+  ch_15845966b486f242d6fe8575763f8fea6ff3e2b3f9480076d6259426605d973e score=2.969996 rank=67 disposition=outside_top_24
+  ch_15ed089b9f4b6340da48dac71d33a50d9db1b7f4a467fe0446139a3a64622518 score=5.939578 rank=27 disposition=outside_top_24
+  ch_165f1ec45cc309bb35bfd707f973d6ab3e01479c128cbfcbc70922b9b8c022a8 score=0.000000 rank=None disposition=no_term_match
+  ch_173043159a7c94f862cd7452957a151bc46402b8bc95515ebcfb29a1015af95b score=0.000000 rank=None disposition=no_term_match
+  ch_1b9e52518ff2b4d494b06c2a90130772ba274428bc5d19edee648e53bd2e10cc score=2.146833 rank=93 disposition=outside_top_24
+  ch_1c866509463c2e0e997bf62ea62b89b2e7d9a6d0066b0e39a3d03d1bdb0dbe0a score=0.000000 rank=None disposition=no_term_match
+  ch_1d19d3e359510f4ee8f7e49c08d8fc63e0e5e614b86987fa196818ce802de139 score=0.000000 rank=None disposition=no_term_match
+  ch_1dda06fffafeb7f509902a91b69f89ea7793f61fe0b9ea67f786e5de267ce07c score=0.000000 rank=None disposition=no_term_match
+  ch_1e2b4726bf0cabed8202e8e5487e9c4c61a7a705e724d659bcbecbd1115704d8 score=0.000000 rank=None disposition=no_term_match
+  ch_1fbfa69a0fffa5e5fce56338b7381e44ce97ca2111c964e73ed6c9faab9fa883 score=0.000000 rank=None disposition=no_term_match
+  ch_20c1d0d1d687cbc611c163f3b31434854ce45159f468ba7f10b5effbbc07c4db score=0.000000 rank=None disposition=no_term_match
+  ch_2220c2288c957fe87d7e5332f22b1b9072614b680275d9d1361b24562e7025fd score=0.000000 rank=None disposition=no_term_match
+  ch_22b0feca89d9f165769d4ce28796dbe2eea70cccac56f033c64573dae8de8546 score=0.000000 rank=None disposition=no_term_match
+  ch_232d79aac6f420aa0e3a0764e87250f3a206c421257d8ecc7b3a2aa41de9977d score=2.010941 rank=96 disposition=outside_top_24
+  ch_2381942b03f8922989e4f8a221c21a97a216fa9b640788789cdd7c48814454f3 score=0.000000 rank=None disposition=no_term_match
+  ch_23cfbbbd391d8c74c1b79a5f1327fa94d3f38e2f03dcf0fdac6985ef80b9c7d9 score=7.716830 rank=14 disposition=ranked
+  ch_25ac9430bd3fa30885b07b9dc2c0e13b85e460d14631b9d8aaae4078f7f6a902 score=0.000000 rank=None disposition=no_term_match
+  ch_26026b5d92cca7b53a67470f6514f4d798edd8a1287f53303a8a1f957578131d score=0.000000 rank=None disposition=no_term_match
+  ch_26bc90c5ee7e9dc0d66b28bfb1d57f8c6356cf189ae3a36d24887e89095ba1a3 score=0.000000 rank=None disposition=no_term_match
+  ch_26d031adc8177a9d68a1b961c3ee7957f352486200dfbc5f36ab0aca66d0068f score=3.604651 rank=44 disposition=outside_top_24
+  ch_26f2aba12f77470b606a7e7de8a4a1555b6381eb7900c603567086967a0e3109 score=0.000000 rank=None disposition=no_term_match
+  ch_2721ba8534e73b535aec75564e075ebdf4493d749c6d76ffb90eb5edd4480f29 score=0.000000 rank=None disposition=no_term_match
+  ch_279847b2c202e9957b7795c2ddf58d5d4b24a6c3da0a8d1343fca20eea711c42 score=6.176235 rank=24 disposition=ranked
+  ch_29b3de47634ce5da4eea43e63b0028da1db8192caf275472ef93fff69363f55a score=0.000000 rank=None disposition=no_term_match
+  ch_29c27eec47563c12637a5114bbb299e31c575918c5d43e7ef15fdf98051d7f11 score=0.000000 rank=None disposition=no_term_match
+  ch_29d2e749658a005853ca6c4ec4651364af26d32c7acce515c0919a7282e68951 score=3.807442 rank=40 disposition=outside_top_24
+  ch_29e4da917aa18a12634fedcf91edcb0df7b3b8b4444beb7d1a4d1c95de932828 score=2.705372 rank=79 disposition=outside_top_24
+  ch_2a856dc3fa3ac19145020f465941f0311204b016efafb66ef16d8a8b0435c596 score=1.874337 rank=99 disposition=outside_top_24
+  ch_2a8776eed37e3357956fab60f281f33475d60d1d354d4e235a33381e99a1dd1c score=0.000000 rank=None disposition=no_term_match
+  ch_2b53d4c4e32b641c9bca5df1c1fab320f76ff66864b576a0799d38efc6a60dd3 score=8.207726 rank=13 disposition=ranked
+  ch_2bbc7ad990c6855f0d5f8c16acdf9ea3df1477eeb44d23ab07d685b1cb8f2d01 score=0.000000 rank=None disposition=no_term_match
+  ch_2bfd2a577f0f2d9e9a2f399d476a376b2901e2bd6f0380e2d7795d8a326bd359 score=0.000000 rank=None disposition=no_term_match
+  ch_2c241f4a5fb9e6d9ff2fa7b8e14a6b8d9d64495d6c064c58af4b337850a74da0 score=0.000000 rank=None disposition=no_term_match
+  ch_2c6e8f43705565b771c0995dc151d0027c4ee54eb26ab1c12003ae79188d80d3 score=0.000000 rank=None disposition=no_term_match
+  ch_2cddcf5b8775032aef01f0cb929a0310d5a8b66fbceefc68dcf4cafe933d03b2 score=3.607091 rank=43 disposition=outside_top_24
+  ch_2db31dec839513d01746252e64fab9281421b11132e2e884664913d75bf2e2d4 score=0.000000 rank=None disposition=no_term_match
+  ch_2e20138f371b7ee3e8a13933922124a7e94b0cd406bc88f3321f70e838dcd81b score=0.000000 rank=None disposition=no_term_match
+  ch_2eaed169e356e76234698a4053afcee80b9f3fb4c33202b0ebdac0909a178634 score=0.000000 rank=None disposition=no_term_match
+  ch_30a1af9eb04d5bdfa8e6458f7290549e1960ba34605bd067367149bc9976425d score=0.000000 rank=None disposition=no_term_match
+  ch_311d195dbaa4a4f6131a6f9e4b833536e72344b9c4968ba880df9487e2ab0ba1 score=5.971307 rank=26 disposition=outside_top_24
+  ch_31436b6b0dda3801dcd03e6dc93e846926073fa1525d37bcc68abe1d8654a75d score=0.000000 rank=None disposition=no_term_match
+  ch_31cd71fbff5598b065f90eb9a9f04cc9cdbaf8307052330e8fdb9c99f3c1c0af score=7.050436 rank=16 disposition=ranked
+  ch_31f58f0c3d181659085e64a316d3ec38cb63dbb32403c9dd0d1d8061e002bef5 score=0.000000 rank=None disposition=no_term_match
+  ch_3209b87d30711701af5ebe9db5a23546b5ac39f013edb78fa934bc765d99a2d6 score=0.000000 rank=None disposition=no_term_match
+  ch_32246b4a210e24609d792c5dca09a5276b4b999eeffd0812156ac1ff7ec1d47e score=0.000000 rank=None disposition=no_term_match
+  ch_329b0b8933c3c4a58feec4455eeda9253c4f278be7e80c284b6213308b22da3c score=0.000000 rank=None disposition=no_term_match
+  ch_3866544486a2fd14a203ee6b9c8db97379540898fc80521654d61ff0801393fe score=0.000000 rank=None disposition=no_term_match
+  ch_38f32dcc1ec66f3db8bd2812bf2f9e91d785210da0cb709dc3ba940f8c8ccdfb score=0.000000 rank=None disposition=no_term_match
+  ch_39738ae0b8ac3a7ab66bb24185a4ebd34b47b040ade8bdbc8ae50472b721e13c score=4.560325 rank=34 disposition=outside_top_24
+  ch_39f9f0f2905db9cf115500b63c8d7efce4e809d1a9d42cfa3d5548c368351ed7 score=0.000000 rank=None disposition=no_term_match
+  ch_3bf52ae6b5d25f7f243a4f16b6dacb9830293ba00f71764b664d022b4180f965 score=10.653263 rank=3 disposition=ranked
+  ch_3d435927f83ab5c5975f33afc31f1856901850c48642124c22338ad929ad352a score=0.000000 rank=None disposition=no_term_match
+  ch_3e21e4f93c8775b163ca683e735be9fe03527552d5156b5120bc2ca57226f1ad score=3.390012 rank=52 disposition=outside_top_24
+  ch_3ecde34c67a1aac838e4e0bbcb9e428f4086b2df0edaaaeb862b4cd378e56e2e score=0.000000 rank=None disposition=no_term_match
+  ch_3ee79e109422e28433721393105b823632e50ac1b924bf6307b71a6afe51b6eb score=0.000000 rank=None disposition=no_term_match
+  ch_3fc1c4ee0a268953dbce48483975e97bb5f135df248d35488f2670a313e5ade0 score=0.000000 rank=None disposition=no_term_match
+  ch_400bd8c2d44092f3ba61459966777a9c1bc81b375b057c773305afa70126e383 score=0.000000 rank=None disposition=no_term_match
+  ch_403b275d7866d23b4da93ea81334e8ee925f5eba8c8a3fd5ce3a09b3530aa817 score=0.000000 rank=None disposition=no_term_match
+  ch_40ecd89fdd3cf9eb380cf7a3f185f821185a00bdc37b0a5e0d7ba308587e4b48 score=1.914845 rank=98 disposition=outside_top_24
+  ch_41d4a5a36622260e816840b1f842e36ddf3423a8b7c1578f58b4a54eabaac5d6 score=0.000000 rank=None disposition=no_term_match
+  ch_41eb20654bb4c258408c53f19a676f043e261da4c74d2eb34964d390334530ce score=6.502892 rank=21 disposition=ranked
+  ch_4281f389ee91f666d5b8b45de60b513b452e10dcd7d39067a573cbebeef4e7e3 score=0.000000 rank=None disposition=no_term_match
+  ch_4284cbc45bb9c14416505f83a866844052c0a1c683575e5ce83df4e1667bda09 score=3.398516 rank=51 disposition=outside_top_24
+  ch_435a37b3de8c848ca3122ca991fa82867da87570733d6f513abb535dffcf55bc score=0.000000 rank=None disposition=no_term_match
+  ch_43ff9cd0211c22d6bf6e5cf624aa982a73f36dcb7061ee56b45361408ebc7490 score=0.000000 rank=None disposition=no_term_match
+  ch_4508009eee3b10eed73cd5f9f581784f1b55d665c2f728dff87570136ace888e score=1.547058 rank=113 disposition=outside_top_24
+  ch_462ff735d052e14b84cefc6eec9b22b641e6de84c1c92b95821adf92c626d4fb score=0.000000 rank=None disposition=no_term_match
+  ch_46ebaa0cb56df8d9fd063939cf2c46de892007cc02925cfee539c97efad94586 score=0.000000 rank=None disposition=no_term_match
+  ch_47061ce74f81e203d4a9d139a52ca21c2996a22980aaf204fc37450760210e18 score=0.000000 rank=None disposition=no_term_match
+  ch_47283b28a05b81e3f1bf30bd585a42a0445f9cbda5408e02343638e19b0cffbc score=5.693589 rank=29 disposition=outside_top_24
+  ch_4756f47206895bb3c55bd64d54ac6611d14a3029a28c22e791fb9d3931939903 score=2.858168 rank=72 disposition=outside_top_24
+  ch_47840c7c6d2d383ffbb1d653329b77366082ef4743ba3097c74f377e9752ed7b score=1.574050 rank=112 disposition=outside_top_24
+  ch_49b77d746dc437c8ef0c9cb6b1e15690086d3d83f0cdb66d725d71df52c3747b score=10.372475 rank=5 disposition=ranked
+  ch_4a565edb2d9fcbb1d2bf650c409b2743904e3b37d9ea35500d9500fac5a646bc score=0.000000 rank=None disposition=no_term_match
+  ch_4a9823440b14ccbb47ec75fdc8a158afdad927e0e0c04697d3abda0997425bdb score=0.000000 rank=None disposition=no_term_match
+  ch_4ad267d27485dad1a8c88ad991f143c3be3f5d245663311a23515096cbdb6929 score=0.000000 rank=None disposition=no_term_match
+  ch_4b24b17d3f9cf64e71619ef749fbcde7a84e3ac45f1959c25b071b90b1f27ae4 score=0.000000 rank=None disposition=no_term_match
+  ch_4b861c839838ba4140cb5de38645876ba5b4dfbfd0c87f51db64c11ac2c89799 score=3.177178 rank=59 disposition=outside_top_24
+  ch_4be41cdf7c5095fb9d9d37aec7871371f122b3d64629bbe9f4fe2aa11cc8ccf6 score=0.000000 rank=None disposition=no_term_match
+  ch_4c084fea69d047da13483120e5c94da8b96be0629b161ce8211f2bfcd3f5ae66 score=3.390012 rank=53 disposition=outside_top_24
+  ch_4ca2af27e9e00369673a7dee11207d6fba1c460ee1e41547bbfdb0ba4c7e05b4 score=0.000000 rank=None disposition=no_term_match
+  ch_4ca7371eb775f26da6b219848937ed77143922d3c906e17196474f1df451a862 score=0.000000 rank=None disposition=no_term_match
+  ch_4d07bec8dc02aea50362d79a7962f9974c52568675ec600b4a6b0d06530cc26f score=0.000000 rank=None disposition=no_term_match
+  ch_4da237b8bdb2c5ffee4ee7297148b10c94d9139c1b88d5a0f620d980908a9212 score=3.556323 rank=45 disposition=outside_top_24
+  ch_4e7ccc542a7bd26cf02ffd4951b9f835e0c6845bb30c06fd5b1f3fa5e0fa6222 score=0.000000 rank=None disposition=no_term_match
+  ch_4ecf1039050226c0a0cfdcf41c9f2d21e654ef308bce5750c05723208df7de64 score=0.000000 rank=None disposition=no_term_match
+  ch_4f340745ea17069f7a2e2ce3500df1a68540dac5b649bac036c03cd3c5c8f797 score=0.000000 rank=None disposition=no_term_match
+  ch_4fc3fd04f687125dcce9b5cd6d2f50ca81d8fc9f537f8585b8b70a8a9129db05 score=0.000000 rank=None disposition=no_term_match
+  ch_4fe7d20be2bf3d177a05e5eec97133e5fe731d32c63bc590b2b27db4356b035e score=0.000000 rank=None disposition=no_term_match
+  ch_51a13b9a2290e0970aad99442b1ed73a2dce335bce5243c2080bd290991f4af0 score=0.000000 rank=None disposition=no_term_match
+  ch_52e7e008cf5a648b49a05d8ef18fd10ba34a621908a4edbc08d10a10b0584393 score=0.000000 rank=None disposition=no_term_match
+  ch_531af4fa8b1c9c54e751b32628746a12b34305407caae0554780a91f5775b845 score=2.620391 rank=82 disposition=outside_top_24
+  ch_5320cffaef3cc2b9104698e85c5c42cf29adba2e7dce5faa932737ee0f1f84bd score=1.636021 rank=108 disposition=outside_top_24
+  ch_53649d3b32fa3e6db6187a2f25ec97a1abd2b2f10386450312b4bbf4d42dc107 score=3.364966 rank=55 disposition=outside_top_24
+  ch_550b76edb266c17f5b9921a3a95f24eb4d8431c6f06a328ab1f5b493cb711730 score=0.000000 rank=None disposition=no_term_match
+  ch_561e57378cfeda8404561890f10ae3c572197b04c73e53dbc4f87e599b86cb67 score=0.000000 rank=None disposition=no_term_match
+  ch_571c3d9b558dcc41d4a52b6ceae82a0d200c6b1119d982ccf0323c74a85bf6fb score=0.000000 rank=None disposition=no_term_match
+  ch_589d252c9e6e8b35b8c0fa0b771cda42f2a9d58120992a4030622af53d7d51c5 score=0.000000 rank=None disposition=no_term_match
+  ch_595e39b927dceb7e30161e7963bfb4ff22344b06fedec3639df716683f2c0685 score=0.000000 rank=None disposition=no_term_match
+  ch_59660ae5a9cd941e044a5243386b444f1dc19aba0f4d2ca4241ec086b51674a1 score=2.950754 rank=68 disposition=outside_top_24
+  ch_59e1c7283e1656e4cfa643255a6e85e6c27861c863caf217413e55899addf7b8 score=3.415433 rank=50 disposition=outside_top_24
+  ch_5a56f89b925b153e401dbf43457c6a77df911536bc47ab21effc5925dbb320ec score=0.000000 rank=None disposition=no_term_match
+  ch_5a5f036ee2b8ee0bbf7ab6d881352bfaa17da150c53ffb6ee1b855a0102b5bdf score=0.000000 rank=None disposition=no_term_match
+  ch_5c767ef34859576c7ab51c13de033323e2d7d73f04d234e8eee8b9215a4e35c8 score=3.424250 rank=48 disposition=outside_top_24
+  ch_5d0668e539d56c2be3cb47c24803d22147164f23388e30e94cbdbd1f529cd862 score=0.000000 rank=None disposition=no_term_match
+  ch_5d0bc123b69511589b6f20a75d260e4a61f6cef3282db1b95c225813f9276f59 score=3.035634 rank=62 disposition=outside_top_24
+  ch_5dc9684ac4068abbec66c4d4c082b81acc3093cacd76259e8518332913772d80 score=0.000000 rank=None disposition=no_term_match
+  ch_5e578954537eae4475f56a66adaa5dd3fed02bd1af54bd23d631c90d7202c7ce score=0.000000 rank=None disposition=no_term_match
+  ch_5ec94b516d7431c3e3d732db4e818e329207f4f857caa08feedfb4c6ab7f83b0 score=0.000000 rank=None disposition=no_term_match
+  ch_60960bf50b0cf4e3b1c8f754f25c1aba4ad3f10199a6286a9763b246c640e708 score=0.000000 rank=None disposition=no_term_match
+  ch_6107e0dd1a5f8dd8c76b94422b93c8505cd554ec195341ac6302f367453035a6 score=0.000000 rank=None disposition=no_term_match
+  ch_6120cfa45e06c3098a3aae65f98f9126c25abbd2819fdfc72c7d8917d361f766 score=0.000000 rank=None disposition=no_term_match
+  ch_615767635ba7d6e7cc8c5690e7d9fbba8786104bc0a7a1f52438df3582681cdf score=2.989490 rank=66 disposition=outside_top_24
+  ch_61a7c9cbc52c32e963bb8c8e1dd6971e3316c6d49d13bc325bf5bb7cb6c06076 score=0.000000 rank=None disposition=no_term_match
+  ch_6206d9546d354892a26155e873758d52b6c109f2d6c9a90688e02766383d1912 score=0.000000 rank=None disposition=no_term_match
+  ch_624daf371f59f8a9f82acc48ace833d5f23a2f527abf1abf2bb11021532c41d5 score=2.223207 rank=91 disposition=outside_top_24
+  ch_6257c26d91637d24d482b80ffa25063be0722f96e4084fbc0ad48fa00bdb78b1 score=0.000000 rank=None disposition=no_term_match
+  ch_62b373b077fbe7cd319960fbebef1d8d68186ca68ccf74f2b2ecf92ff1a28116 score=0.000000 rank=None disposition=no_term_match
+  ch_62c23be5fdfb7adb7f7d79cdf24d075cb323a06907c50a77eb27cf1330438568 score=0.000000 rank=None disposition=no_term_match
+  ch_645d1b3d663655c07ee4538f0f2ebc7bf00de1a147dc3fd7d004188ba971be69 score=0.000000 rank=None disposition=no_term_match
+  ch_648226adb6b233e01862665e5a778c70095b2f4f6936b5a56ef4e00cc2d74ea7 score=0.000000 rank=None disposition=no_term_match
+  ch_67f8801d2a1f191e2fc7ffcac0b836a84058368ac2774defbe431d4a9d515d94 score=0.000000 rank=None disposition=no_term_match
+  ch_686c679d70d2e9a116e29bbbf829188835bc99c06c4fda7a50c62b69ed847d3d score=0.000000 rank=None disposition=no_term_match
+  ch_68b128d607b1d2de9adbc29a3d124762e94a4ffd781121de4f5571aad3cef3b8 score=3.863238 rank=39 disposition=outside_top_24
+  ch_68c74b24ca3851b8535b27e3cee9d4091ecd7e8cb483002e62217e05a4123b73 score=11.905729 rank=1 disposition=ranked
+  ch_6a4a2fca63f8355af7ff32c7c4546c5c24fa1c378cd24610288f753245ea0810 score=1.422837 rank=119 disposition=outside_top_24
+  ch_6a9fe56fd70d20e4b0785df3f11e824e0898e7b7adbe7638a65c7b99594e43ed score=0.000000 rank=None disposition=no_term_match
+  ch_6ab4d46dd88b2f3409ffdaf83dd22afb946ef06b657b0b4e125e32fdcddb7d9e score=8.526223 rank=10 disposition=ranked
+  ch_6aef311927f7716dcc63928c375c0c7a499d4725e6a17d116a6d29e8ef4d762c score=1.447220 rank=117 disposition=outside_top_24
+  ch_6afab39726b573e2df5f29d8e6571c6b0a6a87957b3c959f744d485c00fc12e4 score=0.000000 rank=None disposition=no_term_match
+  ch_6d3c5c805ae6d21c9810a0a796ca3cb3924b41c55ed59275bb580412dc9a718d score=0.000000 rank=None disposition=no_term_match
+  ch_6e50c25e82af89beb7defbfd9d3565182ad3b3e39095e319c641fa165ff7f5d7 score=0.000000 rank=None disposition=no_term_match
+  ch_6efcf149ee2763341e7ce63337f84edbf882d0cb1752de5c6e287635768d95ae score=6.975944 rank=17 disposition=ranked
+  ch_6f3df1d24a0542c69b536db136f5ecd6e94db3cbd8ec595800dd2fee0ee8bcf3 score=2.582241 rank=83 disposition=outside_top_24
+  ch_6f5bb3a761b9ef6816f1642275758f55282b9af930f07e736de20189e4e79b06 score=5.936216 rank=28 disposition=outside_top_24
+  ch_7072298cd016ccfc1c1a3dbc975cb321039284d6cb9a89ab5d700d1d04679cbc score=0.000000 rank=None disposition=no_term_match
+  ch_711301386ffe26849525e50115aa32b2f74c2eb8cc30133f8c06b3126536f10a score=2.178504 rank=92 disposition=outside_top_24
+  ch_726982e01d21ee9eae70a0e90ce14f6902b8ef05db70be92210491031a63ec63 score=3.029257 rank=63 disposition=outside_top_24
+  ch_72e13c01c99cbe5a726ac24f24f4018cd86457701ffe0e469adb37b6224c59e3 score=0.000000 rank=None disposition=no_term_match
+  ch_72e4e44ec0f2f172a0e74692349bd5c4691bc1a4b7b2993bb4ae19fc8431e442 score=4.212199 rank=37 disposition=outside_top_24
+  ch_7320d9c206b1a64e334c2a1e3d528be3460fcf372686407505dbceda1d57f32f score=0.000000 rank=None disposition=no_term_match
+  ch_75abbb01de3171d8dda72e2dbb2a23dac0b892d7706f70cd7b602ba4fde0611e score=0.000000 rank=None disposition=no_term_match
+  ch_75eb2c6c0a3f86c19da20866f3c21d214704b0795f80714a98c2cad4d41bebe4 score=2.642584 rank=81 disposition=outside_top_24
+  ch_76d1b97dad68ad308e08d3ba3d710ca4c46a3cf7b7eef2a742c04f50e7816d7d score=0.000000 rank=None disposition=no_term_match
+  ch_7842b2cd22b4dfd1c5ef7e9839ce6d6713513006a9d11e91442757239ca6bdad score=0.000000 rank=None disposition=no_term_match
+  ch_79049549ad39d6dbaec7a9773a8bd15bae6934bb1ec5a77e87e0c10c1809c1a9 score=0.000000 rank=None disposition=no_term_match
+  ch_799895d71f92bca84c84886d854bfa85cb882b6cad5031944d2d94d28daaf61f score=0.000000 rank=None disposition=no_term_match
+  ch_79b60208e7e8b3111e49250afd256326bc6defa34212e74d709eb011e6bc3c19 score=0.000000 rank=None disposition=no_term_match
+  ch_7acff3e086a0f7ff2299113d1e7aa89977c8bd4b7c840414ca5b551b80c556d7 score=0.000000 rank=None disposition=no_term_match
+  ch_7b29c5605018a7516a94da98961790f22e719ade81cce63c109222698bf9b7a9 score=0.000000 rank=None disposition=no_term_match
+  ch_7c2474bde622c4c40aa866f897f6c4a2867f70758e9066331d5ea31be89d1239 score=0.000000 rank=None disposition=no_term_match
+  ch_7c30accf496db42bde9ce9132c59f11c732dc5a64ba2fe206e320c2b564ca637 score=6.811691 rank=19 disposition=ranked
+  ch_7e3898630c6933ed0fc902017cb89b9e55dc691febe3c463ffd793763612a4c5 score=0.000000 rank=None disposition=no_term_match
+  ch_7f5456d63365477bd7966fe97b150f046e44447cac092d3275a2515f3258e3c2 score=0.000000 rank=None disposition=no_term_match
+  ch_8142375a57fc598ece26fc1eb6d9d1491e7707127803e5aba089788f3f684283 score=6.340400 rank=22 disposition=ranked
+  ch_827a4f432511c04689d2f043e7fa105d9f1b3bb9397bf767225378504ce12f8c score=0.000000 rank=None disposition=no_term_match
+  ch_83009a6fcc6dbda981c18bed7961bec0cffbdbb0d5df13fab7c10f32121ef076 score=0.000000 rank=None disposition=no_term_match
+  ch_83b6d24ca592fe6df9f1ddada061d2ccaf3893fe9b7d3190c1930c56ebf77658 score=0.000000 rank=None disposition=no_term_match
+  ch_855af60eee9c7af633b2927ceeaeee853776e929e2897bbbde7f69d69e1d7036 score=0.000000 rank=None disposition=no_term_match
+  ch_856db714053d034a048129e7317a8e581d0a776e224b6102699db950e83bc58e score=0.000000 rank=None disposition=no_term_match
+  ch_874373ccec0fa92c5bdccbb8e4fc24cc47f7985b28c4286e287d8d3d014e3f47 score=2.755450 rank=77 disposition=outside_top_24
+  ch_880fe6f34f1382b7aa462ca6d46aa9d3dc0deb0a6cca40e378582b371be58d9c score=8.243884 rank=12 disposition=ranked
+  ch_888dcda652cde8715bf00e9d8d6477a19fffa4d39461ea00284d8b38b84226c6 score=3.245090 rank=58 disposition=outside_top_24
+  ch_898ce03db820f1b3c462c3f3395aba0d6f9c5acd8da09a02638859ccbec9d1dc score=0.000000 rank=None disposition=no_term_match
+  ch_8a1daf3a457283b0fa07584744eaeff3851c805e1e7df6d996c619d5583ba02e score=0.000000 rank=None disposition=no_term_match
+  ch_8a855b4a22065940fde7f823ce32f1887d2c5da6000e13e993a390bc71935262 score=0.000000 rank=None disposition=no_term_match
+  ch_8ae0b29d9596c27811a756725ba60957fcfb2ddf38dd63a3bc510a96e5f8077a score=0.000000 rank=None disposition=no_term_match
+  ch_8c84172f6073f32266dd0c45c8110e1a300dda1fd7eea93b4d3f0baaa3f6b5ef score=0.000000 rank=None disposition=no_term_match
+  ch_8c8e43af26c57874e2e5e0dc39bff0f2c9fcae10c44856ac726bbd84edb8fdda score=0.000000 rank=None disposition=no_term_match
+  ch_8da297e4290f9f953e593cb54e86a357d57d9c4c11960c97bb19c9e09808eec8 score=3.177178 rank=60 disposition=outside_top_24
+  ch_8dcec8416eb9218d5ae57686d8b54c285b43f36a6cae8b7c83302712c6b45585 score=0.000000 rank=None disposition=no_term_match
+  ch_8dd20ede3933a511c8e8334df8b66623b1761056431bc7ca8a366c33e2f45139 score=0.000000 rank=None disposition=no_term_match
+  ch_8e62dfe54eaf67df38411752b544a643e65a69d373e3a8f5b278d72a0bffb4ac score=6.519609 rank=20 disposition=ranked
+  ch_8e7ffbbfcdf31646497e15307cc971c22cbf7f8099eb611f0971135b1e9809d7 score=2.497876 rank=85 disposition=outside_top_24
+  ch_8fad42a8cf9240c69764bd954c9fb907623a10885544b69944111729def20116 score=0.000000 rank=None disposition=no_term_match
+  ch_8fad55e5f4351bf9de4cb72b58bd5beaed5bab9629533b8caa5e663f8a990244 score=0.000000 rank=None disposition=no_term_match
+  ch_90ec32810d2cc5f84cdaa921d5eabc77e7334885389136bc1fd3ca10c2812450 score=1.490442 rank=114 disposition=outside_top_24
+  ch_921e273d348d28525f150dfbfa07ae9bdc454380c5b6a2368cf622e447d03d86 score=0.000000 rank=None disposition=no_term_match
+  ch_929e439b0c539e84dbd70a3d32b8b81de02ba7be344dd2551f1f703e1d37c2e3 score=0.000000 rank=None disposition=no_term_match
+  ch_92c35ba51cdfda9385a04e1566080a563570eedc02e582dd326f534f8793282f score=0.000000 rank=None disposition=no_term_match
+  ch_92f107a5f68dd02a8356e0ae902b20213f19cc82e85b98502d7e891c4636e625 score=0.000000 rank=None disposition=no_term_match
+  ch_94c68d25181bebaf1f9d198852df506a954fd13f46fd365d6629be96f76e8450 score=0.000000 rank=None disposition=no_term_match
+  ch_94fbc4182a9036eb804446917a0040d59d64950fa9690c11af5c146a1db0d450 score=0.000000 rank=None disposition=no_term_match
+  ch_95ed47b5cbc2bdc022c5f9f8c8eca554bd49920feb0976aa59f75efa7612bdec score=0.000000 rank=None disposition=no_term_match
+  ch_9640718b5315f34a51bbd1a3005762c8d9a2a0dd3967e5f1d8aca7d0bb13dd8a score=0.000000 rank=None disposition=no_term_match
+  ch_975a28e696402941d91979464a436c6449e665a64516b9462b7d0eaf8b61649f score=0.000000 rank=None disposition=no_term_match
+  ch_97c55393a1c5d3ec85c5168ccaa6cb66af9f6f0a61bfbe28462979815b58ed21 score=0.000000 rank=None disposition=no_term_match
+  ch_97fad07e979f7ef6ad3d316695281fb2ee007f1e3ebc1c0b2a0d76fdfc190172 score=0.000000 rank=None disposition=no_term_match
+  ch_988096974be38b5d048777a3aaffa07e4be500a3a68b84fbd836ba8c9fd13c2c score=0.000000 rank=None disposition=no_term_match
+  ch_98cfe02ffb97f833f7ae8103b823ab670679240844c37ea8d91f2c3f73cb40d8 score=0.000000 rank=None disposition=no_term_match
+  ch_9a0fd3cbca0c862e0a9162ac20580da2afd0b25650dab4ab2cee80a27006f4d4 score=0.000000 rank=None disposition=no_term_match
+  ch_9a4a90d415258b7c17dae47a8d1756a4d339e7cdef9f61acafd9bf715d393947 score=0.000000 rank=None disposition=no_term_match
+  ch_9b15b059ddee5ef133b9608c20c70b4995c6da9b7f43188ad256960330f85436 score=0.000000 rank=None disposition=no_term_match
+  ch_9b1fc73c75b9c7055d7eecec4a431a73aebcb4558d609be6280e456080ca324e score=0.000000 rank=None disposition=no_term_match
+  ch_9d344e5dbe199bd89b70d24725d7e794877ce03ad4c52ea8e93d63ad72137dc8 score=0.000000 rank=None disposition=no_term_match
+  ch_9e194ebe75b500c54bd7913b0bf57f46cddc55037b1e450e54147a7999f8a767 score=0.000000 rank=None disposition=no_term_match
+  ch_a3281e7fbc96f5293ca2e73e4c33c51d22e3e509dd67d91a9b068c0e2b74cdf7 score=0.000000 rank=None disposition=no_term_match
+  ch_a38881d4e8324d1e99e051c8b26d3f4458cd2493ef2dfeaf0c6f36007e2ebf64 score=2.894496 rank=70 disposition=outside_top_24
+  ch_a4a5da10f303bee582becb3b8665292c2d93e2337ce4647029d7ebda06403677 score=8.706082 rank=8 disposition=ranked
+  ch_a51ba6a318ba4310b8ba94be03f3396d2a07281fe785f2a929360f0307156343 score=0.000000 rank=None disposition=no_term_match
+  ch_a6d8b5a972f01e2a080342793f5a7fc16315875743d66e560ce76ff17b3294f0 score=0.000000 rank=None disposition=no_term_match
+  ch_a75316ff4bdfabdd037dc210ad75536b4dc51043a093b9c306cf900058fe6c15 score=0.000000 rank=None disposition=no_term_match
+  ch_a7a7a08c108b2080f018b473abf6cd90af9172fd47f753e5f9e9e12618ac25bb score=0.000000 rank=None disposition=no_term_match
+  ch_a80a87de408f98f2a897592bed82443cdf53685723d6da34dbcea34b5e235ec4 score=0.000000 rank=None disposition=no_term_match
+  ch_a9057c097e019dc58b7ccaa32ca060bca2717bc9404b3f00aad2e49dc127ecc7 score=5.243347 rank=31 disposition=outside_top_24
+  ch_aa82ce0a8c645272a7d4b24a6697ffec566e022283f8354363375a42cce210bf score=9.263296 rank=7 disposition=ranked
+  ch_abd34051894b0b8cd0e59bb32b559c6eadb4b6080f7b7ce537b92e7eb7f9daf4 score=1.345482 rank=121 disposition=outside_top_24
+  ch_ac09005a4ad2c4a6ef3f52f579de103ca97dfadc45ae67482a2761ddb27c8f0a score=0.000000 rank=None disposition=no_term_match
+  ch_ac19491581561b3f70b0fcd5a0db24d748d7b786ed112eb0b02530915d31c696 score=1.675808 rank=106 disposition=outside_top_24
+  ch_ac1e4954d2f10cc53c7b303bad1c67b6f7951d174264b72c3f9944b88b005fa9 score=0.000000 rank=None disposition=no_term_match
+  ch_ad1de416a72bcafdbf23529eaec5b0a4557f67b1b98b8c708079b02b3a92f3fb score=0.000000 rank=None disposition=no_term_match
+  ch_ad8fdcb9abb028d5a5b36c338616e5cb1a4b2bcd0dab9d265739e91ef59521c6 score=0.000000 rank=None disposition=no_term_match
+  ch_adfea50bad96984d61b248698eff43d0700a3dfb2a8ac4dc4d0b4f04edf66291 score=2.783972 rank=76 disposition=outside_top_24
+  ch_aebf0da7729cf1da80eec5741366e995157a452a094c48aeec99c42924b904f8 score=3.148560 rank=61 disposition=outside_top_24
+  ch_af1329f7fa4b8d3306a6354dc0ad63625939667a9e006ca8bc8dd72c0897b328 score=3.268377 rank=57 disposition=outside_top_24
+  ch_af9f57ba47b75791f0e21c7dd4b7456c54ebef208adc0e64e4d07b9f4adbc94f score=0.000000 rank=None disposition=no_term_match
+  ch_afbc8933b8ac8d3b99f7e1d2b5c1f09ce0dedaa425b36b51ef17724010bbd0bd score=0.000000 rank=None disposition=no_term_match
+  ch_afdb597cd03953cb0a9b5ece55bca53d6d46e53de4e8805fea26959fc26e014d score=1.318782 rank=122 disposition=outside_top_24
+  ch_b042da72d000ef733792cc4f984d1b448e650f1de1081ec8f96161efdf520feb score=1.657003 rank=107 disposition=outside_top_24
+  ch_b1396319cc687283741f0e7c37fdd69497e32c05795efd30ae7c3988e04fc2a8 score=2.471936 rank=86 disposition=outside_top_24
+  ch_b1aae60ab7485a8c7a4ddda7653cd5850906ad826edfbfff665fa15d72a81832 score=0.000000 rank=None disposition=no_term_match
+  ch_b36784acc88dbb0e47be8a18317097a1ea7132babcfc0bb795fb3373ad10d143 score=0.000000 rank=None disposition=no_term_match
+  ch_b3762e90bbff85008e60158dd9f05dde32d6e688ea15d7abda0f5237905bf957 score=1.699052 rank=104 disposition=outside_top_24
+  ch_b54380dccd24321a688f911a81cad996dd8861cc3cab51303814e19214441582 score=0.000000 rank=None disposition=no_term_match
+  ch_b5fee717e58db295eda622b3d4e18ffeb9c0122e0b8828c826289a0c1c059c82 score=0.000000 rank=None disposition=no_term_match
+  ch_b6391cd8dbe5cbda037069092c94ea65f301f7f521da89cdfc6b5801503d8eb7 score=0.000000 rank=None disposition=no_term_match
+  ch_b6c6d2dcc52a498c2d97f1ee9b228b89a873fc7e9da7fad2d9655cc6b45ada6b score=0.000000 rank=None disposition=no_term_match
+  ch_b71380841d53b4f1c9db10fb8e53c4d4b35c716f6daa9a5716b021cdac9353e9 score=0.000000 rank=None disposition=no_term_match
+  ch_b7b4814e87dde4e62aeb7faab2a79f04ab85e68c5fc6a6d5e9d2f746c61e4059 score=0.000000 rank=None disposition=no_term_match
+  ch_b84660103efcfd022be95b09e56bd19ff891c5267f39d4cfb9dd77073bbac6a3 score=0.000000 rank=None disposition=no_term_match
+  ch_b8ceeaa91866469890b6a1ba5148563022b92649c7f4a8f79303e96995e6828c score=1.460360 rank=115 disposition=outside_top_24
+  ch_b965e5c3e205f8c0405fc5903ec4b3c4d1b051d6ac1936dd166c61e91f35159e score=0.000000 rank=None disposition=no_term_match
+  ch_b9f2fffa63b2663571c0d6bcb231b3305f631861fe8d8331b274ed8c1030af45 score=0.000000 rank=None disposition=no_term_match
+  ch_bb2cf376563135753b1a12b70cb82fb611c439026d153bd8674231d46303e0b7 score=0.000000 rank=None disposition=no_term_match
+  ch_bc04acba18dad83ba721e89373866796a34a4d1eb9b11626df7237fb4150c359 score=1.413756 rank=120 disposition=outside_top_24
+  ch_bcf973f46b159f4502d68759113aade17d5a9041fe4e9c3420b5efd1d612cf7f score=0.000000 rank=None disposition=no_term_match
+  ch_beccc9f25dbb25922c47c860a595d237908937e4b8ce377f55d195320ceac340 score=0.000000 rank=None disposition=no_term_match
+  ch_beeb6da1650a424f9297c310cd2b9cb55678fdbea143f9b9f87b586748c5dd48 score=0.000000 rank=None disposition=no_term_match
+  ch_c030c76e3e3c5564291fb9ef0c36613fcde4810f8fdd9433e15a0c52e6136464 score=2.431011 rank=87 disposition=outside_top_24
+  ch_c0dc86a74a5811f59de985b0cb763556bcb364ff30323dc5d9b2ef4a6b810c2f score=7.092190 rank=15 disposition=ranked
+  ch_c18431cf04315696195fc772985dd10edd948613e18acf0417bddfd6a3d76075 score=0.000000 rank=None disposition=no_term_match
+  ch_c27c96d563e647e154ec9ceba8778ca86b1b42e452bece487ef6aef92eff7c08 score=10.798046 rank=2 disposition=ranked
+  ch_c289ce1b74673e42b66756136073dd5a3345b53b1cf10c5d7a1ac99c4b2d3ae7 score=10.557505 rank=4 disposition=ranked
+  ch_c32aad1c89bd37709e8f72e80e27a877e43085880109c7cb089af1299990f463 score=0.000000 rank=None disposition=no_term_match
+  ch_c34fe66dd069d2bae36ecac4ffa01866e275e49401e7cb38dab1cc1bbe4ec5a9 score=2.913389 rank=69 disposition=outside_top_24
+  ch_c3b6bbbfdbe684a9fabc20195ab0afa0c66182ade538dfdd689fce6f31dbe5a7 score=0.000000 rank=None disposition=no_term_match
+  ch_c5c9f83886c2ddc0566651a0fe7e3c9185adf0216d93e46e5f8e9dba2e611041 score=0.000000 rank=None disposition=no_term_match
+  ch_c67dac2393ba0fd99131ed445c45f90fb4e1e392ac7a6354d3dcda5ce3d06aa5 score=0.000000 rank=None disposition=no_term_match
+  ch_c74d29eac76656f555f95e463e8bf26333847afd8c3bbb0ddfb6976fadf0ae4e score=0.000000 rank=None disposition=no_term_match
+  ch_c781bac1729a4f803a48fe2afe34888a2e643f9207d7a4b229bde87dc7b77418 score=1.734873 rank=103 disposition=outside_top_24
+  ch_c7afd291f8cd8c61368fa7e3a9fae9dec1878bb80d417360c7c2332a8a30dbe5 score=0.000000 rank=None disposition=no_term_match
+  ch_c7d25d2ef629fd589eef06f10f4fbab79deb08f39bb39d10956fce41fe3bdd2d score=0.000000 rank=None disposition=no_term_match
+  ch_c8cbffb0218bca7935ae97b93129c5d234e0e7e36464fa90824d1498e7f0a9c8 score=0.000000 rank=None disposition=no_term_match
+  ch_c91b9ccbbda5ae74c6ff389b2c8f9410b9c931a00559384a066285ae826cf26d score=0.000000 rank=None disposition=no_term_match
+  ch_c9c1216078b450f3c13f772ddc74883273fa9ec46d67afd0792e034afa0488f0 score=1.941404 rank=97 disposition=outside_top_24
+  ch_ca08bcf674b6dc388952366433cf0f28bd6dfbd6e166cef1efbc24267c140693 score=0.000000 rank=None disposition=no_term_match
+  ch_cb9749bc94b0217702d43ce6cce7e32d673865184b0c7062a3e774f094d23ba6 score=0.000000 rank=None disposition=no_term_match
+  ch_cc88e45de9101025604ed6e928e76a6d39223dbe61c47de4580b85a9df3932b7 score=3.447494 rank=47 disposition=outside_top_24
+  ch_cd230f1640c27e229aa2c45c6b5896afeead1b093d7e6620916c0a9b2d6f17cb score=0.000000 rank=None disposition=no_term_match
+  ch_cd7230a20fa75349b7d612d2b3294cf12836dda6eb663b92da70a732e4cee226 score=0.000000 rank=None disposition=no_term_match
+  ch_cd731d9b36ebcb879366fac03b4b73734a254026bbabee0b3d7d7ccde48246d0 score=0.000000 rank=None disposition=no_term_match
+  ch_ce0812335661eb76c692fa2b62ac422bcf67b6efe11417599ad0a55fc7e4a667 score=0.000000 rank=None disposition=no_term_match
+  ch_ce7d55c45dd4aa54572dcba22975cac57fdf5484c06c73362c70e5e0a51dcbe6 score=0.000000 rank=None disposition=no_term_match
+  ch_cf7623627f3dcb1e90be9b39f8206f54efad53a57f580cf7467ef7a4288709b1 score=0.000000 rank=None disposition=no_term_match
+  ch_d01eddadd8b871e1cc827c39d3613e77b689e69a06709084e3732657c0db9803 score=0.000000 rank=None disposition=no_term_match
+  ch_d0465b6f59e688e5253107e54e3a1d22f703aab737496f69fc554083bcbb47f7 score=0.000000 rank=None disposition=no_term_match
+  ch_d0c77319c0e5aea99eb25e8408440bbe7434622e0d3b53fe3a38cab82313c468 score=1.441354 rank=118 disposition=outside_top_24
+  ch_d11643c03369ddb8b13cd3c5ebc8901d64cd471ac8e9a584b03dec02ab055ba1 score=4.560325 rank=35 disposition=outside_top_24
+  ch_d1dd865ab94f1bc7d89a035f5e28ac1cb185c1da64fbe79ffc282a31dcbd690a score=0.000000 rank=None disposition=no_term_match
+  ch_d1e6c42001dc34ff258a31aaedfa73061a4b5b1abb3aa427faaab0c20117688a score=0.000000 rank=None disposition=no_term_match
+  ch_d35320c410d0e160f841ec978f119a63799bd76618f2bd32e220a05c0adb5d10 score=1.747420 rank=100 disposition=outside_top_24
+  ch_d360bbc9a2bac3a720b845b47060be324992dfd17092fbfea0188cdb13b8b6a1 score=0.000000 rank=None disposition=no_term_match
+  ch_d3f2bbe07b72c2308b79a90117611c61f8a1311918951758eb46dbaa5d915613 score=1.738511 rank=102 disposition=outside_top_24
+  ch_d42527e2d51239acc6eab8e36f4f3f76ae5e9a37eb9523557e0de96eeca5ab1f score=0.000000 rank=None disposition=no_term_match
+  ch_d4d6a431b77e7a316881b1f49bf4b4742722ebdfbe6194cfac9400e432bcf356 score=0.000000 rank=None disposition=no_term_match
+  ch_d52bf1cce280bce7efe3dc7c40048bcd6a0654aafc81db493953af8e5fdd86d0 score=0.000000 rank=None disposition=no_term_match
+  ch_d5930a73d5af4f57ad1efbd6b623427df7f7f1afee82d5cc329cfa79059f93bc score=0.000000 rank=None disposition=no_term_match
+  ch_d5c73b149a4bbc8fd22cdb28229fa552b5738e164ed88f29966ff7dad6fad925 score=0.000000 rank=None disposition=no_term_match
+  ch_d5e0d0cd8726d515be4b57853b6063af4050da4715871cb72febbed90e6ac295 score=2.275723 rank=89 disposition=outside_top_24
+  ch_d5f1f43351c5ef8c0e9b23c57df85e3436152facd2f48dfc60caf5847c55642c score=4.275419 rank=36 disposition=outside_top_24
+  ch_d6635e4d0ad3c40e7e0ce295c161f60df56023e062c085ce91853d33ae9460d5 score=0.000000 rank=None disposition=no_term_match
+  ch_d6be2730e7997c9a602d059428d4cf2ff77d24d30145bc78816a82c94fcddd7c score=1.460360 rank=116 disposition=outside_top_24
+  ch_d7ea7b5a99cd39f6b8d15acc82e60e4e6f13d7a081a0f9f1615077098af346b6 score=8.322404 rank=11 disposition=ranked
+  ch_d8a87566555f2ee64893dc13a2800a80e7c19e103508f32bc6dd76fa262c1d1c score=2.654332 rank=80 disposition=outside_top_24
+  ch_d8c28563bfa3839215f388901e77000a55dcfd84c52950cfd835b5ff008612ad score=3.340287 rank=56 disposition=outside_top_24
+  ch_d91d998de953e7b98700cabf115c797cb4c5247637a1c4843b97470b3c83e22d score=3.795018 rank=41 disposition=outside_top_24
+  ch_d9df59147667fa7042e8f6249524a73a8813e38fae860ca61c313f6e4f4dc2f8 score=0.000000 rank=None disposition=no_term_match
+  ch_da1bbeece2b33363a4b40aa1f5398f3a9c49bd1bf0688c8f2a91ad83728f1f51 score=0.000000 rank=None disposition=no_term_match
+  ch_dac1a70003e8477ddb8132a5f406ac75a5240c6b676a851bf3ae413405e5aec8 score=0.000000 rank=None disposition=no_term_match
+  ch_db23490ed0bffffebb2079a2bc3362137e9d328412ee13e2bc3a440e162225d8 score=0.000000 rank=None disposition=no_term_match
+  ch_dc00ff6b6b5b323d50e866da2f87373380206e42659986951c272d853641c3fc score=0.000000 rank=None disposition=no_term_match
+  ch_dc820fb093ea33c15a5983ff4081753de49bb05676757d8a0aec62f369d5f91c score=0.000000 rank=None disposition=no_term_match
+  ch_dcd3680794bac273c7b8ea583462ff54c6b5b04b0db1c53d6934252cbec7ecfb score=0.000000 rank=None disposition=no_term_match
+  ch_dce0c71446c33b24f4a788feb05934d4c8c2f79c2610e5dd954dbaf136a1957e score=0.000000 rank=None disposition=no_term_match
+  ch_dd611fcbcee90852831bec4df18cf17cf35df71f127ba62e36f42255345e999d score=0.000000 rank=None disposition=no_term_match
+  ch_dd67bab38560bb4655a52794030c40c3abdc9f5dbc36ac7826f149e491a0a4eb score=1.585824 rank=111 disposition=outside_top_24
+  ch_e0f18a9e099a610d448e24637b24282c8e012e9e37eb452dfdff1e7711b576fe score=0.000000 rank=None disposition=no_term_match
+  ch_e212105c02f4618bb27c78b761311af573df6cbcadbd80d38345ef947568c7f1 score=1.678464 rank=105 disposition=outside_top_24
+  ch_e33cfcc9911bc63c8a18f1c90c61707724951979c200fccfff8215853552d42d score=0.000000 rank=None disposition=no_term_match
+  ch_e3de5fd08ecccc359dfbde7b111737bf9c7c72ee49b9441b5f42f2a337fa833b score=0.000000 rank=None disposition=no_term_match
+  ch_e4c3dfbb90a529475cc22fb40f11fd947d4d08f19f9a44852b5c27f0cdc99f11 score=0.000000 rank=None disposition=no_term_match
+  ch_e5d00d2311ae4f4d3f02f916be69ef2df5381de798950df1b6e231b04bd26d40 score=3.029257 rank=64 disposition=outside_top_24
+  ch_e75b045631595684c49ce8bf4e9da3e1ffcc6db6eddc3ef24d81dd3b3d7c62af score=2.260482 rank=90 disposition=outside_top_24
+  ch_e78dc9ab9c0b2df8d86d39c374eefb5b2fcd15b82a1b2606ec719889000f53f9 score=3.627223 rank=42 disposition=outside_top_24
+  ch_e82b143b76fde28c2dfd38dc754cf79f6375c23cc6388ec5af12a12de6a2f8f9 score=0.000000 rank=None disposition=no_term_match
+  ch_e9b547e2315bdc514736804df553c3c334050fde175b6d419adcd56dd74868ad score=0.000000 rank=None disposition=no_term_match
+  ch_ebeba43ca59ce4ca60cad3ac0a612bbe3705bff950368b27a0c7050a6fcc4334 score=0.000000 rank=None disposition=no_term_match
+  ch_ec5c53b5aee574b3dbe879fa07dddc756912cbbe0833b7ceae3b2731bafd5c68 score=8.582524 rank=9 disposition=ranked
+  ch_ed9bf3cc6992ad28158ae8e73bf61fef33bb42b1015f52d095d3def34386150d score=0.000000 rank=None disposition=no_term_match
+  ch_eeadd18d81b359b9dc4524e769c563f0c48d4905a08d646fb116424109d6bb03 score=3.959134 rank=38 disposition=outside_top_24
+  ch_eedf7198c4efd25a75e8e8600bf373c207de0e82857783fd93a3c77c9fb080d5 score=0.000000 rank=None disposition=no_term_match
+  ch_ef18c2e002dca6507b660558bfe1c6326679e900c7d0c5468ff3852d2e09263c score=0.000000 rank=None disposition=no_term_match
+  ch_f0418532e2fd11c3e8fe65a60689a933bd025bd9dea757965dac8539840807a9 score=6.061293 rank=25 disposition=outside_top_24
+  ch_f10618111e25953abf1ab39b24313396c68e70b6a73278a748a5db7e21ddd2ed score=2.512040 rank=84 disposition=outside_top_24
+  ch_f12004ddb394fa008680bdecf42f6d383050d657f54ffbab84ac2abde10718ec score=0.000000 rank=None disposition=no_term_match
+  ch_f1b5bb217c4f66dda9ee4c3532c188181f74c70c09fb42fbab9c50ff2fd7ea1e score=0.000000 rank=None disposition=no_term_match
+  ch_f1c8ca44dffde343b05a5835c7aaf27bf29ba0e5454dbe3be58b0ef2cf050c49 score=9.296132 rank=6 disposition=ranked
+  ch_f20336719b422c1007143dbe6573f404dfd8039a762d9bc111d21e8ee9db733d score=2.727956 rank=78 disposition=outside_top_24
+  ch_f33a0b2e6ed63fccdc386d15a5be657bd9e4e9961904bac6289d86f9fc15146a score=0.000000 rank=None disposition=no_term_match
+  ch_f3b01ee3429062df1c710d57b86ef034ddc2a4fde95d427598ea815c8e7a05f9 score=0.000000 rank=None disposition=no_term_match
+  ch_f44532ef7a936906fa259b5460ae3858406ea090cad47c8f2ddc189da6569815 score=2.858168 rank=73 disposition=outside_top_24
+  ch_f466a43ff3021d5f9c40a29589d4c6e6da5a40a5d5cce6cece54ac1bc671933f score=2.312654 rank=88 disposition=outside_top_24
+  ch_f61099f5988e080babf0d1902d805d2d07a9d293a440b3ade6dc3bad3dca9668 score=3.368650 rank=54 disposition=outside_top_24
+  ch_f66a7f5682ad0d233bae5250537314e33f02ea551ecb39eb8e393987fe4810c7 score=6.946346 rank=18 disposition=ranked
+  ch_f6912220da9a695292db668018f779872a880f84c45702e69da4fca1aa5bd53b score=0.000000 rank=None disposition=no_term_match
+  ch_f7313271f5bb5c110f4e3a00824cc861af7f8c8b068d391efcb1ab203c575da3 score=2.146833 rank=94 disposition=outside_top_24
+  ch_f73ae5efc06364f6a14b1391712195f9580ac6ce7111f4538bcbf3ace97a5b6e score=0.000000 rank=None disposition=no_term_match
+  ch_f768354bc4ad63d64e8d7c6f4331ddab4f09b9a47003627c3d54d0dd6770b40e score=0.000000 rank=None disposition=no_term_match
+  ch_f7b0a5be030e0f441002b01a50323db485bc86c7565e8820d04c11a29f620aeb score=0.000000 rank=None disposition=no_term_match
+  ch_f7d1d8b1405f97dcea3e205e9b207b1645bbbbe9923d199e490522a842356b81 score=0.000000 rank=None disposition=no_term_match
+  ch_fa6745de0b165cb23cee106927f71d1c359f255675b2baa14789a376a48d2a3e score=4.719830 rank=33 disposition=outside_top_24
+  ch_fa7f4b73d3dce58cc3edb686eb3286b88f20d7cf5c1ef430955ef641aea9b94e score=3.423227 rank=49 disposition=outside_top_24
+  ch_fab0ba58f5b7665ac655d6d5eb71efacd0f75c3a684c9651f1ea8d5e28bc908d score=0.000000 rank=None disposition=no_term_match
+  ch_fc1032022bb428f7f5d6a2b13a06adabd982d123a425bcd14749e6cf19bffc08 score=5.646439 rank=30 disposition=outside_top_24
+  ch_fc442664de441e470c44210b940216166403a8f71401b93f4bcd32821d54ecdc score=0.000000 rank=None disposition=no_term_match
+  ch_fd1901a2d3a9fd2cdbf0072e07ebab28a97ad9f49ac39baa02a38ccbddef4400 score=0.000000 rank=None disposition=no_term_match
+  ch_fdb215d45a5e06f163688be4caaaa7ca316b6052396dd2f5696421f976919dc7 score=2.805353 rank=74 disposition=outside_top_24
+  ch_fe688486a09448ef817f7e6d1aa607879374a8c9fcf165361c28217442c57f5e score=3.007311 rank=65 disposition=outside_top_24
+  ch_fe8af3515d016bab4e5e3c90267df4e677838dfbcd02bb89032231901ae7b36c score=0.000000 rank=None disposition=no_term_match
+  ch_fe9c2ed4ce92effe1dc41d89ffd501c1e689597015aeb48b0b31aa83f448c233 score=0.000000 rank=None disposition=no_term_match
+  ch_fe9fd798286dd1a9f47c3946942ad49da929d9befe10bd49e0c4cdba08efa59f score=0.000000 rank=None disposition=no_term_match
+  ch_ff1ca62705d111e992e90cdafc764b16962c0b9e90414bb869aedac63b83630f score=0.000000 rank=None disposition=no_term_match
+  ch_ff20289596651d6950cabd8e2bd3993aa3ab0fe9169bf769c8579872328bd1d5 score=0.000000 rank=None disposition=no_term_match
+  ch_ffaa5bb3464f189b5c65780baccebb047adcc4682168117c9a49c0afdef590c4 score=0.000000 rank=None disposition=no_term_match
+Semantic
+  ch_00f8bef877bf5f3aa71422995429b45334680ce1682df54db48be81419c578b9 rank=307 distance=0.825730 similarity=0.174270 disposition=outside_top_24
+  ch_0182f84276d06dc43f3fe3b1e96f3ee54992425f55b19cc31ce592207e021716 rank=232 distance=0.799845 similarity=0.200155 disposition=outside_top_24
+  ch_0203bc358fffde562b1a5840fd59c46749b5552463096a53e4b012d594396c89 rank=250 distance=0.804322 similarity=0.195678 disposition=outside_top_24
+  ch_037fb0dd8d21d3ede8d984bea512db104b84fb67beb7f7bb7b4c14840ad47ef5 rank=200 distance=0.793797 similarity=0.206203 disposition=outside_top_24
+  ch_0426677058fcff7510dd76b0b1774125d634f1e1e23836e10f5bb3d8dbd7cb48 rank=197 distance=0.793127 similarity=0.206873 disposition=outside_top_24
+  ch_04c9ee86217371a194cddd19e658ac532215c7b32f068ae5e8198f23544aea7f rank=169 distance=0.781901 similarity=0.218099 disposition=outside_top_24
+  ch_05021610fce543fa6c1b9d533038c1d2f7436bf217ce74c50f8db3108835deaf rank=16 distance=0.554081 similarity=0.445919 disposition=ranked
+  ch_050ed0b1a21f8103ce1cd5b65936f00325cf5b49aad87d0834bba126dddc5a27 rank=91 distance=0.744111 similarity=0.255889 disposition=outside_top_24
+  ch_0528621091b60609d6b51a213b0baf6f2bf43d5a7911f6fcdc4e62bb206dcbea rank=259 distance=0.808093 similarity=0.191907 disposition=outside_top_24
+  ch_05699a7a3f63d2f90a6462295ab7144b8d59ca82ddf1fcd481ca98f08046f6de rank=236 distance=0.800849 similarity=0.199151 disposition=outside_top_24
+  ch_05fa28cf6b8dc02438bc2fce0c0a66531c86d419d4ae2421e7d79001ec4363ef rank=58 distance=0.709621 similarity=0.290379 disposition=outside_top_24
+  ch_0600f3e96faa55a6504ba06eff1ab3d15e544dd76c28442fcfbe06d6a34da711 rank=29 distance=0.584995 similarity=0.415005 disposition=outside_top_24
+  ch_06747391d2a4b2d83e38c7091f4b397af63b9ddea689000e86eb1d93c5f2b090 rank=24 distance=0.574407 similarity=0.425593 disposition=ranked
+  ch_07e44020efbb0362d8ada3f25473901c68ac6037f3fe46b4841970fae6ca73dc rank=89 distance=0.743424 similarity=0.256576 disposition=outside_top_24
+  ch_082996f724b9c1b116dea8c2da9bc0ffd5173af9c273432e973fff0f84ac9ffc rank=127 distance=0.762154 similarity=0.237846 disposition=outside_top_24
+  ch_08bb728c5a65b5202d188bcb4a90254edcb743070562f412d4561e9175cf651d rank=288 distance=0.818800 similarity=0.181200 disposition=outside_top_24
+  ch_08d9cc34689bd459d6344b9f69fe1518c4f9f6a7865226c2a4b6a0dd08c0c274 rank=280 distance=0.815324 similarity=0.184676 disposition=outside_top_24
+  ch_09fb5d7f976b196b0aa85a9a517a02d1b931925f5d28e5abedc7e77abd086b71 rank=240 distance=0.802563 similarity=0.197437 disposition=outside_top_24
+  ch_0a324f192209f93e6b23abe290ba69a40b22fdbbafbb1fa01133189f5002ab62 rank=229 distance=0.799084 similarity=0.200916 disposition=outside_top_24
+  ch_0a3413920cb7199556fb404da7f796dee2d94412a316a14b8b6314409f5ee14a rank=13 distance=0.538032 similarity=0.461968 disposition=ranked
+  ch_0a686ef0d4e9ae2466c1fe32ceb0b2cf4214f5e1ce77cedc8fa55ba67f0697d4 rank=52 distance=0.701342 similarity=0.298658 disposition=outside_top_24
+  ch_0ceb58839feff037d7e7f312f95eae18aa89ef725605eba5b67bc257216a5edf rank=258 distance=0.807898 similarity=0.192102 disposition=outside_top_24
+  ch_0d8f9e67b0c8cf5b20e710a41c3dac79d4a965b9e4dcd9c73a3d0be1531c6d44 rank=247 distance=0.803812 similarity=0.196188 disposition=outside_top_24
+  ch_0d9cc3469090c59b92136f4fb5ea9b5f7c04546b6b4da933109d5216d645701e rank=262 distance=0.808783 similarity=0.191217 disposition=outside_top_24
+  ch_0eaa3f1d2eb848aa814fc7456db1b1ddef1f46f52d29e8c21707d2147f693a79 rank=88 distance=0.742974 similarity=0.257026 disposition=outside_top_24
+  ch_0f2d436399f9480704e2778171faa3c3ddb258c0d1ac36885b131a740834cf23 rank=157 distance=0.776507 similarity=0.223493 disposition=outside_top_24
+  ch_0ff65df183f69fe6120fba2e6011491d148b04a7cffcbe3da59a40bad44346aa rank=147 distance=0.770654 similarity=0.229346 disposition=outside_top_24
+  ch_102dc8fbae6bf21d3b45d4367ed9118932d4fbbba87b615e20193142995061ab rank=245 distance=0.803142 similarity=0.196858 disposition=outside_top_24
+  ch_1039d271331f689ac2a7d00c4fd0607110b5a2f29b4290b7f38e02c187b03cb6 rank=293 distance=0.820767 similarity=0.179233 disposition=outside_top_24
+  ch_11017cddb511170da6a01fc8e19abf8058ef116a6ae83f470485dcf953ce822b rank=131 distance=0.765400 similarity=0.234600 disposition=outside_top_24
+  ch_11586902fedd4d22ee32ca8f88ec24f2f2c3a692b6868138b1e63fda72ea3f46 rank=237 distance=0.800852 similarity=0.199148 disposition=outside_top_24
+  ch_13f53eda98759d416f2ccc91e9c56afc924acde17bcdc7495b62a2e2729c3e23 rank=351 distance=0.848837 similarity=0.151163 disposition=outside_top_24
+  ch_147886425998d1921563fbe688eafc6af3a8c70138d29da1cb63dcab2983797d rank=180 distance=0.785879 similarity=0.214121 disposition=outside_top_24
+  ch_14d0666c97b0a46c8949e5878cd426648508c966b6fe17695ba2387ada679fdf rank=243 distance=0.802923 similarity=0.197077 disposition=outside_top_24
+  ch_15845966b486f242d6fe8575763f8fea6ff3e2b3f9480076d6259426605d973e rank=6 distance=0.512712 similarity=0.487288 disposition=ranked
+  ch_15ed089b9f4b6340da48dac71d33a50d9db1b7f4a467fe0446139a3a64622518 rank=41 distance=0.617204 similarity=0.382796 disposition=outside_top_24
+  ch_165f1ec45cc309bb35bfd707f973d6ab3e01479c128cbfcbc70922b9b8c022a8 rank=321 distance=0.833483 similarity=0.166517 disposition=outside_top_24
+  ch_173043159a7c94f862cd7452957a151bc46402b8bc95515ebcfb29a1015af95b rank=90 distance=0.743590 similarity=0.256410 disposition=outside_top_24
+  ch_1b9e52518ff2b4d494b06c2a90130772ba274428bc5d19edee648e53bd2e10cc rank=202 distance=0.793985 similarity=0.206015 disposition=outside_top_24
+  ch_1c866509463c2e0e997bf62ea62b89b2e7d9a6d0066b0e39a3d03d1bdb0dbe0a rank=136 distance=0.767687 similarity=0.232313 disposition=outside_top_24
+  ch_1d19d3e359510f4ee8f7e49c08d8fc63e0e5e614b86987fa196818ce802de139 rank=101 distance=0.752164 similarity=0.247836 disposition=outside_top_24
+  ch_1dda06fffafeb7f509902a91b69f89ea7793f61fe0b9ea67f786e5de267ce07c rank=272 distance=0.813006 similarity=0.186994 disposition=outside_top_24
+  ch_1e2b4726bf0cabed8202e8e5487e9c4c61a7a705e724d659bcbecbd1115704d8 rank=68 distance=0.718759 similarity=0.281241 disposition=outside_top_24
+  ch_1fbfa69a0fffa5e5fce56338b7381e44ce97ca2111c964e73ed6c9faab9fa883 rank=20 distance=0.562244 similarity=0.437756 disposition=ranked
+  ch_20c1d0d1d687cbc611c163f3b31434854ce45159f468ba7f10b5effbbc07c4db rank=268 distance=0.810904 similarity=0.189096 disposition=outside_top_24
+  ch_2220c2288c957fe87d7e5332f22b1b9072614b680275d9d1361b24562e7025fd rank=330 distance=0.838690 similarity=0.161310 disposition=outside_top_24
+  ch_22b0feca89d9f165769d4ce28796dbe2eea70cccac56f033c64573dae8de8546 rank=239 distance=0.802075 similarity=0.197925 disposition=outside_top_24
+  ch_232d79aac6f420aa0e3a0764e87250f3a206c421257d8ecc7b3a2aa41de9977d rank=150 distance=0.772833 similarity=0.227167 disposition=outside_top_24
+  ch_2381942b03f8922989e4f8a221c21a97a216fa9b640788789cdd7c48814454f3 rank=360 distance=0.859713 similarity=0.140287 disposition=outside_top_24
+  ch_23cfbbbd391d8c74c1b79a5f1327fa94d3f38e2f03dcf0fdac6985ef80b9c7d9 rank=21 distance=0.564059 similarity=0.435941 disposition=ranked
+  ch_25ac9430bd3fa30885b07b9dc2c0e13b85e460d14631b9d8aaae4078f7f6a902 rank=203 distance=0.794104 similarity=0.205896 disposition=outside_top_24
+  ch_26026b5d92cca7b53a67470f6514f4d798edd8a1287f53303a8a1f957578131d rank=281 distance=0.815468 similarity=0.184532 disposition=outside_top_24
+  ch_26bc90c5ee7e9dc0d66b28bfb1d57f8c6356cf189ae3a36d24887e89095ba1a3 rank=223 distance=0.797992 similarity=0.202008 disposition=outside_top_24
+  ch_26d031adc8177a9d68a1b961c3ee7957f352486200dfbc5f36ab0aca66d0068f rank=106 distance=0.753214 similarity=0.246786 disposition=outside_top_24
+  ch_26f2aba12f77470b606a7e7de8a4a1555b6381eb7900c603567086967a0e3109 rank=138 distance=0.768197 similarity=0.231803 disposition=outside_top_24
+  ch_2721ba8534e73b535aec75564e075ebdf4493d749c6d76ffb90eb5edd4480f29 rank=254 distance=0.805305 similarity=0.194695 disposition=outside_top_24
+  ch_279847b2c202e9957b7795c2ddf58d5d4b24a6c3da0a8d1343fca20eea711c42 rank=18 distance=0.556342 similarity=0.443658 disposition=ranked
+  ch_29b3de47634ce5da4eea43e63b0028da1db8192caf275472ef93fff69363f55a rank=255 distance=0.806230 similarity=0.193770 disposition=outside_top_24
+  ch_29c27eec47563c12637a5114bbb299e31c575918c5d43e7ef15fdf98051d7f11 rank=226 distance=0.798187 similarity=0.201813 disposition=outside_top_24
+  ch_29d2e749658a005853ca6c4ec4651364af26d32c7acce515c0919a7282e68951 rank=65 distance=0.717709 similarity=0.282291 disposition=outside_top_24
+  ch_29e4da917aa18a12634fedcf91edcb0df7b3b8b4444beb7d1a4d1c95de932828 rank=45 distance=0.682435 similarity=0.317565 disposition=outside_top_24
+  ch_2a856dc3fa3ac19145020f465941f0311204b016efafb66ef16d8a8b0435c596 rank=356 distance=0.852627 similarity=0.147373 disposition=outside_top_24
+  ch_2a8776eed37e3357956fab60f281f33475d60d1d354d4e235a33381e99a1dd1c rank=208 distance=0.794701 similarity=0.205299 disposition=outside_top_24
+  ch_2b53d4c4e32b641c9bca5df1c1fab320f76ff66864b576a0799d38efc6a60dd3 rank=5 distance=0.510190 similarity=0.489810 disposition=ranked
+  ch_2bbc7ad990c6855f0d5f8c16acdf9ea3df1477eeb44d23ab07d685b1cb8f2d01 rank=191 distance=0.789899 similarity=0.210101 disposition=outside_top_24
+  ch_2bfd2a577f0f2d9e9a2f399d476a376b2901e2bd6f0380e2d7795d8a326bd359 rank=165 distance=0.778821 similarity=0.221179 disposition=outside_top_24
+  ch_2c241f4a5fb9e6d9ff2fa7b8e14a6b8d9d64495d6c064c58af4b337850a74da0 rank=322 distance=0.834842 similarity=0.165158 disposition=outside_top_24
+  ch_2c6e8f43705565b771c0995dc151d0027c4ee54eb26ab1c12003ae79188d80d3 rank=155 distance=0.775894 similarity=0.224106 disposition=outside_top_24
+  ch_2cddcf5b8775032aef01f0cb929a0310d5a8b66fbceefc68dcf4cafe933d03b2 rank=34 distance=0.599455 similarity=0.400545 disposition=outside_top_24
+  ch_2db31dec839513d01746252e64fab9281421b11132e2e884664913d75bf2e2d4 rank=124 distance=0.761263 similarity=0.238737 disposition=outside_top_24
+  ch_2e20138f371b7ee3e8a13933922124a7e94b0cd406bc88f3321f70e838dcd81b rank=364 distance=0.865665 similarity=0.134335 disposition=outside_top_24
+  ch_2eaed169e356e76234698a4053afcee80b9f3fb4c33202b0ebdac0909a178634 rank=63 distance=0.714131 similarity=0.285869 disposition=outside_top_24
+  ch_30a1af9eb04d5bdfa8e6458f7290549e1960ba34605bd067367149bc9976425d rank=218 distance=0.796932 similarity=0.203068 disposition=outside_top_24
+  ch_311d195dbaa4a4f6131a6f9e4b833536e72344b9c4968ba880df9487e2ab0ba1 rank=3 distance=0.503583 similarity=0.496417 disposition=ranked
+  ch_31436b6b0dda3801dcd03e6dc93e846926073fa1525d37bcc68abe1d8654a75d rank=186 distance=0.787231 similarity=0.212769 disposition=outside_top_24
+  ch_31cd71fbff5598b065f90eb9a9f04cc9cdbaf8307052330e8fdb9c99f3c1c0af rank=26 distance=0.574764 similarity=0.425236 disposition=outside_top_24
+  ch_31f58f0c3d181659085e64a316d3ec38cb63dbb32403c9dd0d1d8061e002bef5 rank=134 distance=0.766368 similarity=0.233632 disposition=outside_top_24
+  ch_3209b87d30711701af5ebe9db5a23546b5ac39f013edb78fa934bc765d99a2d6 rank=368 distance=0.876135 similarity=0.123865 disposition=outside_top_24
+  ch_32246b4a210e24609d792c5dca09a5276b4b999eeffd0812156ac1ff7ec1d47e rank=373 distance=0.886156 similarity=0.113844 disposition=outside_top_24
+  ch_329b0b8933c3c4a58feec4455eeda9253c4f278be7e80c284b6213308b22da3c rank=187 distance=0.788002 similarity=0.211998 disposition=outside_top_24
+  ch_3866544486a2fd14a203ee6b9c8db97379540898fc80521654d61ff0801393fe rank=192 distance=0.790763 similarity=0.209237 disposition=outside_top_24
+  ch_38f32dcc1ec66f3db8bd2812bf2f9e91d785210da0cb709dc3ba940f8c8ccdfb rank=277 distance=0.814702 similarity=0.185298 disposition=outside_top_24
+  ch_39738ae0b8ac3a7ab66bb24185a4ebd34b47b040ade8bdbc8ae50472b721e13c rank=51 distance=0.699414 similarity=0.300586 disposition=outside_top_24
+  ch_39f9f0f2905db9cf115500b63c8d7efce4e809d1a9d42cfa3d5548c368351ed7 rank=98 distance=0.749159 similarity=0.250841 disposition=outside_top_24
+  ch_3bf52ae6b5d25f7f243a4f16b6dacb9830293ba00f71764b664d022b4180f965 rank=17 distance=0.555695 similarity=0.444305 disposition=ranked
+  ch_3d435927f83ab5c5975f33afc31f1856901850c48642124c22338ad929ad352a rank=60 distance=0.712291 similarity=0.287709 disposition=outside_top_24
+  ch_3e21e4f93c8775b163ca683e735be9fe03527552d5156b5120bc2ca57226f1ad rank=235 distance=0.800233 similarity=0.199767 disposition=outside_top_24
+  ch_3ecde34c67a1aac838e4e0bbcb9e428f4086b2df0edaaaeb862b4cd378e56e2e rank=366 distance=0.867671 similarity=0.132329 disposition=outside_top_24
+  ch_3ee79e109422e28433721393105b823632e50ac1b924bf6307b71a6afe51b6eb rank=317 distance=0.828650 similarity=0.171350 disposition=outside_top_24
+  ch_3fc1c4ee0a268953dbce48483975e97bb5f135df248d35488f2670a313e5ade0 rank=83 distance=0.739585 similarity=0.260415 disposition=outside_top_24
+  ch_400bd8c2d44092f3ba61459966777a9c1bc81b375b057c773305afa70126e383 rank=182 distance=0.786277 similarity=0.213723 disposition=outside_top_24
+  ch_403b275d7866d23b4da93ea81334e8ee925f5eba8c8a3fd5ce3a09b3530aa817 rank=252 distance=0.805095 similarity=0.194905 disposition=outside_top_24
+  ch_40ecd89fdd3cf9eb380cf7a3f185f821185a00bdc37b0a5e0d7ba308587e4b48 rank=76 distance=0.726470 similarity=0.273530 disposition=outside_top_24
+  ch_41d4a5a36622260e816840b1f842e36ddf3423a8b7c1578f58b4a54eabaac5d6 rank=311 distance=0.826412 similarity=0.173588 disposition=outside_top_24
+  ch_41eb20654bb4c258408c53f19a676f043e261da4c74d2eb34964d390334530ce rank=4 distance=0.507585 similarity=0.492415 disposition=ranked
+  ch_4281f389ee91f666d5b8b45de60b513b452e10dcd7d39067a573cbebeef4e7e3 rank=201 distance=0.793952 similarity=0.206048 disposition=outside_top_24
+  ch_4284cbc45bb9c14416505f83a866844052c0a1c683575e5ce83df4e1667bda09 rank=238 distance=0.801235 similarity=0.198765 disposition=outside_top_24
+  ch_435a37b3de8c848ca3122ca991fa82867da87570733d6f513abb535dffcf55bc rank=263 distance=0.808869 similarity=0.191131 disposition=outside_top_24
+  ch_43ff9cd0211c22d6bf6e5cf624aa982a73f36dcb7061ee56b45361408ebc7490 rank=273 distance=0.813811 similarity=0.186189 disposition=outside_top_24
+  ch_4508009eee3b10eed73cd5f9f581784f1b55d665c2f728dff87570136ace888e rank=135 distance=0.766948 similarity=0.233052 disposition=outside_top_24
+  ch_462ff735d052e14b84cefc6eec9b22b641e6de84c1c92b95821adf92c626d4fb rank=173 distance=0.783307 similarity=0.216693 disposition=outside_top_24
+  ch_46ebaa0cb56df8d9fd063939cf2c46de892007cc02925cfee539c97efad94586 rank=123 distance=0.760504 similarity=0.239496 disposition=outside_top_24
+  ch_47061ce74f81e203d4a9d139a52ca21c2996a22980aaf204fc37450760210e18 rank=244 distance=0.802956 similarity=0.197044 disposition=outside_top_24
+  ch_47283b28a05b81e3f1bf30bd585a42a0445f9cbda5408e02343638e19b0cffbc rank=44 distance=0.666556 similarity=0.333444 disposition=outside_top_24
+  ch_4756f47206895bb3c55bd64d54ac6611d14a3029a28c22e791fb9d3931939903 rank=69 distance=0.718857 similarity=0.281143 disposition=outside_top_24
+  ch_47840c7c6d2d383ffbb1d653329b77366082ef4743ba3097c74f377e9752ed7b rank=96 distance=0.747310 similarity=0.252690 disposition=outside_top_24
+  ch_49b77d746dc437c8ef0c9cb6b1e15690086d3d83f0cdb66d725d71df52c3747b rank=2 distance=0.487460 similarity=0.512540 disposition=ranked
+  ch_4a565edb2d9fcbb1d2bf650c409b2743904e3b37d9ea35500d9500fac5a646bc rank=184 distance=0.786713 similarity=0.213287 disposition=outside_top_24
+  ch_4a9823440b14ccbb47ec75fdc8a158afdad927e0e0c04697d3abda0997425bdb rank=175 distance=0.784136 similarity=0.215864 disposition=outside_top_24
+  ch_4ad267d27485dad1a8c88ad991f143c3be3f5d245663311a23515096cbdb6929 rank=341 distance=0.846095 similarity=0.153905 disposition=outside_top_24
+  ch_4b24b17d3f9cf64e71619ef749fbcde7a84e3ac45f1959c25b071b90b1f27ae4 rank=122 distance=0.760481 similarity=0.239519 disposition=outside_top_24
+  ch_4b861c839838ba4140cb5de38645876ba5b4dfbfd0c87f51db64c11ac2c89799 rank=114 distance=0.755590 similarity=0.244410 disposition=outside_top_24
+  ch_4be41cdf7c5095fb9d9d37aec7871371f122b3d64629bbe9f4fe2aa11cc8ccf6 rank=79 distance=0.735391 similarity=0.264609 disposition=outside_top_24
+  ch_4c084fea69d047da13483120e5c94da8b96be0629b161ce8211f2bfcd3f5ae66 rank=62 distance=0.714038 similarity=0.285962 disposition=outside_top_24
+  ch_4ca2af27e9e00369673a7dee11207d6fba1c460ee1e41547bbfdb0ba4c7e05b4 rank=193 distance=0.791532 similarity=0.208468 disposition=outside_top_24
+  ch_4ca7371eb775f26da6b219848937ed77143922d3c906e17196474f1df451a862 rank=296 distance=0.822533 similarity=0.177467 disposition=outside_top_24
+  ch_4d07bec8dc02aea50362d79a7962f9974c52568675ec600b4a6b0d06530cc26f rank=125 distance=0.761297 similarity=0.238703 disposition=outside_top_24
+  ch_4da237b8bdb2c5ffee4ee7297148b10c94d9139c1b88d5a0f620d980908a9212 rank=38 distance=0.611043 similarity=0.388957 disposition=outside_top_24
+  ch_4e7ccc542a7bd26cf02ffd4951b9f835e0c6845bb30c06fd5b1f3fa5e0fa6222 rank=104 distance=0.752955 similarity=0.247045 disposition=outside_top_24
+  ch_4ecf1039050226c0a0cfdcf41c9f2d21e654ef308bce5750c05723208df7de64 rank=224 distance=0.798098 similarity=0.201902 disposition=outside_top_24
+  ch_4f340745ea17069f7a2e2ce3500df1a68540dac5b649bac036c03cd3c5c8f797 rank=168 distance=0.781357 similarity=0.218643 disposition=outside_top_24
+  ch_4fc3fd04f687125dcce9b5cd6d2f50ca81d8fc9f537f8585b8b70a8a9129db05 rank=375 distance=0.893970 similarity=0.106030 disposition=outside_top_24
+  ch_4fe7d20be2bf3d177a05e5eec97133e5fe731d32c63bc590b2b27db4356b035e rank=154 distance=0.775818 similarity=0.224182 disposition=outside_top_24
+  ch_51a13b9a2290e0970aad99442b1ed73a2dce335bce5243c2080bd290991f4af0 rank=286 distance=0.817978 similarity=0.182022 disposition=outside_top_24
+  ch_52e7e008cf5a648b49a05d8ef18fd10ba34a621908a4edbc08d10a10b0584393 rank=323 distance=0.835351 similarity=0.164649 disposition=outside_top_24
+  ch_531af4fa8b1c9c54e751b32628746a12b34305407caae0554780a91f5775b845 rank=49 distance=0.695604 similarity=0.304396 disposition=outside_top_24
+  ch_5320cffaef3cc2b9104698e85c5c42cf29adba2e7dce5faa932737ee0f1f84bd rank=228 distance=0.798375 similarity=0.201625 disposition=outside_top_24
+  ch_53649d3b32fa3e6db6187a2f25ec97a1abd2b2f10386450312b4bbf4d42dc107 rank=47 distance=0.687250 similarity=0.312750 disposition=outside_top_24
+  ch_550b76edb266c17f5b9921a3a95f24eb4d8431c6f06a328ab1f5b493cb711730 rank=354 distance=0.851940 similarity=0.148060 disposition=outside_top_24
+  ch_561e57378cfeda8404561890f10ae3c572197b04c73e53dbc4f87e599b86cb67 rank=300 distance=0.823518 similarity=0.176482 disposition=outside_top_24
+  ch_571c3d9b558dcc41d4a52b6ceae82a0d200c6b1119d982ccf0323c74a85bf6fb rank=279 distance=0.815270 similarity=0.184730 disposition=outside_top_24
+  ch_589d252c9e6e8b35b8c0fa0b771cda42f2a9d58120992a4030622af53d7d51c5 rank=358 distance=0.856639 similarity=0.143361 disposition=outside_top_24
+  ch_595e39b927dceb7e30161e7963bfb4ff22344b06fedec3639df716683f2c0685 rank=331 distance=0.839108 similarity=0.160892 disposition=outside_top_24
+  ch_59660ae5a9cd941e044a5243386b444f1dc19aba0f4d2ca4241ec086b51674a1 rank=319 distance=0.830693 similarity=0.169307 disposition=outside_top_24
+  ch_59e1c7283e1656e4cfa643255a6e85e6c27861c863caf217413e55899addf7b8 rank=50 distance=0.696268 similarity=0.303732 disposition=outside_top_24
+  ch_5a56f89b925b153e401dbf43457c6a77df911536bc47ab21effc5925dbb320ec rank=176 distance=0.784351 similarity=0.215649 disposition=outside_top_24
+  ch_5a5f036ee2b8ee0bbf7ab6d881352bfaa17da150c53ffb6ee1b855a0102b5bdf rank=376 distance=0.895982 similarity=0.104018 disposition=outside_top_24
+  ch_5c767ef34859576c7ab51c13de033323e2d7d73f04d234e8eee8b9215a4e35c8 rank=82 distance=0.738186 similarity=0.261814 disposition=outside_top_24
+  ch_5d0668e539d56c2be3cb47c24803d22147164f23388e30e94cbdbd1f529cd862 rank=170 distance=0.781949 similarity=0.218051 disposition=outside_top_24
+  ch_5d0bc123b69511589b6f20a75d260e4a61f6cef3282db1b95c225813f9276f59 rank=35 distance=0.599647 similarity=0.400353 disposition=outside_top_24
+  ch_5dc9684ac4068abbec66c4d4c082b81acc3093cacd76259e8518332913772d80 rank=371 distance=0.881902 similarity=0.118098 disposition=outside_top_24
+  ch_5e578954537eae4475f56a66adaa5dd3fed02bd1af54bd23d631c90d7202c7ce rank=347 distance=0.847275 similarity=0.152725 disposition=outside_top_24
+  ch_5ec94b516d7431c3e3d732db4e818e329207f4f857caa08feedfb4c6ab7f83b0 rank=345 distance=0.846645 similarity=0.153355 disposition=outside_top_24
+  ch_60960bf50b0cf4e3b1c8f754f25c1aba4ad3f10199a6286a9763b246c640e708 rank=95 distance=0.747138 similarity=0.252862 disposition=outside_top_24
+  ch_6107e0dd1a5f8dd8c76b94422b93c8505cd554ec195341ac6302f367453035a6 rank=285 distance=0.817690 similarity=0.182310 disposition=outside_top_24
+  ch_6120cfa45e06c3098a3aae65f98f9126c25abbd2819fdfc72c7d8917d361f766 rank=198 distance=0.793478 similarity=0.206522 disposition=outside_top_24
+  ch_615767635ba7d6e7cc8c5690e7d9fbba8786104bc0a7a1f52438df3582681cdf rank=301 distance=0.823593 similarity=0.176407 disposition=outside_top_24
+  ch_61a7c9cbc52c32e963bb8c8e1dd6971e3316c6d49d13bc325bf5bb7cb6c06076 rank=234 distance=0.800211 similarity=0.199789 disposition=outside_top_24
+  ch_6206d9546d354892a26155e873758d52b6c109f2d6c9a90688e02766383d1912 rank=367 distance=0.868484 similarity=0.131516 disposition=outside_top_24
+  ch_624daf371f59f8a9f82acc48ace833d5f23a2f527abf1abf2bb11021532c41d5 rank=130 distance=0.765092 similarity=0.234908 disposition=outside_top_24
+  ch_6257c26d91637d24d482b80ffa25063be0722f96e4084fbc0ad48fa00bdb78b1 rank=242 distance=0.802871 similarity=0.197129 disposition=outside_top_24
+  ch_62b373b077fbe7cd319960fbebef1d8d68186ca68ccf74f2b2ecf92ff1a28116 rank=251 distance=0.804556 similarity=0.195444 disposition=outside_top_24
+  ch_62c23be5fdfb7adb7f7d79cdf24d075cb323a06907c50a77eb27cf1330438568 rank=211 distance=0.794904 similarity=0.205096 disposition=outside_top_24
+  ch_645d1b3d663655c07ee4538f0f2ebc7bf00de1a147dc3fd7d004188ba971be69 rank=183 distance=0.786694 similarity=0.213306 disposition=outside_top_24
+  ch_648226adb6b233e01862665e5a778c70095b2f4f6936b5a56ef4e00cc2d74ea7 rank=362 distance=0.862185 similarity=0.137815 disposition=outside_top_24
+  ch_67f8801d2a1f191e2fc7ffcac0b836a84058368ac2774defbe431d4a9d515d94 rank=14 distance=0.544223 similarity=0.455777 disposition=ranked
+  ch_686c679d70d2e9a116e29bbbf829188835bc99c06c4fda7a50c62b69ed847d3d rank=215 distance=0.796829 similarity=0.203171 disposition=outside_top_24
+  ch_68b128d607b1d2de9adbc29a3d124762e94a4ffd781121de4f5571aad3cef3b8 rank=23 distance=0.573506 similarity=0.426494 disposition=ranked
+  ch_68c74b24ca3851b8535b27e3cee9d4091ecd7e8cb483002e62217e05a4123b73 rank=11 distance=0.535476 similarity=0.464524 disposition=ranked
+  ch_6a4a2fca63f8355af7ff32c7c4546c5c24fa1c378cd24610288f753245ea0810 rank=327 distance=0.837454 similarity=0.162546 disposition=outside_top_24
+  ch_6a9fe56fd70d20e4b0785df3f11e824e0898e7b7adbe7638a65c7b99594e43ed rank=108 distance=0.754312 similarity=0.245688 disposition=outside_top_24
+  ch_6ab4d46dd88b2f3409ffdaf83dd22afb946ef06b657b0b4e125e32fdcddb7d9e rank=7 distance=0.524275 similarity=0.475725 disposition=ranked
+  ch_6aef311927f7716dcc63928c375c0c7a499d4725e6a17d116a6d29e8ef4d762c rank=225 distance=0.798171 similarity=0.201829 disposition=outside_top_24
+  ch_6afab39726b573e2df5f29d8e6571c6b0a6a87957b3c959f744d485c00fc12e4 rank=325 distance=0.835686 similarity=0.164314 disposition=outside_top_24
+  ch_6d3c5c805ae6d21c9810a0a796ca3cb3924b41c55ed59275bb580412dc9a718d rank=70 distance=0.720026 similarity=0.279974 disposition=outside_top_24
+  ch_6e50c25e82af89beb7defbfd9d3565182ad3b3e39095e319c641fa165ff7f5d7 rank=142 distance=0.769977 similarity=0.230023 disposition=outside_top_24
+  ch_6efcf149ee2763341e7ce63337f84edbf882d0cb1752de5c6e287635768d95ae rank=1 distance=0.487187 similarity=0.512813 disposition=ranked
+  ch_6f3df1d24a0542c69b536db136f5ecd6e94db3cbd8ec595800dd2fee0ee8bcf3 rank=93 distance=0.747109 similarity=0.252891 disposition=outside_top_24
+  ch_6f5bb3a761b9ef6816f1642275758f55282b9af930f07e736de20189e4e79b06 rank=53 distance=0.703324 similarity=0.296676 disposition=outside_top_24
+  ch_7072298cd016ccfc1c1a3dbc975cb321039284d6cb9a89ab5d700d1d04679cbc rank=270 distance=0.811634 similarity=0.188366 disposition=outside_top_24
+  ch_711301386ffe26849525e50115aa32b2f74c2eb8cc30133f8c06b3126536f10a rank=59 distance=0.711903 similarity=0.288097 disposition=outside_top_24
+  ch_726982e01d21ee9eae70a0e90ce14f6902b8ef05db70be92210491031a63ec63 rank=92 distance=0.745933 similarity=0.254067 disposition=outside_top_24
+  ch_72e13c01c99cbe5a726ac24f24f4018cd86457701ffe0e469adb37b6224c59e3 rank=102 distance=0.752357 similarity=0.247643 disposition=outside_top_24
+  ch_72e4e44ec0f2f172a0e74692349bd5c4691bc1a4b7b2993bb4ae19fc8431e442 rank=32 distance=0.590525 similarity=0.409475 disposition=outside_top_24
+  ch_7320d9c206b1a64e334c2a1e3d528be3460fcf372686407505dbceda1d57f32f rank=283 distance=0.816438 similarity=0.183562 disposition=outside_top_24
+  ch_75abbb01de3171d8dda72e2dbb2a23dac0b892d7706f70cd7b602ba4fde0611e rank=110 distance=0.754503 similarity=0.245497 disposition=outside_top_24
+  ch_75eb2c6c0a3f86c19da20866f3c21d214704b0795f80714a98c2cad4d41bebe4 rank=54 distance=0.708068 similarity=0.291932 disposition=outside_top_24
+  ch_76d1b97dad68ad308e08d3ba3d710ca4c46a3cf7b7eef2a742c04f50e7816d7d rank=363 distance=0.863205 similarity=0.136795 disposition=outside_top_24
+  ch_7842b2cd22b4dfd1c5ef7e9839ce6d6713513006a9d11e91442757239ca6bdad rank=329 distance=0.838615 similarity=0.161385 disposition=outside_top_24
+  ch_79049549ad39d6dbaec7a9773a8bd15bae6934bb1ec5a77e87e0c10c1809c1a9 rank=346 distance=0.847214 similarity=0.152786 disposition=outside_top_24
+  ch_799895d71f92bca84c84886d854bfa85cb882b6cad5031944d2d94d28daaf61f rank=132 distance=0.765711 similarity=0.234289 disposition=outside_top_24
+  ch_79b60208e7e8b3111e49250afd256326bc6defa34212e74d709eb011e6bc3c19 rank=308 distance=0.826002 similarity=0.173998 disposition=outside_top_24
+  ch_7acff3e086a0f7ff2299113d1e7aa89977c8bd4b7c840414ca5b551b80c556d7 rank=160 distance=0.777497 similarity=0.222503 disposition=outside_top_24
+  ch_7b29c5605018a7516a94da98961790f22e719ade81cce63c109222698bf9b7a9 rank=343 distance=0.846514 similarity=0.153486 disposition=outside_top_24
+  ch_7c2474bde622c4c40aa866f897f6c4a2867f70758e9066331d5ea31be89d1239 rank=61 distance=0.712590 similarity=0.287410 disposition=outside_top_24
+  ch_7c30accf496db42bde9ce9132c59f11c732dc5a64ba2fe206e320c2b564ca637 rank=112 distance=0.755132 similarity=0.244868 disposition=outside_top_24
+  ch_7e3898630c6933ed0fc902017cb89b9e55dc691febe3c463ffd793763612a4c5 rank=332 distance=0.840170 similarity=0.159830 disposition=outside_top_24
+  ch_7f5456d63365477bd7966fe97b150f046e44447cac092d3275a2515f3258e3c2 rank=377 distance=0.904812 similarity=0.095188 disposition=outside_top_24
+  ch_8142375a57fc598ece26fc1eb6d9d1491e7707127803e5aba089788f3f684283 rank=15 distance=0.551143 similarity=0.448857 disposition=ranked
+  ch_827a4f432511c04689d2f043e7fa105d9f1b3bb9397bf767225378504ce12f8c rank=128 distance=0.763655 similarity=0.236345 disposition=outside_top_24
+  ch_83009a6fcc6dbda981c18bed7961bec0cffbdbb0d5df13fab7c10f32121ef076 rank=299 distance=0.823329 similarity=0.176671 disposition=outside_top_24
+  ch_83b6d24ca592fe6df9f1ddada061d2ccaf3893fe9b7d3190c1930c56ebf77658 rank=221 distance=0.797286 similarity=0.202714 disposition=outside_top_24
+  ch_855af60eee9c7af633b2927ceeaeee853776e929e2897bbbde7f69d69e1d7036 rank=111 distance=0.754750 similarity=0.245250 disposition=outside_top_24
+  ch_856db714053d034a048129e7317a8e581d0a776e224b6102699db950e83bc58e rank=305 distance=0.824778 similarity=0.175222 disposition=outside_top_24
+  ch_874373ccec0fa92c5bdccbb8e4fc24cc47f7985b28c4286e287d8d3d014e3f47 rank=55 distance=0.708617 similarity=0.291383 disposition=outside_top_24
+  ch_880fe6f34f1382b7aa462ca6d46aa9d3dc0deb0a6cca40e378582b371be58d9c rank=22 distance=0.569765 similarity=0.430235 disposition=ranked
+  ch_888dcda652cde8715bf00e9d8d6477a19fffa4d39461ea00284d8b38b84226c6 rank=56 distance=0.708996 similarity=0.291004 disposition=outside_top_24
+  ch_898ce03db820f1b3c462c3f3395aba0d6f9c5acd8da09a02638859ccbec9d1dc rank=210 distance=0.794760 similarity=0.205240 disposition=outside_top_24
+  ch_8a1daf3a457283b0fa07584744eaeff3851c805e1e7df6d996c619d5583ba02e rank=342 distance=0.846169 similarity=0.153831 disposition=outside_top_24
+  ch_8a855b4a22065940fde7f823ce32f1887d2c5da6000e13e993a390bc71935262 rank=269 distance=0.811462 similarity=0.188538 disposition=outside_top_24
+  ch_8ae0b29d9596c27811a756725ba60957fcfb2ddf38dd63a3bc510a96e5f8077a rank=129 distance=0.763781 similarity=0.236219 disposition=outside_top_24
+  ch_8c84172f6073f32266dd0c45c8110e1a300dda1fd7eea93b4d3f0baaa3f6b5ef rank=205 distance=0.794276 similarity=0.205724 disposition=outside_top_24
+  ch_8c8e43af26c57874e2e5e0dc39bff0f2c9fcae10c44856ac726bbd84edb8fdda rank=121 distance=0.759578 similarity=0.240422 disposition=outside_top_24
+  ch_8da297e4290f9f953e593cb54e86a357d57d9c4c11960c97bb19c9e09808eec8 rank=81 distance=0.737237 similarity=0.262763 disposition=outside_top_24
+  ch_8dcec8416eb9218d5ae57686d8b54c285b43f36a6cae8b7c83302712c6b45585 rank=231 distance=0.799382 similarity=0.200618 disposition=outside_top_24
+  ch_8dd20ede3933a511c8e8334df8b66623b1761056431bc7ca8a366c33e2f45139 rank=140 distance=0.769438 similarity=0.230562 disposition=outside_top_24
+  ch_8e62dfe54eaf67df38411752b544a643e65a69d373e3a8f5b278d72a0bffb4ac rank=64 distance=0.714906 similarity=0.285094 disposition=outside_top_24
+  ch_8e7ffbbfcdf31646497e15307cc971c22cbf7f8099eb611f0971135b1e9809d7 rank=306 distance=0.825563 similarity=0.174437 disposition=outside_top_24
+  ch_8fad42a8cf9240c69764bd954c9fb907623a10885544b69944111729def20116 rank=246 distance=0.803537 similarity=0.196463 disposition=outside_top_24
+  ch_8fad55e5f4351bf9de4cb72b58bd5beaed5bab9629533b8caa5e663f8a990244 rank=374 distance=0.891049 similarity=0.108951 disposition=outside_top_24
+  ch_90ec32810d2cc5f84cdaa921d5eabc77e7334885389136bc1fd3ca10c2812450 rank=349 distance=0.847803 similarity=0.152197 disposition=outside_top_24
+  ch_921e273d348d28525f150dfbfa07ae9bdc454380c5b6a2368cf622e447d03d86 rank=276 distance=0.814593 similarity=0.185407 disposition=outside_top_24
+  ch_929e439b0c539e84dbd70a3d32b8b81de02ba7be344dd2551f1f703e1d37c2e3 rank=196 distance=0.792474 similarity=0.207526 disposition=outside_top_24
+  ch_92c35ba51cdfda9385a04e1566080a563570eedc02e582dd326f534f8793282f rank=267 distance=0.809855 similarity=0.190145 disposition=outside_top_24
+  ch_92f107a5f68dd02a8356e0ae902b20213f19cc82e85b98502d7e891c4636e625 rank=217 distance=0.796920 similarity=0.203080 disposition=outside_top_24
+  ch_94c68d25181bebaf1f9d198852df506a954fd13f46fd365d6629be96f76e8450 rank=289 distance=0.819200 similarity=0.180800 disposition=outside_top_24
+  ch_94fbc4182a9036eb804446917a0040d59d64950fa9690c11af5c146a1db0d450 rank=297 distance=0.823211 similarity=0.176789 disposition=outside_top_24
+  ch_95ed47b5cbc2bdc022c5f9f8c8eca554bd49920feb0976aa59f75efa7612bdec rank=303 distance=0.824287 similarity=0.175713 disposition=outside_top_24
+  ch_9640718b5315f34a51bbd1a3005762c8d9a2a0dd3967e5f1d8aca7d0bb13dd8a rank=271 distance=0.812091 similarity=0.187909 disposition=outside_top_24
+  ch_975a28e696402941d91979464a436c6449e665a64516b9462b7d0eaf8b61649f rank=214 distance=0.795367 similarity=0.204633 disposition=outside_top_24
+  ch_97c55393a1c5d3ec85c5168ccaa6cb66af9f6f0a61bfbe28462979815b58ed21 rank=352 distance=0.850039 similarity=0.149961 disposition=outside_top_24
+  ch_97fad07e979f7ef6ad3d316695281fb2ee007f1e3ebc1c0b2a0d76fdfc190172 rank=158 distance=0.776759 similarity=0.223241 disposition=outside_top_24
+  ch_988096974be38b5d048777a3aaffa07e4be500a3a68b84fbd836ba8c9fd13c2c rank=227 distance=0.798234 similarity=0.201766 disposition=outside_top_24
+  ch_98cfe02ffb97f833f7ae8103b823ab670679240844c37ea8d91f2c3f73cb40d8 rank=257 distance=0.807393 similarity=0.192607 disposition=outside_top_24
+  ch_9a0fd3cbca0c862e0a9162ac20580da2afd0b25650dab4ab2cee80a27006f4d4 rank=37 distance=0.604915 similarity=0.395085 disposition=outside_top_24
+  ch_9a4a90d415258b7c17dae47a8d1756a4d339e7cdef9f61acafd9bf715d393947 rank=253 distance=0.805210 similarity=0.194790 disposition=outside_top_24
+  ch_9b15b059ddee5ef133b9608c20c70b4995c6da9b7f43188ad256960330f85436 rank=213 distance=0.795179 similarity=0.204821 disposition=outside_top_24
+  ch_9b1fc73c75b9c7055d7eecec4a431a73aebcb4558d609be6280e456080ca324e rank=248 distance=0.803992 similarity=0.196008 disposition=outside_top_24
+  ch_9d344e5dbe199bd89b70d24725d7e794877ce03ad4c52ea8e93d63ad72137dc8 rank=302 distance=0.824111 similarity=0.175889 disposition=outside_top_24
+  ch_9e194ebe75b500c54bd7913b0bf57f46cddc55037b1e450e54147a7999f8a767 rank=295 distance=0.821391 similarity=0.178609 disposition=outside_top_24
+  ch_a3281e7fbc96f5293ca2e73e4c33c51d22e3e509dd67d91a9b068c0e2b74cdf7 rank=119 distance=0.757943 similarity=0.242057 disposition=outside_top_24
+  ch_a38881d4e8324d1e99e051c8b26d3f4458cd2493ef2dfeaf0c6f36007e2ebf64 rank=143 distance=0.769993 similarity=0.230007 disposition=outside_top_24
+  ch_a4a5da10f303bee582becb3b8665292c2d93e2337ce4647029d7ebda06403677 rank=27 distance=0.577180 similarity=0.422820 disposition=outside_top_24
+  ch_a51ba6a318ba4310b8ba94be03f3396d2a07281fe785f2a929360f0307156343 rank=320 distance=0.832099 similarity=0.167901 disposition=outside_top_24
+  ch_a6d8b5a972f01e2a080342793f5a7fc16315875743d66e560ce76ff17b3294f0 rank=206 distance=0.794314 similarity=0.205686 disposition=outside_top_24
+  ch_a75316ff4bdfabdd037dc210ad75536b4dc51043a093b9c306cf900058fe6c15 rank=222 distance=0.797840 similarity=0.202160 disposition=outside_top_24
+  ch_a7a7a08c108b2080f018b473abf6cd90af9172fd47f753e5f9e9e12618ac25bb rank=292 distance=0.820501 similarity=0.179499 disposition=outside_top_24
+  ch_a80a87de408f98f2a897592bed82443cdf53685723d6da34dbcea34b5e235ec4 rank=315 distance=0.827827 similarity=0.172173 disposition=outside_top_24
+  ch_a9057c097e019dc58b7ccaa32ca060bca2717bc9404b3f00aad2e49dc127ecc7 rank=266 distance=0.809538 similarity=0.190462 disposition=outside_top_24
+  ch_aa82ce0a8c645272a7d4b24a6697ffec566e022283f8354363375a42cce210bf rank=67 distance=0.718691 similarity=0.281309 disposition=outside_top_24
+  ch_abd34051894b0b8cd0e59bb32b559c6eadb4b6080f7b7ce537b92e7eb7f9daf4 rank=146 distance=0.770530 similarity=0.229470 disposition=outside_top_24
+  ch_ac09005a4ad2c4a6ef3f52f579de103ca97dfadc45ae67482a2761ddb27c8f0a rank=265 distance=0.809481 similarity=0.190519 disposition=outside_top_24
+  ch_ac19491581561b3f70b0fcd5a0db24d748d7b786ed112eb0b02530915d31c696 rank=115 distance=0.756497 similarity=0.243503 disposition=outside_top_24
+  ch_ac1e4954d2f10cc53c7b303bad1c67b6f7951d174264b72c3f9944b88b005fa9 rank=100 distance=0.752063 similarity=0.247937 disposition=outside_top_24
+  ch_ad1de416a72bcafdbf23529eaec5b0a4557f67b1b98b8c708079b02b3a92f3fb rank=378 distance=0.921064 similarity=0.078936 disposition=outside_top_24
+  ch_ad8fdcb9abb028d5a5b36c338616e5cb1a4b2bcd0dab9d265739e91ef59521c6 rank=275 distance=0.814264 similarity=0.185736 disposition=outside_top_24
+  ch_adfea50bad96984d61b248698eff43d0700a3dfb2a8ac4dc4d0b4f04edf66291 rank=163 distance=0.778183 similarity=0.221817 disposition=outside_top_24
+  ch_aebf0da7729cf1da80eec5741366e995157a452a094c48aeec99c42924b904f8 rank=126 distance=0.761889 similarity=0.238111 disposition=outside_top_24
+  ch_af1329f7fa4b8d3306a6354dc0ad63625939667a9e006ca8bc8dd72c0897b328 rank=151 distance=0.773724 similarity=0.226276 disposition=outside_top_24
+  ch_af9f57ba47b75791f0e21c7dd4b7456c54ebef208adc0e64e4d07b9f4adbc94f rank=178 distance=0.785168 similarity=0.214832 disposition=outside_top_24
+  ch_afbc8933b8ac8d3b99f7e1d2b5c1f09ce0dedaa425b36b51ef17724010bbd0bd rank=144 distance=0.770265 similarity=0.229735 disposition=outside_top_24
+  ch_afdb597cd03953cb0a9b5ece55bca53d6d46e53de4e8805fea26959fc26e014d rank=139 distance=0.769358 similarity=0.230642 disposition=outside_top_24
+  ch_b042da72d000ef733792cc4f984d1b448e650f1de1081ec8f96161efdf520feb rank=145 distance=0.770398 similarity=0.229602 disposition=outside_top_24
+  ch_b1396319cc687283741f0e7c37fdd69497e32c05795efd30ae7c3988e04fc2a8 rank=120 distance=0.758933 similarity=0.241067 disposition=outside_top_24
+  ch_b1aae60ab7485a8c7a4ddda7653cd5850906ad826edfbfff665fa15d72a81832 rank=85 distance=0.740349 similarity=0.259651 disposition=outside_top_24
+  ch_b36784acc88dbb0e47be8a18317097a1ea7132babcfc0bb795fb3373ad10d143 rank=344 distance=0.846556 similarity=0.153444 disposition=outside_top_24
+  ch_b3762e90bbff85008e60158dd9f05dde32d6e688ea15d7abda0f5237905bf957 rank=57 distance=0.709110 similarity=0.290890 disposition=outside_top_24
+  ch_b54380dccd24321a688f911a81cad996dd8861cc3cab51303814e19214441582 rank=117 distance=0.757536 similarity=0.242464 disposition=outside_top_24
+  ch_b5fee717e58db295eda622b3d4e18ffeb9c0122e0b8828c826289a0c1c059c82 rank=172 distance=0.783077 similarity=0.216923 disposition=outside_top_24
+  ch_b6391cd8dbe5cbda037069092c94ea65f301f7f521da89cdfc6b5801503d8eb7 rank=365 distance=0.865941 similarity=0.134059 disposition=outside_top_24
+  ch_b6c6d2dcc52a498c2d97f1ee9b228b89a873fc7e9da7fad2d9655cc6b45ada6b rank=204 distance=0.794191 similarity=0.205809 disposition=outside_top_24
+  ch_b71380841d53b4f1c9db10fb8e53c4d4b35c716f6daa9a5716b021cdac9353e9 rank=179 distance=0.785358 similarity=0.214642 disposition=outside_top_24
+  ch_b7b4814e87dde4e62aeb7faab2a79f04ab85e68c5fc6a6d5e9d2f746c61e4059 rank=72 distance=0.724294 similarity=0.275706 disposition=outside_top_24
+  ch_b84660103efcfd022be95b09e56bd19ff891c5267f39d4cfb9dd77073bbac6a3 rank=357 distance=0.853242 similarity=0.146758 disposition=outside_top_24
+  ch_b8ceeaa91866469890b6a1ba5148563022b92649c7f4a8f79303e96995e6828c rank=335 distance=0.842032 similarity=0.157968 disposition=outside_top_24
+  ch_b965e5c3e205f8c0405fc5903ec4b3c4d1b051d6ac1936dd166c61e91f35159e rank=361 distance=0.860454 similarity=0.139546 disposition=outside_top_24
+  ch_b9f2fffa63b2663571c0d6bcb231b3305f631861fe8d8331b274ed8c1030af45 rank=370 distance=0.881833 similarity=0.118167 disposition=outside_top_24
+  ch_bb2cf376563135753b1a12b70cb82fb611c439026d153bd8674231d46303e0b7 rank=212 distance=0.795171 similarity=0.204829 disposition=outside_top_24
+  ch_bc04acba18dad83ba721e89373866796a34a4d1eb9b11626df7237fb4150c359 rank=188 distance=0.789044 similarity=0.210956 disposition=outside_top_24
+  ch_bcf973f46b159f4502d68759113aade17d5a9041fe4e9c3420b5efd1d612cf7f rank=164 distance=0.778803 similarity=0.221197 disposition=outside_top_24
+  ch_beccc9f25dbb25922c47c860a595d237908937e4b8ce377f55d195320ceac340 rank=36 distance=0.602297 similarity=0.397703 disposition=outside_top_24
+  ch_beeb6da1650a424f9297c310cd2b9cb55678fdbea143f9b9f87b586748c5dd48 rank=148 distance=0.771936 similarity=0.228064 disposition=outside_top_24
+  ch_c030c76e3e3c5564291fb9ef0c36613fcde4810f8fdd9433e15a0c52e6136464 rank=48 distance=0.695229 similarity=0.304771 disposition=outside_top_24
+  ch_c0dc86a74a5811f59de985b0cb763556bcb364ff30323dc5d9b2ef4a6b810c2f rank=19 distance=0.561062 similarity=0.438938 disposition=ranked
+  ch_c18431cf04315696195fc772985dd10edd948613e18acf0417bddfd6a3d76075 rank=25 distance=0.574493 similarity=0.425507 disposition=outside_top_24
+  ch_c27c96d563e647e154ec9ceba8778ca86b1b42e452bece487ef6aef92eff7c08 rank=10 distance=0.530092 similarity=0.469908 disposition=ranked
+  ch_c289ce1b74673e42b66756136073dd5a3345b53b1cf10c5d7a1ac99c4b2d3ae7 rank=46 distance=0.683984 similarity=0.316016 disposition=outside_top_24
+  ch_c32aad1c89bd37709e8f72e80e27a877e43085880109c7cb089af1299990f463 rank=256 distance=0.806650 similarity=0.193350 disposition=outside_top_24
+  ch_c34fe66dd069d2bae36ecac4ffa01866e275e49401e7cb38dab1cc1bbe4ec5a9 rank=249 distance=0.804231 similarity=0.195769 disposition=outside_top_24
+  ch_c3b6bbbfdbe684a9fabc20195ab0afa0c66182ade538dfdd689fce6f31dbe5a7 rank=312 distance=0.826569 similarity=0.173431 disposition=outside_top_24
+  ch_c5c9f83886c2ddc0566651a0fe7e3c9185adf0216d93e46e5f8e9dba2e611041 rank=152 distance=0.774439 similarity=0.225561 disposition=outside_top_24
+  ch_c67dac2393ba0fd99131ed445c45f90fb4e1e392ac7a6354d3dcda5ce3d06aa5 rank=355 distance=0.852297 similarity=0.147703 disposition=outside_top_24
+  ch_c74d29eac76656f555f95e463e8bf26333847afd8c3bbb0ddfb6976fadf0ae4e rank=94 distance=0.747111 similarity=0.252889 disposition=outside_top_24
+  ch_c781bac1729a4f803a48fe2afe34888a2e643f9207d7a4b229bde87dc7b77418 rank=116 distance=0.756764 similarity=0.243236 disposition=outside_top_24
+  ch_c7afd291f8cd8c61368fa7e3a9fae9dec1878bb80d417360c7c2332a8a30dbe5 rank=103 distance=0.752514 similarity=0.247486 disposition=outside_top_24
+  ch_c7d25d2ef629fd589eef06f10f4fbab79deb08f39bb39d10956fce41fe3bdd2d rank=353 distance=0.851268 similarity=0.148732 disposition=outside_top_24
+  ch_c8cbffb0218bca7935ae97b93129c5d234e0e7e36464fa90824d1498e7f0a9c8 rank=340 distance=0.845612 similarity=0.154388 disposition=outside_top_24
+  ch_c91b9ccbbda5ae74c6ff389b2c8f9410b9c931a00559384a066285ae826cf26d rank=241 distance=0.802762 similarity=0.197238 disposition=outside_top_24
+  ch_c9c1216078b450f3c13f772ddc74883273fa9ec46d67afd0792e034afa0488f0 rank=181 distance=0.785966 similarity=0.214034 disposition=outside_top_24
+  ch_ca08bcf674b6dc388952366433cf0f28bd6dfbd6e166cef1efbc24267c140693 rank=350 distance=0.848137 similarity=0.151863 disposition=outside_top_24
+  ch_cb9749bc94b0217702d43ce6cce7e32d673865184b0c7062a3e774f094d23ba6 rank=369 distance=0.876958 similarity=0.123042 disposition=outside_top_24
+  ch_cc88e45de9101025604ed6e928e76a6d39223dbe61c47de4580b85a9df3932b7 rank=337 distance=0.843486 similarity=0.156514 disposition=outside_top_24
+  ch_cd230f1640c27e229aa2c45c6b5896afeead1b093d7e6620916c0a9b2d6f17cb rank=105 distance=0.753085 similarity=0.246915 disposition=outside_top_24
+  ch_cd7230a20fa75349b7d612d2b3294cf12836dda6eb663b92da70a732e4cee226 rank=195 distance=0.792299 similarity=0.207701 disposition=outside_top_24
+  ch_cd731d9b36ebcb879366fac03b4b73734a254026bbabee0b3d7d7ccde48246d0 rank=118 distance=0.757843 similarity=0.242157 disposition=outside_top_24
+  ch_ce0812335661eb76c692fa2b62ac422bcf67b6efe11417599ad0a55fc7e4a667 rank=282 distance=0.816400 similarity=0.183600 disposition=outside_top_24
+  ch_ce7d55c45dd4aa54572dcba22975cac57fdf5484c06c73362c70e5e0a51dcbe6 rank=113 distance=0.755581 similarity=0.244419 disposition=outside_top_24
+  ch_cf7623627f3dcb1e90be9b39f8206f54efad53a57f580cf7467ef7a4288709b1 rank=264 distance=0.808876 similarity=0.191124 disposition=outside_top_24
+  ch_d01eddadd8b871e1cc827c39d3613e77b689e69a06709084e3732657c0db9803 rank=359 distance=0.857641 similarity=0.142359 disposition=outside_top_24
+  ch_d0465b6f59e688e5253107e54e3a1d22f703aab737496f69fc554083bcbb47f7 rank=336 distance=0.843147 similarity=0.156853 disposition=outside_top_24
+  ch_d0c77319c0e5aea99eb25e8408440bbe7434622e0d3b53fe3a38cab82313c468 rank=309 distance=0.826126 similarity=0.173874 disposition=outside_top_24
+  ch_d11643c03369ddb8b13cd3c5ebc8901d64cd471ac8e9a584b03dec02ab055ba1 rank=162 distance=0.778090 similarity=0.221910 disposition=outside_top_24
+  ch_d1dd865ab94f1bc7d89a035f5e28ac1cb185c1da64fbe79ffc282a31dcbd690a rank=278 distance=0.815266 similarity=0.184734 disposition=outside_top_24
+  ch_d1e6c42001dc34ff258a31aaedfa73061a4b5b1abb3aa427faaab0c20117688a rank=291 distance=0.820436 similarity=0.179564 disposition=outside_top_24
+  ch_d35320c410d0e160f841ec978f119a63799bd76618f2bd32e220a05c0adb5d10 rank=199 distance=0.793794 similarity=0.206206 disposition=outside_top_24
+  ch_d360bbc9a2bac3a720b845b47060be324992dfd17092fbfea0188cdb13b8b6a1 rank=338 distance=0.843920 similarity=0.156080 disposition=outside_top_24
+  ch_d3f2bbe07b72c2308b79a90117611c61f8a1311918951758eb46dbaa5d915613 rank=149 distance=0.772351 similarity=0.227649 disposition=outside_top_24
+  ch_d42527e2d51239acc6eab8e36f4f3f76ae5e9a37eb9523557e0de96eeca5ab1f rank=328 distance=0.838276 similarity=0.161724 disposition=outside_top_24
+  ch_d4d6a431b77e7a316881b1f49bf4b4742722ebdfbe6194cfac9400e432bcf356 rank=166 distance=0.779244 similarity=0.220756 disposition=outside_top_24
+  ch_d52bf1cce280bce7efe3dc7c40048bcd6a0654aafc81db493953af8e5fdd86d0 rank=71 distance=0.721058 similarity=0.278942 disposition=outside_top_24
+  ch_d5930a73d5af4f57ad1efbd6b623427df7f7f1afee82d5cc329cfa79059f93bc rank=326 distance=0.836665 similarity=0.163335 disposition=outside_top_24
+  ch_d5c73b149a4bbc8fd22cdb28229fa552b5738e164ed88f29966ff7dad6fad925 rank=75 distance=0.726359 similarity=0.273641 disposition=outside_top_24
+  ch_d5e0d0cd8726d515be4b57853b6063af4050da4715871cb72febbed90e6ac295 rank=109 distance=0.754503 similarity=0.245497 disposition=outside_top_24
+  ch_d5f1f43351c5ef8c0e9b23c57df85e3436152facd2f48dfc60caf5847c55642c rank=9 distance=0.525216 similarity=0.474784 disposition=ranked
+  ch_d6635e4d0ad3c40e7e0ce295c161f60df56023e062c085ce91853d33ae9460d5 rank=33 distance=0.592003 similarity=0.407997 disposition=outside_top_24
+  ch_d6be2730e7997c9a602d059428d4cf2ff77d24d30145bc78816a82c94fcddd7c rank=348 distance=0.847395 similarity=0.152605 disposition=outside_top_24
+  ch_d7ea7b5a99cd39f6b8d15acc82e60e4e6f13d7a081a0f9f1615077098af346b6 rank=87 distance=0.742764 similarity=0.257236 disposition=outside_top_24
+  ch_d8a87566555f2ee64893dc13a2800a80e7c19e103508f32bc6dd76fa262c1d1c rank=167 distance=0.779486 similarity=0.220514 disposition=outside_top_24
+  ch_d8c28563bfa3839215f388901e77000a55dcfd84c52950cfd835b5ff008612ad rank=99 distance=0.751178 similarity=0.248822 disposition=outside_top_24
+  ch_d91d998de953e7b98700cabf115c797cb4c5247637a1c4843b97470b3c83e22d rank=86 distance=0.741335 similarity=0.258665 disposition=outside_top_24
+  ch_d9df59147667fa7042e8f6249524a73a8813e38fae860ca61c313f6e4f4dc2f8 rank=171 distance=0.782298 similarity=0.217702 disposition=outside_top_24
+  ch_da1bbeece2b33363a4b40aa1f5398f3a9c49bd1bf0688c8f2a91ad83728f1f51 rank=233 distance=0.799861 similarity=0.200139 disposition=outside_top_24
+  ch_dac1a70003e8477ddb8132a5f406ac75a5240c6b676a851bf3ae413405e5aec8 rank=137 distance=0.767792 similarity=0.232208 disposition=outside_top_24
+  ch_db23490ed0bffffebb2079a2bc3362137e9d328412ee13e2bc3a440e162225d8 rank=189 distance=0.789816 similarity=0.210184 disposition=outside_top_24
+  ch_dc00ff6b6b5b323d50e866da2f87373380206e42659986951c272d853641c3fc rank=287 distance=0.818214 similarity=0.181786 disposition=outside_top_24
+  ch_dc820fb093ea33c15a5983ff4081753de49bb05676757d8a0aec62f369d5f91c rank=261 distance=0.808497 similarity=0.191503 disposition=outside_top_24
+  ch_dcd3680794bac273c7b8ea583462ff54c6b5b04b0db1c53d6934252cbec7ecfb rank=324 distance=0.835481 similarity=0.164519 disposition=outside_top_24
+  ch_dce0c71446c33b24f4a788feb05934d4c8c2f79c2610e5dd954dbaf136a1957e rank=372 distance=0.883929 similarity=0.116071 disposition=outside_top_24
+  ch_dd611fcbcee90852831bec4df18cf17cf35df71f127ba62e36f42255345e999d rank=216 distance=0.796871 similarity=0.203129 disposition=outside_top_24
+  ch_dd67bab38560bb4655a52794030c40c3abdc9f5dbc36ac7826f149e491a0a4eb rank=260 distance=0.808275 similarity=0.191725 disposition=outside_top_24
+  ch_e0f18a9e099a610d448e24637b24282c8e012e9e37eb452dfdff1e7711b576fe rank=156 distance=0.776261 similarity=0.223739 disposition=outside_top_24
+  ch_e212105c02f4618bb27c78b761311af573df6cbcadbd80d38345ef947568c7f1 rank=333 distance=0.840700 similarity=0.159300 disposition=outside_top_24
+  ch_e33cfcc9911bc63c8a18f1c90c61707724951979c200fccfff8215853552d42d rank=316 distance=0.828624 similarity=0.171376 disposition=outside_top_24
+  ch_e3de5fd08ecccc359dfbde7b111737bf9c7c72ee49b9441b5f42f2a337fa833b rank=304 distance=0.824363 similarity=0.175637 disposition=outside_top_24
+  ch_e4c3dfbb90a529475cc22fb40f11fd947d4d08f19f9a44852b5c27f0cdc99f11 rank=207 distance=0.794579 similarity=0.205421 disposition=outside_top_24
+  ch_e5d00d2311ae4f4d3f02f916be69ef2df5381de798950df1b6e231b04bd26d40 rank=43 distance=0.666426 similarity=0.333574 disposition=outside_top_24
+  ch_e75b045631595684c49ce8bf4e9da3e1ffcc6db6eddc3ef24d81dd3b3d7c62af rank=298 distance=0.823328 similarity=0.176672 disposition=outside_top_24
+  ch_e78dc9ab9c0b2df8d86d39c374eefb5b2fcd15b82a1b2606ec719889000f53f9 rank=12 distance=0.537869 similarity=0.462131 disposition=ranked
+  ch_e82b143b76fde28c2dfd38dc754cf79f6375c23cc6388ec5af12a12de6a2f8f9 rank=30 distance=0.585665 similarity=0.414335 disposition=outside_top_24
+  ch_e9b547e2315bdc514736804df553c3c334050fde175b6d419adcd56dd74868ad rank=314 distance=0.827569 similarity=0.172431 disposition=outside_top_24
+  ch_ebeba43ca59ce4ca60cad3ac0a612bbe3705bff950368b27a0c7050a6fcc4334 rank=284 distance=0.816548 similarity=0.183452 disposition=outside_top_24
+  ch_ec5c53b5aee574b3dbe879fa07dddc756912cbbe0833b7ceae3b2731bafd5c68 rank=66 distance=0.717710 similarity=0.282290 disposition=outside_top_24
+  ch_ed9bf3cc6992ad28158ae8e73bf61fef33bb42b1015f52d095d3def34386150d rank=74 distance=0.725369 similarity=0.274631 disposition=outside_top_24
+  ch_eeadd18d81b359b9dc4524e769c563f0c48d4905a08d646fb116424109d6bb03 rank=153 distance=0.774704 similarity=0.225296 disposition=outside_top_24
+  ch_eedf7198c4efd25a75e8e8600bf373c207de0e82857783fd93a3c77c9fb080d5 rank=185 distance=0.786815 similarity=0.213185 disposition=outside_top_24
+  ch_ef18c2e002dca6507b660558bfe1c6326679e900c7d0c5468ff3852d2e09263c rank=73 distance=0.724617 similarity=0.275383 disposition=outside_top_24
+  ch_f0418532e2fd11c3e8fe65a60689a933bd025bd9dea757965dac8539840807a9 rank=8 distance=0.524852 similarity=0.475148 disposition=ranked
+  ch_f10618111e25953abf1ab39b24313396c68e70b6a73278a748a5db7e21ddd2ed rank=133 distance=0.765795 similarity=0.234205 disposition=outside_top_24
+  ch_f12004ddb394fa008680bdecf42f6d383050d657f54ffbab84ac2abde10718ec rank=190 distance=0.789830 similarity=0.210170 disposition=outside_top_24
+  ch_f1b5bb217c4f66dda9ee4c3532c188181f74c70c09fb42fbab9c50ff2fd7ea1e rank=290 distance=0.819291 similarity=0.180709 disposition=outside_top_24
+  ch_f1c8ca44dffde343b05a5835c7aaf27bf29ba0e5454dbe3be58b0ef2cf050c49 rank=28 distance=0.577825 similarity=0.422175 disposition=outside_top_24
+  ch_f20336719b422c1007143dbe6573f404dfd8039a762d9bc111d21e8ee9db733d rank=159 distance=0.777384 similarity=0.222616 disposition=outside_top_24
+  ch_f33a0b2e6ed63fccdc386d15a5be657bd9e4e9961904bac6289d86f9fc15146a rank=177 distance=0.784914 similarity=0.215086 disposition=outside_top_24
+  ch_f3b01ee3429062df1c710d57b86ef034ddc2a4fde95d427598ea815c8e7a05f9 rank=220 distance=0.797203 similarity=0.202797 disposition=outside_top_24
+  ch_f44532ef7a936906fa259b5460ae3858406ea090cad47c8f2ddc189da6569815 rank=209 distance=0.794715 similarity=0.205285 disposition=outside_top_24
+  ch_f466a43ff3021d5f9c40a29589d4c6e6da5a40a5d5cce6cece54ac1bc671933f rank=141 distance=0.769929 similarity=0.230071 disposition=outside_top_24
+  ch_f61099f5988e080babf0d1902d805d2d07a9d293a440b3ade6dc3bad3dca9668 rank=42 distance=0.638820 similarity=0.361180 disposition=outside_top_24
+  ch_f66a7f5682ad0d233bae5250537314e33f02ea551ecb39eb8e393987fe4810c7 rank=40 distance=0.616954 similarity=0.383046 disposition=outside_top_24
+  ch_f6912220da9a695292db668018f779872a880f84c45702e69da4fca1aa5bd53b rank=334 distance=0.841727 similarity=0.158273 disposition=outside_top_24
+  ch_f7313271f5bb5c110f4e3a00824cc861af7f8c8b068d391efcb1ab203c575da3 rank=230 distance=0.799365 similarity=0.200635 disposition=outside_top_24
+  ch_f73ae5efc06364f6a14b1391712195f9580ac6ce7111f4538bcbf3ace97a5b6e rank=219 distance=0.796978 similarity=0.203022 disposition=outside_top_24
+  ch_f768354bc4ad63d64e8d7c6f4331ddab4f09b9a47003627c3d54d0dd6770b40e rank=77 distance=0.734529 similarity=0.265471 disposition=outside_top_24
+  ch_f7b0a5be030e0f441002b01a50323db485bc86c7565e8820d04c11a29f620aeb rank=294 distance=0.820905 similarity=0.179095 disposition=outside_top_24
+  ch_f7d1d8b1405f97dcea3e205e9b207b1645bbbbe9923d199e490522a842356b81 rank=339 distance=0.844948 similarity=0.155052 disposition=outside_top_24
+  ch_fa6745de0b165cb23cee106927f71d1c359f255675b2baa14789a376a48d2a3e rank=107 distance=0.753255 similarity=0.246745 disposition=outside_top_24
+  ch_fa7f4b73d3dce58cc3edb686eb3286b88f20d7cf5c1ef430955ef641aea9b94e rank=174 distance=0.783589 similarity=0.216411 disposition=outside_top_24
+  ch_fab0ba58f5b7665ac655d6d5eb71efacd0f75c3a684c9651f1ea8d5e28bc908d rank=310 distance=0.826233 similarity=0.173767 disposition=outside_top_24
+  ch_fc1032022bb428f7f5d6a2b13a06adabd982d123a425bcd14749e6cf19bffc08 rank=31 distance=0.586165 similarity=0.413835 disposition=outside_top_24
+  ch_fc442664de441e470c44210b940216166403a8f71401b93f4bcd32821d54ecdc rank=39 distance=0.615479 similarity=0.384521 disposition=outside_top_24
+  ch_fd1901a2d3a9fd2cdbf0072e07ebab28a97ad9f49ac39baa02a38ccbddef4400 rank=274 distance=0.814103 similarity=0.185897 disposition=outside_top_24
+  ch_fdb215d45a5e06f163688be4caaaa7ca316b6052396dd2f5696421f976919dc7 rank=78 distance=0.735257 similarity=0.264743 disposition=outside_top_24
+  ch_fe688486a09448ef817f7e6d1aa607879374a8c9fcf165361c28217442c57f5e rank=194 distance=0.791659 similarity=0.208341 disposition=outside_top_24
+  ch_fe8af3515d016bab4e5e3c90267df4e677838dfbcd02bb89032231901ae7b36c rank=80 distance=0.735983 similarity=0.264017 disposition=outside_top_24
+  ch_fe9c2ed4ce92effe1dc41d89ffd501c1e689597015aeb48b0b31aa83f448c233 rank=84 distance=0.740073 similarity=0.259927 disposition=outside_top_24
+  ch_fe9fd798286dd1a9f47c3946942ad49da929d9befe10bd49e0c4cdba08efa59f rank=318 distance=0.830573 similarity=0.169427 disposition=outside_top_24
+  ch_ff1ca62705d111e992e90cdafc764b16962c0b9e90414bb869aedac63b83630f rank=97 distance=0.747708 similarity=0.252292 disposition=outside_top_24
+  ch_ff20289596651d6950cabd8e2bd3993aa3ab0fe9169bf769c8579872328bd1d5 rank=161 distance=0.777702 similarity=0.222298 disposition=outside_top_24
+  ch_ffaa5bb3464f189b5c65780baccebb047adcc4682168117c9a49c0afdef590c4 rank=313 distance=0.826754 similarity=0.173246 disposition=outside_top_24
+Fusion
+  ch_49b77d746dc437c8ef0c9cb6b1e15690086d3d83f0cdb66d725d71df52c3747b fused_rank=1 fused_score=0.031514 lexical_rank=5 semantic_rank=2 breadth=accepted pass=breadth final_rank=1 final=accepted
+  ch_68c74b24ca3851b8535b27e3cee9d4091ecd7e8cb483002e62217e05a4123b73 fused_rank=2 fused_score=0.030478 lexical_rank=1 semantic_rank=11 breadth=accepted pass=breadth final_rank=2 final=accepted
+  ch_c27c96d563e647e154ec9ceba8778ca86b1b42e452bece487ef6aef92eff7c08 fused_rank=3 fused_score=0.030415 lexical_rank=2 semantic_rank=10 breadth=record_cap pass=fill final_rank=7 final=accepted
+  ch_6efcf149ee2763341e7ce63337f84edbf882d0cb1752de5c6e287635768d95ae fused_rank=4 fused_score=0.029380 lexical_rank=17 semantic_rank=1 breadth=record_cap pass=fill final_rank=8 final=accepted
+  ch_6ab4d46dd88b2f3409ffdaf83dd22afb946ef06b657b0b4e125e32fdcddb7d9e fused_rank=5 fused_score=0.029211 lexical_rank=10 semantic_rank=7 breadth=record_cap pass=- final_rank=- final=outside_top_8
+  ch_2b53d4c4e32b641c9bca5df1c1fab320f76ff66864b576a0799d38efc6a60dd3 fused_rank=6 fused_score=0.029083 lexical_rank=13 semantic_rank=5 breadth=record_cap pass=- final_rank=- final=outside_top_8
+  ch_3bf52ae6b5d25f7f243a4f16b6dacb9830293ba00f71764b664d022b4180f965 fused_rank=7 fused_score=0.028860 lexical_rank=3 semantic_rank=17 breadth=record_cap pass=- final_rank=- final=outside_top_8
+  ch_41eb20654bb4c258408c53f19a676f043e261da4c74d2eb34964d390334530ce fused_rank=8 fused_score=0.027971 lexical_rank=21 semantic_rank=4 breadth=record_cap pass=- final_rank=- final=outside_top_8
+  ch_880fe6f34f1382b7aa462ca6d46aa9d3dc0deb0a6cca40e378582b371be58d9c fused_rank=9 fused_score=0.026084 lexical_rank=12 semantic_rank=22 breadth=record_cap pass=- final_rank=- final=outside_top_8
+  ch_c0dc86a74a5811f59de985b0cb763556bcb364ff30323dc5d9b2ef4a6b810c2f fused_rank=10 fused_score=0.025992 lexical_rank=15 semantic_rank=19 breadth=record_cap pass=- final_rank=- final=outside_top_8
+  ch_23cfbbbd391d8c74c1b79a5f1327fa94d3f38e2f03dcf0fdac6985ef80b9c7d9 fused_rank=11 fused_score=0.025859 lexical_rank=14 semantic_rank=21 breadth=record_cap pass=- final_rank=- final=outside_top_8
+  ch_8142375a57fc598ece26fc1eb6d9d1491e7707127803e5aba089788f3f684283 fused_rank=12 fused_score=0.025528 lexical_rank=22 semantic_rank=15 breadth=record_cap pass=- final_rank=- final=outside_top_8
+  ch_279847b2c202e9957b7795c2ddf58d5d4b24a6c3da0a8d1343fca20eea711c42 fused_rank=13 fused_score=0.024725 lexical_rank=24 semantic_rank=18 breadth=record_cap pass=- final_rank=- final=outside_top_8
+  ch_06747391d2a4b2d83e38c7091f4b397af63b9ddea689000e86eb1d93c5f2b090 fused_rank=14 fused_score=0.023953 lexical_rank=23 semantic_rank=24 breadth=record_cap pass=- final_rank=- final=outside_top_8
+  ch_311d195dbaa4a4f6131a6f9e4b833536e72344b9c4968ba880df9487e2ab0ba1 fused_rank=15 fused_score=0.015873 lexical_rank=None semantic_rank=3 breadth=record_cap pass=- final_rank=- final=outside_top_8
+  ch_c289ce1b74673e42b66756136073dd5a3345b53b1cf10c5d7a1ac99c4b2d3ae7 fused_rank=16 fused_score=0.015625 lexical_rank=4 semantic_rank=None breadth=accepted pass=breadth final_rank=3 final=accepted
+  ch_15845966b486f242d6fe8575763f8fea6ff3e2b3f9480076d6259426605d973e fused_rank=17 fused_score=0.015152 lexical_rank=None semantic_rank=6 breadth=record_cap pass=- final_rank=- final=outside_top_8
+  ch_f1c8ca44dffde343b05a5835c7aaf27bf29ba0e5454dbe3be58b0ef2cf050c49 fused_rank=18 fused_score=0.015152 lexical_rank=6 semantic_rank=None breadth=record_cap pass=- final_rank=- final=outside_top_8
+  ch_aa82ce0a8c645272a7d4b24a6697ffec566e022283f8354363375a42cce210bf fused_rank=19 fused_score=0.014925 lexical_rank=7 semantic_rank=None breadth=accepted pass=breadth final_rank=4 final=accepted
+  ch_a4a5da10f303bee582becb3b8665292c2d93e2337ce4647029d7ebda06403677 fused_rank=20 fused_score=0.014706 lexical_rank=8 semantic_rank=None breadth=record_cap pass=- final_rank=- final=outside_top_8
+  ch_f0418532e2fd11c3e8fe65a60689a933bd025bd9dea757965dac8539840807a9 fused_rank=21 fused_score=0.014706 lexical_rank=None semantic_rank=8 breadth=record_cap pass=- final_rank=- final=outside_top_8
+  ch_d5f1f43351c5ef8c0e9b23c57df85e3436152facd2f48dfc60caf5847c55642c fused_rank=22 fused_score=0.014493 lexical_rank=None semantic_rank=9 breadth=record_cap pass=- final_rank=- final=outside_top_8
+  ch_ec5c53b5aee574b3dbe879fa07dddc756912cbbe0833b7ceae3b2731bafd5c68 fused_rank=23 fused_score=0.014493 lexical_rank=9 semantic_rank=None breadth=accepted pass=breadth final_rank=5 final=accepted
+  ch_d7ea7b5a99cd39f6b8d15acc82e60e4e6f13d7a081a0f9f1615077098af346b6 fused_rank=24 fused_score=0.014085 lexical_rank=11 semantic_rank=None breadth=record_cap pass=- final_rank=- final=outside_top_8
+  ch_e78dc9ab9c0b2df8d86d39c374eefb5b2fcd15b82a1b2606ec719889000f53f9 fused_rank=25 fused_score=0.013889 lexical_rank=None semantic_rank=12 breadth=record_cap pass=- final_rank=- final=outside_top_8
+  ch_0a3413920cb7199556fb404da7f796dee2d94412a316a14b8b6314409f5ee14a fused_rank=26 fused_score=0.013699 lexical_rank=None semantic_rank=13 breadth=record_cap pass=- final_rank=- final=outside_top_8
+  ch_67f8801d2a1f191e2fc7ffcac0b836a84058368ac2774defbe431d4a9d515d94 fused_rank=27 fused_score=0.013514 lexical_rank=None semantic_rank=14 breadth=record_cap pass=- final_rank=- final=outside_top_8
+  ch_05021610fce543fa6c1b9d533038c1d2f7436bf217ce74c50f8db3108835deaf fused_rank=28 fused_score=0.013158 lexical_rank=None semantic_rank=16 breadth=record_cap pass=- final_rank=- final=outside_top_8
+  ch_31cd71fbff5598b065f90eb9a9f04cc9cdbaf8307052330e8fdb9c99f3c1c0af fused_rank=29 fused_score=0.013158 lexical_rank=16 semantic_rank=None breadth=record_cap pass=- final_rank=- final=outside_top_8
+  ch_f66a7f5682ad0d233bae5250537314e33f02ea551ecb39eb8e393987fe4810c7 fused_rank=30 fused_score=0.012821 lexical_rank=18 semantic_rank=None breadth=record_cap pass=- final_rank=- final=outside_top_8
+  ch_7c30accf496db42bde9ce9132c59f11c732dc5a64ba2fe206e320c2b564ca637 fused_rank=31 fused_score=0.012658 lexical_rank=19 semantic_rank=None breadth=record_cap pass=- final_rank=- final=outside_top_8
+  ch_1fbfa69a0fffa5e5fce56338b7381e44ce97ca2111c964e73ed6c9faab9fa883 fused_rank=32 fused_score=0.012500 lexical_rank=None semantic_rank=20 breadth=record_cap pass=- final_rank=- final=outside_top_8
+  ch_8e62dfe54eaf67df38411752b544a643e65a69d373e3a8f5b278d72a0bffb4ac fused_rank=33 fused_score=0.012500 lexical_rank=20 semantic_rank=None breadth=accepted pass=breadth final_rank=6 final=accepted
+  ch_68b128d607b1d2de9adbc29a3d124762e94a4ffd781121de4f5571aad3cef3b8 fused_rank=34 fused_score=0.012048 lexical_rank=None semantic_rank=23 breadth=record_cap pass=- final_rank=- final=outside_top_8
+Diversity
+  accepted_limit: 8
+  record_cap: 2
+  accepted: ch_49b77d746dc437c8ef0c9cb6b1e15690086d3d83f0cdb66d725d71df52c3747b,ch_68c74b24ca3851b8535b27e3cee9d4091ecd7e8cb483002e62217e05a4123b73,ch_c289ce1b74673e42b66756136073dd5a3345b53b1cf10c5d7a1ac99c4b2d3ae7,ch_aa82ce0a8c645272a7d4b24a6697ffec566e022283f8354363375a42cce210bf,ch_ec5c53b5aee574b3dbe879fa07dddc756912cbbe0833b7ceae3b2731bafd5c68,ch_8e62dfe54eaf67df38411752b544a643e65a69d373e3a8f5b278d72a0bffb4ac,ch_c27c96d563e647e154ec9ceba8778ca86b1b42e452bece487ef6aef92eff7c08,ch_6efcf149ee2763341e7ce63337f84edbf882d0cb1752de5c6e287635768d95ae
+Settings
+  tokenizer: lexical-tokenizer-v1
+  stopword_set: lexical-stopwords-v1
+  stopword_digest: fe2b3373712ce97c07caa0da916d1e2bc8bff4f3ba44a109ad059bd8f2459db6
+  bm25: BM25Okapi (k1=1.5,b=0.75)
+  lexical_limit: 24
+  semantic_limit: 24
+  rrf_constant: 60
+  accepted_limit: 8
+  diversity_cap: 2
+  collection_metric: cosine
+  relevance_floor: None
+Facets
+  F1: Why was the private beta access gate added?
+  F2: What was the alternative?
+Draft
+  S1: The private beta access gate was added to ensure that only approved users can access certain features, while unapproved users are redirected to a private beta screen, preventing unauthorized access to paid routes. [ch_68c74b24ca3851b8535b27e3cee9d4091ecd7e8cb483002e62217e05a4123b73,ch_6efcf149ee2763341e7ce63337f84edbf882d0cb1752de5c6e287635768d95ae]
+  S2: The alternative considered was to render the private beta panel in place on each page, but it was rejected because it required wiring into four pages and left the navbar rendered, showing navigation that led nowhere useful. [ch_49b77d746dc437c8ef0c9cb6b1e15690086d3d83f0cdb66d725d71df52c3747b]
+Verification
+  S1 containment=False
+  S2 containment=False
+  removed S1
+  F1 covered=False [] reason=The sentence does not explain why the private beta access gate was added; it only discusses the alternative and why it was rejected.
+  F2 covered=True [S2] reason=The sentence directly states that the alternative considered was to render the private beta panel in place on each page.
+  uncovered F1: Why was the private beta access gate added?
+Sub claims
+  S2.1 (S2): The alternative considered was to render the private beta panel in place on each page.
+    contained=False entailment=supported [ch_49b77d746dc437c8ef0c9cb6b1e15690086d3d83f0cdb66d725d71df52c3747b]
+    reason=The evidence explicitly states that rendering the private beta panel in place on each page was an alternative considered.
+  S2.2 (S2): It was rejected.
+    contained=False entailment=supported [ch_49b77d746dc437c8ef0c9cb6b1e15690086d3d83f0cdb66d725d71df52c3747b]
+    reason=The evidence explicitly states that something was 'rejected' due to specific reasons, which directly supports the candidate sentence.
+  S2.3 (S2): It required wiring into four pages.
+    contained=False entailment=supported [ch_49b77d746dc437c8ef0c9cb6b1e15690086d3d83f0cdb66d725d71df52c3747b]
+    reason=The evidence explicitly states that the panel has to be wired into four pages, directly supporting the candidate sentence.
+  S2.4 (S2): It left the navbar rendered.
+    contained=False entailment=supported [ch_49b77d746dc437c8ef0c9cb6b1e15690086d3d83f0cdb66d725d71df52c3747b]
+    reason=The evidence states that 'the navbar also stays rendered around it,' which directly supports the candidate sentence that it left the navbar rendered.
+  S2.5 (S2): The navbar showed navigation that led nowhere useful.
+    contained=False entailment=supported [ch_49b77d746dc437c8ef0c9cb6b1e15690086d3d83f0cdb66d725d71df52c3747b]
+    reason=The evidence explicitly states that the screen shows navigation that goes nowhere useful, which directly supports the candidate sentence.
+  rejected_decomposition S1 count=6 disposition=incomplete additive_failure= failure_side=parent failure_token=while
+  dropped_sentence S1 reason=decomposition_invalid
+Providers
+  embedding attempt=1 elapsed_ms=526 outcome=success prompt_tokens=0 completion_tokens=0
+  facets attempt=1 elapsed_ms=847 outcome=success prompt_tokens=130 completion_tokens=36
+  answer attempt=1 elapsed_ms=2026 outcome=success prompt_tokens=2703 completion_tokens=225
+  decompose attempt=1 elapsed_ms=1592 outcome=success prompt_tokens=582 completion_tokens=125
+  decompose attempt=1 elapsed_ms=1343 outcome=success prompt_tokens=582 completion_tokens=100
+  decompose attempt=1 elapsed_ms=1055 outcome=success prompt_tokens=323 completion_tokens=64
+  entailment attempt=1 elapsed_ms=734 outcome=success prompt_tokens=222 completion_tokens=28
+  entailment attempt=1 elapsed_ms=770 outcome=success prompt_tokens=210 completion_tokens=31
+  entailment attempt=1 elapsed_ms=889 outcome=success prompt_tokens=213 completion_tokens=29
+  entailment attempt=1 elapsed_ms=946 outcome=success prompt_tokens=212 completion_tokens=34
+  entailment attempt=1 elapsed_ms=1011 outcome=success prompt_tokens=215 completion_tokens=29
+  coverage attempt=1 elapsed_ms=1254 outcome=success prompt_tokens=295 completion_tokens=86
+Citations
+Result
+  state: abstained
+  abstention_stage: claim_verification
+  freshness: current
+  stale_markers: 
