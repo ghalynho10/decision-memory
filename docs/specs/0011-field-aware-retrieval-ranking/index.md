@@ -1,7 +1,7 @@
 # 0011. Field aware retrieval ranking
 
 **Date**: 2026-08-14
-**Status**: Proposed
+**Status**: In Progress
 
 ## Summary
 

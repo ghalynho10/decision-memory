@@ -19,6 +19,8 @@ uv run decision-memory # run the CLI
 uv build               # build
 uv run pytest          # test (unit suite; integration excluded)
 uv run pytest -m integration   # integration suite: real OpenAI, Chroma, live JobPilot
+uv run --env-file .env decision-memory evaluate CORPUS --runs N   # evaluation harness, live
+# evaluate --battery PATH runs a fixture battery from a manifest; its parent directory is the corpus root
 # live provider runs: uv run --env-file .env decision-memory ... (uv run does not auto load .env)
 ```
 
