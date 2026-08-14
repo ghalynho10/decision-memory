@@ -14,6 +14,8 @@ import unicodedata
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from decision_memory.application.morphology import _stem_match
+
 
 def normalize_for_containment(text: str) -> str:
     """NFKC, case folding, LF normalization, and whitespace collapse."""
@@ -112,13 +114,6 @@ FUNCTION_WORDS = frozenset(
 # adding ``is``, ``not``, and ``there`` fails on the third.
 MAX_ADDED_FUNCTION_WORDS = 2
 
-# The plain suffixes that make a longer token an inflection of a shorter one.
-INFLECTION_SUFFIXES = ("s", "es", "ed", "ing")
-
-# The floor a shorter token must reach before any inflection rule may match
-# it, measured on the untransformed token (spec 0010 AC-11).
-MIN_STEM_LENGTH = 3
-
 # The edge punctuation stripped from a token; internal apostrophes and
 # hyphens remain (spec 0010 AC-11).
 _TOKEN_STRIP = ".,;:!?\"'()[]{}<>"
@@ -139,39 +134,6 @@ def sentence_tokens(text: str) -> list[str]:
         if stripped:
             tokens.append(stripped)
     return tokens
-
-
-def _stem_match(a: str, b: str) -> bool:
-    """True when two content tokens share a stem (spec 0010 AC-11).
-
-    The five exact rules, naming the two tokens by length: ``longer`` equals
-    ``shorter``; or ``longer`` is ``shorter`` plus ``s``, ``es``, ``ed``, or
-    ``ing``; or ``shorter`` loses a final ``e`` and gains ``ed`` or ``ing``
-    (``use`` and ``using``); or ``shorter`` repeats its own final character
-    and gains ``ed`` or ``ing`` (``ship`` and ``shipped``); or ``shorter``
-    trades a final ``y`` for ``i`` and gains ``es`` or ``ed`` (``rely`` and
-    ``relies``).
-
-    The four inflection rules require ``shorter`` to reach
-    ``MIN_STEM_LENGTH``, measured on the untransformed token. Exact equality
-    carries no floor, and ``tokens_match`` settles it before reaching here.
-    """
-    if a == b:
-        return True
-    shorter, longer = (a, b) if len(a) < len(b) else (b, a)
-    if len(shorter) < MIN_STEM_LENGTH:
-        return False
-    if any(longer == shorter + suffix for suffix in INFLECTION_SUFFIXES):
-        return True
-    for suffix in ("ed", "ing"):
-        if shorter.endswith("e") and longer == shorter[:-1] + suffix:
-            return True
-        if longer == shorter + shorter[-1] + suffix:
-            return True
-    return any(
-        shorter.endswith("y") and longer == shorter[:-1] + "i" + suffix
-        for suffix in ("es", "ed")
-    )
 
 
 def tokens_match(a: str, b: str) -> bool:
