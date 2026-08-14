@@ -29,6 +29,7 @@ _You are in charge. Every box below is a suggestion, not a gate: run any, skip a
 | 16 | Abstention verification reliability | Slice 3 | in-progress |
 | 17 | Retrieval query hardening | Slice 2 | planned |
 | 18 | Corpus gap and staleness awareness | Slice 3 | planned |
+| 19 | Field aware retrieval ranking | Slice 2 | in-progress |
 
 ## Foundations
 
@@ -158,6 +159,23 @@ Fix four unresolved minors from the feature 10 review (`docs/reviews/2026-08-11-
 **Done when:** all four are fixed and regression locked by tests, per the review's suggested fixes.
 - [ ] Build it: `/develop retrieval query hardening`
 
+**Overlap with feature 19:** the fourth minor, the dead `QUERY_SCHEMA_VERSION`, is closed by spec 0011 AC-5, which uses the constant at all three call sites while bumping it to 3. Do not fix it twice; whichever feature lands first takes it.
+
+### 19. Field aware retrieval ranking · from spec 0011
+Retrieval never surfaces a `decision.chosen` chunk for a question asking what was decided, so the answer gets built from body prose about the decision and entailment correctly refuses it. Three causes, all verified in code and in the frozen transcripts: the two retrievers do not read the same document, since only the semantic side is told which field a chunk is; reciprocal rank fusion scores a missing contribution as zero behind a top 24 cut, so no chunk found by one retriever can ever beat a chunk found by both; and the tokenizer has no morphology, so a question asking what was `decided` cannot match anything. Fixed by making the field kind visible to keyword search in plain words, letting every ranked chunk contribute at any rank, and adding word ending awareness. Retrieval stays blind to what kind of question it was asked, and nothing stored changes, so no index rebuild.
+**Done when:** DM-0008's `decision.chosen` chunk is in the accepted eight in 6 of 6 fixture runs, and the JobPilot `query-2-resume-generation` oracle checks where the answer came from rather than only what it says. The end to end gate result is recorded with its stage attribution but does not block, since what remains failing there belongs to spec 0010's verification stack.
+**Carried from:** experiment 0007 finding 3, which routed the retrieval side decision to `/architect`. Spec 0008 Follow-up item 4 (structured query types) stays deferred: this is a ranking problem, not a new query mode.
+spec [0011](../specs/0011-field-aware-retrieval-ranking/index.md) · code in src/decision_memory/
+- [x] Design it (spec): `/architect field aware retrieval ranking`
+- [ ] Build it: `/develop field aware retrieval ranking`
+  - [ ] Move the field label mapping into the application layer, reword `decision.chosen` for lexical alignment, and compose the lexical document (AC-1, AC-2, AC-11)
+  - [ ] Remove fusion eligibility, retire the top 24 boundary and its two settings fields, and advance the query schema to 3 (AC-3, AC-4, AC-5, AC-11)
+  - [ ] Share the morphology rule family across retrieval and verification, and advance to `lexical-tokenizer-v2` with the pinned `morphology-v1` stemmer (AC-6, AC-7, AC-11)
+  - [ ] Strengthen the JobPilot `query-2-resume-generation` oracle, then run the blocking bar and write the numbered experiment (AC-8, AC-9, AC-10, AC-12, AC-13)
+  - [ ] Complete the deterministic tests, ruff, strict mypy, and the layering check (AC-14)
+- [ ] Verify it: `/check verify field aware retrieval ranking`
+- [ ] Test it: `/test field aware retrieval ranking`
+
 ## Slice 3: Proven correctness (evaluation harness)
 
 ### 11. Proven correctness (evaluation harness) · done
@@ -261,6 +279,7 @@ Out of scope for the current build pass, kept so the plan stays honest.
 - **Enforce no expected answers in spec prose** (from spec 0010 AC-14): holding spec 0010 out of its own gate fixes one gate; the rule that stops the next spec contaminating a different gate is discipline only, and nothing checks it. A cheap lint over `docs/specs/` for the gate manifest's query and answer strings would close it. Not scoped now because one gate does not justify the machinery; revisit when a second gate exists.
 - **Fixture re baselining trigger** (from spec 0010 AC-14): the frozen self corpus fixture goes stale by design and only a deliberate regeneration surfaces the drift through its manifest hashes. What should prompt one (a spec count change, a release, or nothing at all) is left open until the gate has run enough times for the staleness cost to be observed rather than guessed.
 - **Vacuous abstention on the live gates** (from spec 0010 AC-15): the self corpus gate now names the abstention cause it expects, so an abstention caused by every sentence being dropped stops counting as the behaviour being gated. The JobPilot abstention gates still pass on `expected_state` alone, and experiment 0002 already recorded query 5 abstaining 6 of 6 as an artifact of wholesale rejection rather than a verdict. `expected_abstention` is built as an optional `QueryOracle` field precisely so it can be applied to query 5, the unverifiable claim assertion, and query 4, and it is deliberately not applied there yet so feature 16 changes one measurable thing at a time. Revisit after the live batches report.
+- **Embedding prefix onto the plain words field mapping** (from spec 0011): the two retrievers deliberately read different documents, the semantic side the dotted `value_path` and the lexical side the plain words label. Moving both onto one mapping is the cleaner invariant and the only thing making it a bad trade today is the forced rebuild: `prefix_version` is hashed into `pipeline_signature`, so changing it locks every existing store out until rebuilt and makes the experiment 0004 to 0007 baselines incomparable. Bound to a condition rather than left open: land it with the next pipeline signature bump that happens for an independent reason, when the rebuild is already being paid for.
 - **Verify records**: review separately from code reviews even though they also live in the validation corpus. They are the same genre as the `verify.md` files already excluded from contributing files: procedural acceptance criteria evidence, not decision content. They stay excluded for that reason, not because they are recommendations.
 
 ## Legend
