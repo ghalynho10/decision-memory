@@ -40,6 +40,9 @@ from decision_memory.application.query import (
     query_index,
 )
 from decision_memory.application.verification import (
+    CLAUSE_CONNECTIVES,
+    COMPLETENESS_EXEMPT,
+    FUNCTION_WORDS,
     MAX_SUB_CLAIMS,
     RETRYABLE_DISPOSITIONS,
     classify_decomposition,
@@ -289,6 +292,75 @@ def test_the_named_residual_risk_of_the_wider_completeness_half() -> None:
     degenerate_parent = "The pipeline was dropping bullets, and it drops a bullet."
     assert response_is_complete((kept,), sentence_tokens(degenerate_parent)) is None
     assert classify_decomposition((kept,), degenerate_parent) is None
+
+
+def test_the_omission_attack_survives_the_completeness_exemption() -> None:
+    """The AC-1 omission attack still fails after the AC-21 exemption.
+
+    This is the second widening of the completeness half in two days, and the
+    two compound: the base set matcher widened what counts as a match, and
+    this removes tokens from the demand entirely. So the attack is **re
+    proven** here rather than assumed to survive, exactly as it was re proven
+    against the matcher.
+
+    It survives for the reason AC-21 names: a fabricated decision names an
+    entity, an action, or a property, and every word that does so is a noun, a
+    lexical verb, or an adjective, none of which is ever exempt under either
+    rule.
+    """
+    # The omitted clause carries a connective the exemption newly reaches,
+    # and it is still caught on its own content noun.
+    parent = (
+        "The pipeline drops the offending bullet, whereas the reviewer "
+        "accepted the audit."
+    )
+    kept = "The pipeline drops the offending bullet."
+    assert "whereas" in CLAUSE_CONNECTIVES
+    assert response_is_complete((kept,), sentence_tokens(parent)) == "reviewer"
+    assert classify_decomposition((kept,), parent) == "incomplete"
+
+    # The original weld attack is unmoved: it fails on `accepted`, and no
+    # exempt word stands between the check and that token.
+    assert "accepted" not in COMPLETENESS_EXEMPT
+
+
+def test_an_omitted_clause_of_only_exempt_words_passes_completeness() -> None:
+    """The boundary AC-21 widened, pinned rather than claimed unreachable.
+
+    A clause carrying no lexical verb, noun, or adjective can now be omitted
+    without failing completeness, and such a clause can still assert
+    something. The copulas and negators were already exempt, so the class
+    existed before this change; what AC-21 adds is new syntactic doors into
+    it. This test stands on that residual instead of a sentence in the spec:
+    if it ever starts failing, the boundary has moved and that is a finding,
+    not a broken test.
+
+    The case is built deliberately, and two things have to be true of it at
+    once. It must **assert something**, which the copula and the negator give
+    it, since a negated identity is a real predication. And it must exercise
+    **this** amendment rather than today's behaviour, which is why the
+    connective is ``although``, a new member: a clause whose every token was
+    already in ``FUNCTION_WORDS`` would pass before and after the change and
+    would prove nothing about the widening.
+    """
+    parent = "The gate treated the answer as supported, although it was not."
+    kept = "The gate treated the answer as supported."
+    # Every word of the omitted clause is exempt, and `although` is exempt
+    # only because of this amendment.
+    assert "although" in CLAUSE_CONNECTIVES
+    assert "although" not in FUNCTION_WORDS
+    for word in ("it", "was", "not"):
+        assert word in FUNCTION_WORDS
+    # The documented residual: the omission passes completeness.
+    assert response_is_complete((kept,), sentence_tokens(parent)) is None
+    assert classify_decomposition((kept,), parent) is None
+
+    # The boundary is real and narrow. A word held out by either exclusion
+    # rule still catches the same omission, so the exemption reaches the
+    # clause relating words and stops there.
+    excluded = "The gate treated the answer as supported, still it was not."
+    assert "still" not in COMPLETENESS_EXEMPT
+    assert response_is_complete((kept,), sentence_tokens(excluded)) == "still"
 
 
 def test_valid_fully_supported_response_emits_the_whole_parent() -> None:

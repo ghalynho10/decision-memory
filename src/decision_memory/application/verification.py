@@ -109,6 +109,91 @@ FUNCTION_WORDS = frozenset(
     }
 )
 
+# The closed clause relating set (spec 0010 AC-21, enumerated in Feature
+# design). A word belongs here when it relates one clause to another, so that
+# a decomposition into standalone one clause statements leaves it nothing to
+# do. That is decidable by construction: split the sentence and ask whether the
+# word still has work. The set is enumerated from that rule, never from the
+# next observed failure, and adding a word is a spec edit.
+#
+# Two exclusion rules keep words out, and both matter more than the inclusions.
+# A word whose primary use is a lexical verb, noun, or adjective stays a
+# content token (``provided``, ``given``, ``granted``, ``considering``,
+# ``seeing``). A word whose second use is truth conditional (a quantity, a
+# comparison, a time, a degree, a manner) stays demanded too, which is why
+# every temporal subordinator and every correlative marker except ``whether``
+# is absent (``once``, ``still``, ``after``, ``than``, ``both``, and the rest).
+#
+# Members already in ``FUNCTION_WORDS`` are not repeated: the union covers
+# them, and the two sets are disjoint by construction. The categories below are
+# a reader's aid written as source comments inside the one flat literal; they
+# are not a nested structure and nothing flattens anything at runtime.
+CLAUSE_CONNECTIVES = frozenset(
+    {
+        # coordinating conjunctions
+        "yet",
+        # subordinating conjunctions
+        "albeit",
+        "although",
+        "lest",
+        "though",
+        "unless",
+        "whereas",
+        "whether",
+        "while",
+        "whilst",
+        # conjunctive adverbs
+        "accordingly",
+        "additionally",
+        "also",
+        "anyway",
+        "consequently",
+        "conversely",
+        "furthermore",
+        "hence",
+        "however",
+        "indeed",
+        "instead",
+        "likewise",
+        "meanwhile",
+        "moreover",
+        "namely",
+        "nevertheless",
+        "nonetheless",
+        "otherwise",
+        "rather",
+        "regardless",
+        "subsequently",
+        "therefore",
+        "thereby",
+        "thus",
+        # relative and interrogative pro-forms
+        "how",
+        "whatever",
+        "whenever",
+        "where",
+        "whereby",
+        "wherein",
+        "whereupon",
+        "wherever",
+        "whichever",
+        "who",
+        "whoever",
+        "whom",
+        "whose",
+        "why",
+        # correlative markers: none survive the second exclusion rule
+    }
+)
+
+# The set the completeness half exempts, and its only reader is
+# ``response_is_complete`` (spec 0010 AC-21). The two halves of the AC-11
+# validity test deliberately no longer read one vocabulary: the additive half
+# keeps ``FUNCTION_WORDS`` alone, because nothing measured implicates it and it
+# is the guard standing behind AC-2. So the same word can be a function word to
+# one half and a content token to the other, and ``while`` is exactly that.
+COMPLETENESS_EXEMPT = FUNCTION_WORDS | CLAUSE_CONNECTIVES
+
 # How many function word tokens one sub claim may add without a parent match,
 # counted as instances whatever the words are (spec 0010 AC-11): a sub claim
 # adding ``is``, ``not``, and ``there`` fails on the third.
@@ -240,12 +325,22 @@ def response_is_complete(
     a token in at least one sub claim. Matching is presence based, not
     multiset based, so one occurrence in one sub claim satisfies every
     occurrence of that token in the parent, and a response that splits one
-    parent clause across two sub claims still passes. Parent function words
-    need no match.
+    parent clause across two sub claims still passes. Parent tokens in
+    ``COMPLETENESS_EXEMPT`` need no match: the function words, plus the clause
+    relating words a decomposition into standalone clauses dissolves by
+    construction (spec 0010 AC-21). This is the one place the two halves of the
+    validity test read different sets, and the divergence is the decision: the
+    additive half still reads ``FUNCTION_WORDS`` alone, so a connective a sub
+    claim *introduces* is still content there.
 
     This is the half that stops the decomposition quietly dropping a clause,
     the omission attack of AC-1: a dropped clause takes its content words out
-    of the response entirely.
+    of the response entirely. The exemption widens that half for the second
+    time in two days, and the residual is named rather than closed: a clause
+    carrying no lexical verb, noun, or adjective can now be omitted without
+    failing completeness. A fabricated decision names an entity, an action, or
+    a property, and every word that does so is a noun, a lexical verb, or an
+    adjective, none of which is ever exempt.
 
     Returns ``None`` when the response is complete, otherwise the first parent
     content token no sub claim matched, in parent token order (spec 0010
@@ -259,7 +354,7 @@ def response_is_complete(
         token for text in sub_claim_texts for token in sentence_tokens(text)
     ]
     for parent_token in parent_tokens:
-        if parent_token in FUNCTION_WORDS:
+        if parent_token in COMPLETENESS_EXEMPT:
             continue
         if not any(tokens_match(parent_token, token) for token in response_tokens):
             return parent_token
