@@ -1,0 +1,15 @@
+=== BATCH B Fri Aug 14 19:35:35 EDT 2026 ===
+records: /var/folders/6v/q6d9mcg54sj81160wq5ffpgc0000gn/T/decision-memory-evaluate-records-ia511tth (temporary, removed on exit)
+store: /var/folders/6v/q6d9mcg54sj81160wq5ffpgc0000gn/T/decision-memory-evaluate-store-fecic8zq (temporary, removed on exit)
+PASS query-1-private-beta-gate (3/3 runs): 3/3 runs passed
+FAIL query-2-resume-generation (0/3 runs): 0/3 runs passed; expected answered, got abstained
+FAIL query-3-provisional (0/3 runs): 0/3 runs passed; expected answered, got abstained
+PASS query-4-db-clients (3/3 runs): 3/3 runs passed
+PASS query-5-uploaded-files (3/3 runs): 3/3 runs passed
+FAIL assertion-rationale-summary (1/3 runs): 1/3 runs passed; expected answered, got abstained
+PASS assertion-unverifiable-claim (3/3 runs): 3/3 runs passed
+PASS assertion-incremental-reingest: record DM-0006 chunks changed after the rationale.md edit (23 -> 46 chunk ids)
+result: 5 passed, 3 failed
+final: failed
+uv run --env-file .env decision-memory evaluate "$CORPUS" --runs 3  8.15s user 1.19s system 3% cpu 3:58.45 total
+exit=1

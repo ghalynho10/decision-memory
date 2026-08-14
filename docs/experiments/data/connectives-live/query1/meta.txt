@@ -1,0 +1,26 @@
+corpus:   /Users/ghaly/Documents/Work/Personal/job_pilot
+question: Why was the private beta access gate added, and what was the alternative?
+runs:     3
+adapt exit 0
+ingest exit 0
+run 1 exit 0
+run 2 exit 0
+run 3 exit 0
+
+--- run 1 ---
+  state: current
+  rejected_decomposition S3 count=8 disposition=not_additive additive_failure=content_token failure_side=sub_claim failure_token=rejection
+  dropped_sentence S3 reason=decomposition_invalid
+  state: answered
+--- run 2 ---
+  state: current
+  rejected_decomposition S3 count=6 disposition=not_additive additive_failure=content_token failure_side=sub_claim failure_token=rejection
+  dropped_sentence S3 reason=decomposition_invalid
+  state: answered
+--- run 3 ---
+  state: current
+  uncovered F1: Why was the private beta access gate added?
+  rejected_decomposition S1 count=8 disposition=duplicate additive_failure= failure_side= failure_token=
+  dropped_sentence S1 reason=decomposition_invalid
+  state: abstained
+  abstention_stage: claim_verification

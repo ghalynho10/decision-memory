@@ -1,0 +1,19 @@
+adapter: jsmastery-specs 5
+discovered 15 specs, skipped 0
+  written DM-0001
+  written DM-0002
+  written DM-0003
+  written DM-0004
+  written DM-0005
+  written DM-0006
+  written DM-0007
+  written DM-0008
+  written DM-0009
+  written DM-0010
+  written DM-0011
+  written DM-0012
+  written DM-0013
+  written DM-0015
+  written DM-0019
+result: written 15
+output: /Users/ghaly/Documents/Work/Personal/decision-memory/docs/experiments/data/connectives-live/query1/records

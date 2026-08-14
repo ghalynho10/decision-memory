@@ -1,0 +1,18 @@
+plan: added 15, updated 0, unchanged 0, removed 0, failed 0
+added DM-0001
+added DM-0002
+added DM-0003
+added DM-0004
+added DM-0005
+added DM-0006
+added DM-0007
+added DM-0008
+added DM-0009
+added DM-0010
+added DM-0011
+added DM-0012
+added DM-0013
+added DM-0015
+added DM-0019
+result: completed
+output: docs/experiments/data/connectives-live/query2/index
