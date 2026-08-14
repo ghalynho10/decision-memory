@@ -668,6 +668,16 @@ AC-19 requires this rule to exist before the runs, and to be written by whoever 
 
 **What makes it checkable.** Every judged sentence is quoted verbatim in experiment 0007's per run records, so a later reader can apply this rule to the same sentences and disagree. That is the closest a semantic measure gets to reproducible, and it is the standard experiment 0006 set when it quoted S1 and S4.
 
+### The AC-16 caveat miss count, recorded (2026-08-13, from the task 17 runs)
+
+AC-16 requires the count to live here, as a fraction with its denominator, whenever the gate runs after the instruction change.
+
+**Numerator 0, denominator 0. Not exercised, so the trigger fires nothing and the instruction stands.** The decision facet's coverage row came back uncovered in all 6 runs, so no run had a covered decision row for a caveat to have wrongly covered. The AC-12 escalation count, coverage covering a decision facet with a sentence that only describes what the system does, is 0 over 0 for the same reason and is equally unexercised.
+
+The denominator is zero for a different reason than the one experiment 0005 recorded, and the difference matters more than the repeated zero. There, coverage ran in every run and refused 11 sentences, the caveat among them. Here **coverage judged nothing at all**: every draft sentence was dropped before it, so the deterministic no sentence path applied in all 12 runs. A reader comparing the two zeros should not read them as the same observation twice.
+
+This is the second consecutive measurement where AC-16's trigger cannot fire. That is not evidence the guard is unnecessary; it is evidence the pipeline has never put the guard in a position to be needed. The count stays unreadable until the answering half starts landing, which experiment 0007 finding 3 shows is blocked on retrieval rather than on anything AC-16 or AC-18 touches.
+
 ## Rationale
 
 Sub claim decomposition is the chosen option because it removes the hiding place the spec 0008 evidence identified. Three entailment prompt variants failed on the whole sentence, which rules out prompt tuning and points at the unit. Verifying each sub claim alone means the invented decision no longer carries its verbatim support inside the sentence it is verified against. The deterministic span floor was rejected because it would reject legitimate paraphrases and can regress query 2; the generation rewrite was rejected because it is the largest surface change for the same goal; the stronger model was rejected because the documented failure is structural, not model capability; deterministic clause splitting (Option 5) was rejected because it only catches fusion at a syntactic seam, and the model call generalizes to fusions that have none.
