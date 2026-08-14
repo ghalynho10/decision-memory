@@ -82,6 +82,7 @@ from decision_memory.application.pipeline import (
 from decision_memory.application.store_format import STORE_FORMAT_VERSION
 from decision_memory.application.verification import (
     RETRYABLE_DISPOSITIONS,
+    DecompositionVerdict,
     classify_decomposition_detail,
     deterministic_containment,
 )
@@ -635,8 +636,7 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
         # decomposition is usually a stochastic paraphrase rather than a
         # property of the sentence; an over cap or duplicate response is
         # rejected outright (AC-11).
-        rejection: str | None = None
-        additive_failure = ""
+        verdict = DecompositionVerdict(None)
         sub_claim_texts: tuple[str, ...] = ()
         for attempt in range(2):
             try:
@@ -653,10 +653,11 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
                 )
             if not sub_claim_texts:
                 break
-            rejection, additive_failure = classify_decomposition_detail(
-                sub_claim_texts, sentence.text
-            )
-            if rejection is None or rejection not in RETRYABLE_DISPOSITIONS:
+            verdict = classify_decomposition_detail(sub_claim_texts, sentence.text)
+            if (
+                verdict.disposition is None
+                or verdict.disposition not in RETRYABLE_DISPOSITIONS
+            ):
                 break
             if attempt == 1:
                 break
@@ -670,17 +671,22 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
                 DroppedSentence(sentence.sentence_id, "decomposition_invalid")
             )
             continue
-        if rejection is not None:
+        if verdict.disposition is not None:
             # Invalid response: one closed disposition, paired with one
             # dropped sentence row, so the two are one event described at two
             # levels. No entailment call is made, and rejected claim text is
-            # never recorded (AC-6, AC-11).
+            # never recorded (AC-6, AC-11). The trailing three fields are the
+            # observational detail: why the additive half stopped, the token
+            # it stopped on, and which half that token came from (AC-19,
+            # AC-20).
             rejected_decompositions.append(
                 RejectedDecomposition(
                     sentence.sentence_id,
                     len(sub_claim_texts),
-                    rejection,
-                    additive_failure,
+                    verdict.disposition,
+                    verdict.additive_failure,
+                    verdict.failure_token,
+                    verdict.failure_side,
                 )
             )
             removed.append(sentence.sentence_id)

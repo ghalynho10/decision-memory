@@ -219,7 +219,9 @@ def test_omitted_fabricated_clause_fails_completeness_and_drops_the_parent() -> 
     assert result.state == QueryState.ABSTAINED
     assert result.sentences == ()
     assert result.trace.verification.rejected_decompositions == (
-        RejectedDecomposition("S1", 1, "incomplete"),
+        # The omitted clause is caught on its own content noun, and the row
+        # names it and the half it came from (AC-20).
+        RejectedDecomposition("S1", 1, "incomplete", "", "accepted", "parent"),
     )
     assert result.trace.verification.dropped_sentences == (
         DroppedSentence("S1", "decomposition_invalid"),
@@ -638,7 +640,9 @@ def test_second_invalid_response_drops_the_parent_with_its_disposition() -> None
     assert result.state == QueryState.ABSTAINED
     assert len(calls) == 2
     assert result.trace.verification.rejected_decompositions == (
-        RejectedDecomposition("S1", 2, "not_additive", "content_token"),
+        RejectedDecomposition(
+            "S1", 2, "not_additive", "content_token", "bought", "sub_claim"
+        ),
     )
     assert result.trace.verification.dropped_sentences == (
         DroppedSentence("S1", "decomposition_invalid"),
@@ -684,7 +688,9 @@ def test_exactly_one_drop_reason_per_unemitted_sentence() -> None:
     assert len(sentence_ids) == len(set(sentence_ids))
     # The `decomposition_invalid` row pairs with its specific disposition.
     assert result.trace.verification.rejected_decompositions == (
-        RejectedDecomposition("S2", 1, "not_additive", "content_token"),
+        RejectedDecomposition(
+            "S2", 1, "not_additive", "content_token", "bought", "sub_claim"
+        ),
     )
 
 
@@ -853,8 +859,12 @@ def _additive(sub_claim: str, parent: str) -> bool:
 
 
 def _complete(sub_claims: tuple[str, ...], parent: str) -> bool:
-    """Whether a response passes the completeness half against the parent."""
-    return response_is_complete(sub_claims, sentence_tokens(parent))
+    """Whether a response passes the completeness half against the parent.
+
+    ``response_is_complete`` returns the first omitted parent content token, or
+    None when the response is complete, so passing is ``is None`` (AC-20).
+    """
+    return response_is_complete(sub_claims, sentence_tokens(parent)) is None
 
 
 def test_additive_half_accepts_a_subset_and_rejects_invented_content() -> None:
@@ -1207,7 +1217,13 @@ def test_debug_trace_renders_dropped_sentence(capsys) -> None:
 
 
 def _category(sub_claims: tuple[str, ...], parent: str) -> tuple[str | None, str]:
-    return classify_decomposition_detail(sub_claims, parent)
+    """The verdict's disposition and additive category, as a pair.
+
+    The AC-20 token and side have their own section below; this helper keeps
+    the AC-19 assertions reading as the two values they are about.
+    """
+    verdict = classify_decomposition_detail(sub_claims, parent)
+    return verdict.disposition, verdict.additive_failure
 
 
 def test_an_unmatched_content_token_records_content_token() -> None:
@@ -1223,12 +1239,9 @@ def test_an_unmatched_content_token_records_content_token() -> None:
         "not_additive",
         "content_token",
     )
-    assert (
-        sub_claim_is_additive_free(
-            sentence_tokens("The board bought a yacht."), sentence_tokens(parent)
-        )
-        == "content_token"
-    )
+    assert sub_claim_is_additive_free(
+        sentence_tokens("The board bought a yacht."), sentence_tokens(parent)
+    ) == ("content_token", "bought")
 
 
 def test_a_function_word_past_the_bound_records_function_word_overrun() -> None:
@@ -1319,7 +1332,9 @@ def test_the_category_changes_no_decision_the_pipeline_makes() -> None:
     # Still one retry, still one rejection row, still one drop.
     assert len(calls) == 2
     assert result.trace.verification.rejected_decompositions == (
-        RejectedDecomposition("S1", 1, "not_additive", "content_token"),
+        RejectedDecomposition(
+            "S1", 1, "not_additive", "content_token", "bought", "sub_claim"
+        ),
     )
     assert result.trace.verification.dropped_sentences == (
         DroppedSentence("S1", "decomposition_invalid"),
@@ -1345,6 +1360,102 @@ def test_debug_trace_renders_the_additive_failure_category(capsys) -> None:
         "additive_failure=content_token"
     ) in out
     assert "yacht" not in out
+
+
+# ---------------------------------------------------------------------------
+# AC-20: the offending token, on both halves. Observational only, like the
+# AC-19 category beside it: no verdict, retry, or drop path reads either field.
+# ---------------------------------------------------------------------------
+
+
+def _detail(sub_claims: tuple[str, ...], parent: str) -> tuple[str, str]:
+    """The verdict's failure token and side, as a pair."""
+    verdict = classify_decomposition_detail(sub_claims, parent)
+    return verdict.failure_token, verdict.failure_side
+
+
+def test_the_additive_half_names_its_token_on_the_sub_claim_side() -> None:
+    """A sub claim token no unused parent token matched is recorded with the
+    ``sub_claim`` side (AC-20)."""
+    parent = "The board approved the merger on Tuesday."
+    assert _detail(("The board bought a yacht.",), parent) == ("bought", "sub_claim")
+    # The function word overrun half of the additive side names its token too.
+    # The parent here supplies no `the` or `on`, so the three added function
+    # words are `the`, `not`, and `there`, and the third is the one it stops on.
+    assert _detail(
+        ("The board not there approved merger.",), "Board approved merger."
+    ) == (
+        "there",
+        "sub_claim",
+    )
+
+
+def test_the_completeness_half_names_its_token_on_the_parent_side() -> None:
+    """A parent content token no sub claim matched is recorded with the
+    ``parent`` side, which is the half ``additive_failure`` alone was blind
+    to (AC-20)."""
+    parent = "The board approved the merger on Tuesday."
+    # Tuesday is dropped from the response entirely.
+    assert _detail(("The board approved the merger.",), parent) == (
+        "tuesday",
+        "parent",
+    )
+
+
+def test_over_cap_and_duplicate_carry_no_token_or_side() -> None:
+    """Both stop before any token is examined, so both fields stay empty
+    rather than carrying a value that would read as a cause (AC-20)."""
+    parent = "The board approved the merger on Tuesday."
+    over_cap = tuple(
+        f"The board approved {index}." for index in range(MAX_SUB_CLAIMS + 1)
+    )
+    assert _detail(over_cap, parent) == ("", "")
+    assert _detail(("The board approved.", "the board approved."), parent) == ("", "")
+    valid = ("The board approved the merger.", "The merger was on Tuesday.")
+    assert _detail(valid, parent) == ("", "")
+
+
+def test_the_token_is_a_first_cause_not_the_set_of_causes() -> None:
+    """The value is the token the check stopped at in token order; a later
+    token that would also have failed is never recorded (AC-20).
+
+    A reader treating a distribution of these as the set of tokens that cause
+    drops would tune a fix against the wrong set, so the bound is pinned.
+    """
+    parent = "The board approved the merger on Tuesday."
+    # Both `tuesday` and `merger` are omitted; only the first is recorded.
+    assert _detail(("The board approved.",), parent) == ("merger", "parent")
+
+
+def test_debug_trace_renders_the_failure_token_and_side(capsys) -> None:
+    """Both fields reach the debug trace, where the task 18 experiment reads
+    them, and a single token is still not claim text (AC-20)."""
+    from decision_memory.cli import _print_query_debug
+
+    draft = (DraftSentence("S1", _WELD_TEXT, ("ch_a", "ch_b")),)
+    result = _run(
+        _WELD_CHUNKS,
+        draft,
+        # The omission attack: the fabricated clause is left out entirely, so
+        # the completeness half stops on that clause's own content noun.
+        decompose=lambda s, c, a=None: (_WELD_GROUNDED,),
+        entail=_no_call,
+    )
+    _print_query_debug(result)
+    out = capsys.readouterr().out
+    assert (
+        "rejected_decomposition S1 count=1 disposition=incomplete "
+        "additive_failure= failure_side=parent failure_token=accepted"
+    ) in out
+    # The rejection row itself carries no claim text: one token and one closed
+    # side, and nothing of the response the check rejected. The draft sentence
+    # is rendered elsewhere in the trace by design, so the rule is checked on
+    # the row rather than on the whole transcript.
+    rejection_line = next(
+        line for line in out.splitlines() if "rejected_decomposition" in line
+    )
+    assert "bribe" not in rejection_line
+    assert _WELD_GROUNDED not in rejection_line
 
 
 # ---------------------------------------------------------------------------

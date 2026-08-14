@@ -596,12 +596,30 @@ class RejectedDecomposition:
     against. A category is not text, so the no claim text rule above is
     unchanged, and nothing about the disposition, the retry set, or the drop
     depends on it.
+
+    ``failure_token`` and ``failure_side`` are observational and defaulted for
+    the same reason (spec 0010 AC-20). ``failure_token`` is the single token
+    the validity check stopped at, and ``failure_side`` is one closed value:
+    ``sub_claim`` when the additive half stopped on a sub claim token no
+    unused parent token matched, ``parent`` when the completeness half stopped
+    on a parent content token no sub claim matched, and empty for ``over_cap``
+    and ``duplicate``, which stop before any token is examined. They cover
+    **both halves**, because ``additive_failure`` is set only for
+    ``not_additive`` and the majority of measured drops are ``incomplete``. A
+    single token is not claim text, so the rule above still holds, and the
+    side is written on the row rather than left derivable from the
+    disposition, since only two of the four dispositions carry a token.
+
+    Every value here is a **first cause**, the point the check stopped at, not
+    the set of causes present.
     """
 
     sentence_id: str
     returned_count: int
     disposition: str
     additive_failure: str = ""
+    failure_token: str = ""
+    failure_side: str = ""
 
 
 @dataclass(frozen=True)

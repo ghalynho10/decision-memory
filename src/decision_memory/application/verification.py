@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import unicodedata
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 
 def normalize_for_containment(text: str) -> str:
@@ -199,17 +200,27 @@ def tokens_match(a: str, b: str) -> bool:
 CONTENT_TOKEN = "content_token"
 FUNCTION_WORD_OVERRUN = "function_word_overrun"
 
+# The closed sides a validity failure can stop on (spec 0010 AC-20).
+# ``SUB_CLAIM_SIDE`` is the additive half stopping on a sub claim token no
+# unused parent token matched; ``PARENT_SIDE`` is the completeness half
+# stopping on a parent content token no sub claim matched. ``over_cap`` and
+# ``duplicate`` stop before any token is examined and carry neither.
+SUB_CLAIM_SIDE = "sub_claim"
+PARENT_SIDE = "parent"
+
 
 def sub_claim_is_additive_free(
     sub_tokens: Sequence[str], parent_tokens: Sequence[str]
-) -> str | None:
+) -> tuple[str, str] | None:
     """Why one sub claim adds content the parent sentence lacks, or None.
 
     Returns ``None`` when the sub claim is additive free. Otherwise it returns
-    the closed category of the token it stopped on: ``CONTENT_TOKEN`` for an
+    ``(category, token)`` for the token it stopped on: ``CONTENT_TOKEN`` for an
     unmatched content token, ``FUNCTION_WORD_OVERRUN`` for the function word
-    that went past ``MAX_ADDED_FUNCTION_WORDS`` (spec 0010 AC-19). The
-    category is never claim text, so the trace's no claim text rule is intact.
+    that went past ``MAX_ADDED_FUNCTION_WORDS`` (spec 0010 AC-19), paired with
+    that token itself (spec 0010 AC-20). Neither value is claim text: the
+    category is a closed vocabulary and a single token is not a claim, so the
+    trace's no claim text rule is intact.
 
     The additive half of the AC-11 validity test, scoped **per sub claim**:
     the sub claim is checked alone against the full parent token pool, and
@@ -225,12 +236,13 @@ def sub_claim_is_additive_free(
     ``MAX_ADDED_FUNCTION_WORDS`` instances per sub claim, whatever the words
     are, and fails only past that bound.
 
-    **The category is read off the point this check already stops at, and
-    nothing scans further.** A sub claim carrying both an over budget function
-    word and a later unmatched content token records whichever came first in
-    token order, so the figure counts **first causes**, not causes present.
-    Reporting the other would turn this early return into a full survey and
-    make the category a second traversal that could disagree with the verdict.
+    **The category and the token are read off the point this check already
+    stops at, and nothing scans further.** A sub claim carrying both an over
+    budget function word and a later unmatched content token records whichever
+    came first in token order, so the figures count **first causes**, not
+    causes present. Reporting the other would turn this early return into a
+    full survey and make the report a second traversal that could disagree
+    with the verdict.
     """
     used = [False] * len(parent_tokens)
     added_function_words = 0
@@ -244,17 +256,17 @@ def sub_claim_is_additive_free(
         if matched:
             continue
         if token not in FUNCTION_WORDS:
-            return CONTENT_TOKEN
+            return CONTENT_TOKEN, token
         added_function_words += 1
         if added_function_words > MAX_ADDED_FUNCTION_WORDS:
-            return FUNCTION_WORD_OVERRUN
+            return FUNCTION_WORD_OVERRUN, token
     return None
 
 
 def response_is_complete(
     sub_claim_texts: Sequence[str], parent_tokens: Sequence[str]
-) -> bool:
-    """Whether the sub claims omit no content of the parent sentence.
+) -> str | None:
+    """The parent content token the sub claims omit, or None when complete.
 
     The completeness half of the AC-11 validity test, scoped **across the
     whole response**: every distinct content token of the parent must match
@@ -267,15 +279,24 @@ def response_is_complete(
     This is the half that stops the decomposition quietly dropping a clause,
     the omission attack of AC-1: a dropped clause takes its content words out
     of the response entirely.
+
+    Returns ``None`` when the response is complete, otherwise the first parent
+    content token no sub claim matched, in parent token order (spec 0010
+    AC-20). **The value is a first cause, not the set of causes present**: a
+    later parent token that would also have failed is never recorded, so a
+    distribution of these values is the set of tokens that fail *first*. The
+    walk stops where the previous ``all(...)`` stopped, so no second traversal
+    is introduced and the verdict cannot move.
     """
     response_tokens = [
         token for text in sub_claim_texts for token in sentence_tokens(text)
     ]
-    return all(
-        any(tokens_match(parent_token, token) for token in response_tokens)
-        for parent_token in parent_tokens
-        if parent_token not in FUNCTION_WORDS
-    )
+    for parent_token in parent_tokens:
+        if parent_token in FUNCTION_WORDS:
+            continue
+        if not any(tokens_match(parent_token, token) for token in response_tokens):
+            return parent_token
+    return None
 
 
 # The dispositions the two half validity test can return, the only ones that
@@ -284,34 +305,71 @@ def response_is_complete(
 RETRYABLE_DISPOSITIONS = frozenset({"not_additive", "incomplete"})
 
 
+@dataclass(frozen=True)
+class DecompositionVerdict:
+    """One classification of one decomposition response (spec 0010 AC-20).
+
+    ``disposition`` decides everything: the retry, the rejection row, and the
+    drop. It is one closed value, ``over_cap``, ``duplicate``,
+    ``not_additive``, or ``incomplete``, or None when the response is valid.
+    The other three fields are observational and no pipeline decision reads
+    them.
+
+    ``additive_failure`` is one closed value, ``content_token`` or
+    ``function_word_overrun``, and is empty for every disposition other than
+    ``not_additive`` (AC-19). ``failure_token`` is the single token the check
+    stopped at, and ``failure_side`` is one closed value, ``SUB_CLAIM_SIDE``
+    when the additive half stopped, ``PARENT_SIDE`` when the completeness half
+    stopped, empty for ``over_cap`` and ``duplicate``, which stop before any
+    token is examined.
+
+    This is a named object rather than a four value tuple on purpose. Three of
+    the four fields are closed vocabularies that share nothing but their type,
+    and two adjacent same typed values read positionally in the wrong order is
+    a defect this project has already shipped once (commit ``004dc3c``), where
+    the type checker could not see it and the evaluation harness had to.
+
+    ``failure_token`` is the only free string here, and it is a token rather
+    than claim text, which is what keeps the trace's no claim text rule
+    intact. It is a **first cause**: the token the check stopped at in token
+    order, never the set of tokens that would also have failed.
+    """
+
+    disposition: str | None
+    additive_failure: str = ""
+    failure_token: str = ""
+    failure_side: str = ""
+
+
 def classify_decomposition_detail(
     sub_claim_texts: Sequence[str], parent_text: str
-) -> tuple[str | None, str]:
-    """The AC-11 verdict plus the AC-19 additive failure category.
+) -> DecompositionVerdict:
+    """The AC-11 verdict plus its observational detail (AC-19, AC-20).
 
-    Returns ``(disposition, additive_failure)``. The disposition is exactly
-    what ``classify_decomposition`` returns and decides everything: the retry,
-    the rejection row, and the drop. The category is observational and empty
-    for every disposition other than ``not_additive``; it names why the first
-    failing sub claim stopped, on the first sub claim that failed, since
-    ``classify_decomposition`` scans sub claims in order and stops at the
-    first invalid one.
+    One traversal produces one verdict. ``classify_decomposition`` is a
+    derivation of this function and never a parallel implementation, so the
+    disposition and the detail can never disagree.
+
+    The detail names why the first failing check stopped: for the additive
+    half, the category and the token of the first failing sub claim, since the
+    scan runs sub claims in order and stops at the first invalid one; for the
+    completeness half, the first unmatched parent content token.
     """
     if len(sub_claim_texts) > MAX_SUB_CLAIMS:
-        return "over_cap", ""
+        return DecompositionVerdict("over_cap")
     normalized = [normalize_for_containment(text) for text in sub_claim_texts]
     if len(set(normalized)) != len(normalized):
-        return "duplicate", ""
+        return DecompositionVerdict("duplicate")
     parent_tokens = sentence_tokens(parent_text)
     for text in sub_claim_texts:
-        additive_failure = sub_claim_is_additive_free(
-            sentence_tokens(text), parent_tokens
-        )
-        if additive_failure is not None:
-            return "not_additive", additive_failure
-    if not response_is_complete(sub_claim_texts, parent_tokens):
-        return "incomplete", ""
-    return None, ""
+        additive = sub_claim_is_additive_free(sentence_tokens(text), parent_tokens)
+        if additive is not None:
+            category, token = additive
+            return DecompositionVerdict("not_additive", category, token, SUB_CLAIM_SIDE)
+    omitted = response_is_complete(sub_claim_texts, parent_tokens)
+    if omitted is not None:
+        return DecompositionVerdict("incomplete", "", omitted, PARENT_SIDE)
+    return DecompositionVerdict(None)
 
 
 def classify_decomposition(
@@ -343,7 +401,7 @@ def classify_decomposition(
     meaning passes it; entailment is the only check that can catch that.
 
     This is the thin half of ``classify_decomposition_detail``: one
-    implementation, so the disposition and the AC-19 category can never
+    implementation, so the disposition and its observational detail can never
     disagree.
     """
-    return classify_decomposition_detail(sub_claim_texts, parent_text)[0]
+    return classify_decomposition_detail(sub_claim_texts, parent_text).disposition
