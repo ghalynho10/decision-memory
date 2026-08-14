@@ -678,6 +678,229 @@ The denominator is zero for a different reason than the one experiment 0005 reco
 
 This is the second consecutive measurement where AC-16's trigger cannot fire. That is not evidence the guard is unnecessary; it is evidence the pipeline has never put the guard in a position to be needed. The count stays unreadable until the answering half starts landing, which experiment 0007 finding 3 shows is blocked on retrieval rather than on anything AC-16 or AC-18 touches.
 
+## The additive matcher (2026-08-14, OD-8)
+
+The question put to `/architect` was whether the AC-11 verification guard should adopt `morphology-v1`, the
+canonicalizing stemmer spec 0011 pins for lexical retrieval, instead of the pairwise matcher. The answer is no, and a
+third option was taken instead.
+
+### What was measured, and over what
+
+Every figure below was measured over **3,690 distinct content tokens**: all lowercase word tokens appearing three or
+more times across `docs/**/*.md` in this repository, with the AC-11 function word set removed. That is 6,806,205
+unordered pairs. The corpus is this project's own prose, chosen because it is the closest available proxy for the token
+stream the matcher actually sees (draft sentences are generated from chunks of decision records written in the same
+register), and because it needs no provider call. It is not the JobPilot corpus, and that is the main limit on these
+numbers: see *Limits* below.
+
+Three matchers were compared. `_stem_match` as shipped. `morphology-v1` exactly as pinned in spec 0011's
+*The canonicalizing stemmer* section, two tokens matching when their canonical stems are equal. And the base set
+intersection now written into AC-11, which inverts the same five rules to the set of `shorter` values each token could
+have been derived from, and matches when the sets intersect.
+
+| | fixes the defect class | loses a pair the shipped matcher accepts | new false matches |
+|---|---|---|---|
+| `_stem_match` as shipped | 0 | (baseline) | (baseline) |
+| `morphology-v1` | 650 pairs | **30** | **28** |
+| base set intersection | 622 pairs | **0** | **0** |
+
+The base set losing nothing is not a measurement result, it is true by construction: if `longer` equals `shorter` plus
+a suffix under one of the five rules, then `shorter` is in both base sets, so every pair the directional form accepted
+the intersection also accepts. The measurement confirms the implementation matches the construction.
+
+### Why `morphology-v1` was rejected
+
+Two mechanisms, both traced against the pinned algorithm:
+
+```text
+lost, because at most one suffix is stripped and there is no second pass
+  settings -> strip s   -> "setting"        (no further step applies)
+  setting  -> strip ing -> sett -> doubled  -> "set"          unequal
+  and these two DO match under the shipped pairwise rules
+
+lost, because the character floor is measured on the input and never on the output
+  needs -> strip s  -> "need"
+  need  -> strip ed -> ne -> drop final e   -> "n"            unequal
+
+invented, because the tail rules converge two different words
+  file -> ends in e, drop it       -> "fil"
+  fill -> doubled ll, drop one     -> "fil"                   false match
+  site -> "sit"  ;  sits -> strip s -> "sit"                  false match
+```
+
+The 28 false matches are what actually decide it. The additive half exists to stop a substitution, and it is the guard
+standing behind **AC-2**, the fabrication gate, which [experiment 0008](../../experiments/0008-first-live-jobpilot-run-since-the-build.md)
+records passing 6 of 6 across two live batches. AC-2 is the only criterion in this chain currently green on live
+evidence. Twenty eight false matches means twenty eight substitutions the guard would begin to accept, and buying the
+answering win by spending the fabrication win is the worst outcome available. The base set adds zero, so the guard's
+strength is provably unchanged rather than argued to be acceptable.
+
+### Why the base set, and why this is a correction
+
+[Experiment 0010](../../experiments/0010-falls-against-falling.md) left the fix open, noting that the obvious direction,
+reducing both tokens to a common stem, is precisely the over stripping the pairwise design deliberately avoided, and
+that the false match risk behind that choice had never been measured. It has now been measured, and the framing it
+assumed turns out to be a false choice: reducing to a common stem is not the only way to reach a common base. Inverting
+the existing rules reaches one without ever producing a lossy stem, which is why it fixes 622 pairs while adding no
+false match. The over stripping trade is avoided, not accepted.
+
+That is also why this amends AC-11 in place. AC-11 already read "two tokens match when they share a stem", and
+`_stem_match`'s own docstring read "true when two content tokens share a stem". Sharing a stem is symmetric. The five
+enumerated rules implemented something directional, so `falls` and `falling` never reached `fall` and never matched.
+The base set makes the implementation do what the criterion already claimed. Under this project's standing rule, a new
+spec number or a supersession would put a decision shape in the corpus this tool reads for a decision nobody made.
+
+### The rejected third option
+
+A hand enumerated inflection bridge, adding just the participle to finite pairs the defect needs (`-s` against `-ing`,
+`-s` against `-ed`, `-ed` against `-ing`) on top of the existing matcher. Rejected: enumerating surface pairs is the
+same defect one layer up, and the next inflection gap would need another enumeration. The base set derives the same
+pairs from rules already agreed rather than listing them.
+
+### A correction made during this design, recorded rather than dropped
+
+The first direction taken on the retrieval side was to fix `morphology-v1` by applying its rules until stable **and**
+raising its output floor from two characters to three, on the reasoning that the floor is what makes a second pass
+safe, since `singing` would otherwise strip twice to `s`. The floor half was wrong, and the measurement is what caught
+it:
+
+| candidate | property violations | implication violations | normative drift |
+|---|---|---|---|
+| `morphology-v1` as pinned | 277 | 30 | 0 |
+| rules until stable, floor 2 | **0** | **0** | 1 |
+| rules until stable, floor 3 | 10 | 7 | 3 |
+
+The existing two character floor already refuses the unsafe strip, because taking `ing` off `sing` would leave one
+character. Raising it to three bought nothing and broke `use` against `using`, which is one of the algorithm's own
+normative examples: at a floor of three, `using` cannot strip to `us` and `use` cannot drop its `e` to `us`, so the
+pair that motivated that rule stops agreeing. Applying the rules until stable, with the floor left at two, is the whole
+fix, and it holds the property exactly at 0 violations. The one normative drift is `chose`, which reaches `cho` rather
+than `chos`; it is tracked as a Follow-up against spec 0011's table.
+
+### What this says about spec 0011 AC-7
+
+AC-7 requires a property test asserting that a true pairwise match implies equal canonical stems. **That property is
+false as specified**, before any change made here, and the test would have failed on first contact with real text.
+There are 30 counterexamples in this repository's vocabulary, and they are the same 30 pairs the table above records
+`morphology-v1` losing: the data was already in hand, it had simply not been connected to the property.
+
+Base set agreement is also false, in both directions, and for two independent reasons:
+
+```text
+the canonical stem need not be in the base set
+  falls    base set {falls, fall}   canonical stem "fal"
+  because step 3 drops a doubled letter unconditionally, and fall's ll is
+  part of the word rather than an inflection
+
+canonical equality need not imply a base set match
+  file / fill   canonical stems both "fil"
+                base sets {file} and {fill} never intersect
+```
+
+The direction that holds is the implication: **a base set match implies equal canonical stems**, verified on every
+fixed pair (`falls` and `falling` to `fal`, `setting` and `settings` to `set`, `need` and `needs` to `ne`). The
+converse deliberately does not hold, the same shape AC-7 originally intended with the base set substituted for the
+pairwise form. The converse failing on `file` and `fill` is not a defect: it is exactly the over stripping verification
+must not inherit and retrieval can tolerate, which is the entire reason the family has two entry points. So AC-7's one
+family constraint survives and is worth keeping, with the property restated as the implication.
+
+### The completeness half widens too, and it was checked rather than assumed
+
+Both halves of the AC-11 validity test match through `tokens_match`, so this amendment reaches
+`response_is_complete` as well as `sub_claim_is_additive_free`. That direction matters more than the additive one,
+because completeness is the half that catches the AC-1 omission attack, where a decomposition quietly drops the
+fabricated clause and returns only the grounded one. A broader matcher passes completeness more often, which is a
+loosening of a safety guard inside a change whose whole argument is that it loosens nothing unsafely.
+
+Checked against the shipped fixture and the base set matcher. The attack still fails, and it fails on `accepted`,
+the omitted clause's own verb, which finds no match anywhere in the response:
+
+```text
+parent    The board approved the merger on Tuesday, and the board accepted
+          a bribe to rush it.
+response  The board approved the merger on Tuesday.
+verdict   incomplete, first unmatched parent token "accepted"
+```
+
+Then checked against cases built specifically to exploit the widening, where the omitted clause shares an inflected
+verb with the clause that survives, which is exactly the pair the base set now joins and the directional form did not:
+
+```text
+parent    The system drops the record and the system is dropping the audit log.
+response  The system drops the record.
+verdict   incomplete, first unmatched parent token "audit"
+
+parent    The gate blocks the answer and the gate blocked the fabrication.
+response  The gate blocks the answer.
+verdict   incomplete, first unmatched parent token "fabrication"
+```
+
+The shared verb is matched now where it was not before, and the clause is caught anyway, on its own distinctive
+noun. That is the general shape: a clause carries content words the rest of the sentence does not, and those are
+what completeness fails on.
+
+**The residual risk is named rather than closed.** An omitted clause every one of whose content words is an
+inflection of a word surviving elsewhere in the response would pass completeness now where it previously failed.
+No such case has been observed in any experiment or constructed here, and the class is narrow, but it is a real
+consequence of the amendment and it is recorded as one rather than argued away. Task 18 re runs both AC-1 attack
+tests against the new matcher for this reason: a task that loosens a guard carries the safety test, not only the
+capability test.
+
+### Why the verdict is a dataclass and not a four value tuple
+
+Carrying `failure_token` for both halves needs a return slot neither half check has left.
+`sub_claim_is_additive_free` spent its one signature change on the AC-19 category, and `response_is_complete`
+returns a bool. The obvious minimal move is to widen `classify_decomposition_detail` from
+`(disposition, additive_failure)` to a four value tuple, and it was rejected.
+
+Three of those four values are closed vocabularies, and all four are strings. A positional tuple of same typed
+values whose meaning is carried only by slot order is a defect this project has already shipped: commit
+`004dc3c`, "read value_path and fingerprint from the right chunk columns", was two adjacent strings read in the
+wrong order. Mypy could not see it, because a `str` in the wrong slot type checks perfectly, and the evaluation
+harness is what caught it. Adding two more slots to the same shape is the same bug with more room.
+
+So `classify_decomposition_detail` returns a frozen `DecompositionVerdict` with the closed sets pinned per field,
+and `failure_token` as its one free string, which stays a token rather than claim text.
+
+The refinement that matters more than the choice of shape: **`classify_decomposition` is derived from
+`classify_decomposition_detail`, returning `verdict.disposition`, and is never a parallel implementation.** The
+existing code already documents itself this way ("this is the thin half of `classify_decomposition_detail`: one
+implementation, so the disposition and the AC-19 category can never disagree"), and the amendment must not lose
+it. Two functions computing one verdict independently is exactly the second traversal AC-19 rejected, and
+experiment 0010's instrument is the standing evidence that a replica walk really does diverge: its cross check
+caught a disagreement on its first run.
+
+`DecompositionVerdict` and `RejectedDecomposition` stay separate. The first is the internal result of one
+classification; the second is the trace record built from it, and its two new fields are defaulted under the
+AC-10 precedent so an older constructor call stays valid.
+
+### Why the comparison script lands before the matcher
+
+The 622, 0, and 0 figures are the safety argument for this amendment, and AC-2's guard strength rests on them.
+Merging the matcher on a scratch measurement would ship a guard loosening change on a number nobody can
+re derive. This spec has run that sequence twice already for weaker reasons: tasks 9 and 10 before task 11, to
+clean the instrument before measuring with it, and task 16 before task 15, because a count taken before the
+instruction change measures nothing.
+
+That order has one wrinkle worth settling explicitly rather than leaving to the build. The figures are a
+**comparison**, so re verifying them needs both matchers callable. A script landing strictly before the matcher
+exists would have to carry its own copy of one side, which is the replica problem experiment 0010's instrument
+had to cross check against. The resolution is that **`_stem_match` is not deleted**. The base set becomes what
+the AC-11 guard uses, and the pairwise form stays in the shared module as the relation the base set is the
+closure of, called by the instrument and its tests. The script then imports two shipped entry points, no replica
+exists anywhere, and the claim stays re verifiable after the merge rather than only at it.
+
+### Limits
+
+- **One corpus.** 3,690 tokens of this project's own prose. A different corpus could hold a pair these five rules join
+  wrongly, and the zero false match figure is evidence rather than proof. The live batches in task 18 are what confirm
+  AC-2 still holds.
+- **Pair counts are not drop counts.** 622 fixed pairs is a property of the matcher, not a prediction of how many
+  sentences stop being dropped. The gate is the abstention clearing on `query-2-resume-generation`.
+- **The expected reach is all 18 drops, not 7.** Both halves of the AC-11 test match through `tokens_match`, so this
+  amendment reaches the 11 `incomplete` drops as well as the 7 `not_additive` ones experiment 0007 recorded. Reading the
+  effect against the `not_additive` share alone would use the wrong denominator.
+
 ## Rationale
 
 Sub claim decomposition is the chosen option because it removes the hiding place the spec 0008 evidence identified. Three entailment prompt variants failed on the whole sentence, which rules out prompt tuning and points at the unit. Verifying each sub claim alone means the invented decision no longer carries its verbatim support inside the sentence it is verified against. The deterministic span floor was rejected because it would reject legitimate paraphrases and can regress query 2; the generation rewrite was rejected because it is the largest surface change for the same goal; the stronger model was rejected because the documented failure is structural, not model capability; deterministic clause splitting (Option 5) was rejected because it only catches fusion at a syntactic seam, and the model call generalizes to fusions that have none.
