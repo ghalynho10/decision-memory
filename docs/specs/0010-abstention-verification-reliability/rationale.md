@@ -559,7 +559,96 @@ It found seven things, and all seven are now written into the criteria. Three we
 
 The remaining four were gaps rather than errors, closed the same way the earlier cross checks closed theirs, by pinning what was described. The `evaluate` flag is named and the corpus root is derived from the manifest's parent rather than paired by hand, since a battery run against the wrong corpus fails on record ids and looks like a broken pipeline. The loader validates that each expected record exists and each prefix matches a chunk, because an unsatisfiable oracle fails forever and cannot be told from a real failure. The deterministic reason string gets a named constant before a third reader arrives. And a covered row may name several sentences, so a miss requires that none of them cites the decision statement.
 
-Worth stating plainly, because it is the cost of this shape: the directness rule now lives in three places, AC-12, `validate_coverage`, and the schema description. Only one of them enforces anything, which is the right arrangement, and it is still three things that have to move together. That is the argument for pinning the description text here as a spec constant rather than leaving it to the build, and it is also why the AC-16 caveat exclusion does not get a description of its own: no validator enforces it, so under the first bound it belongs in the instruction and nowhere else.
+Worth stating plainly, because it is the cost of this shape: the directness rule now lives in three places, AC-12, `validate_coverage`, and the schema description. Only one of them enforces anything, which is the right arrangement, and it is still three things that have to move together. **Corrected 2026-08-13, while settling OD-7.** That count was wrong in both directions and is kept here with its correction rather than rewritten, because it was the stated reason for pinning the description text. `validate_coverage` enforces only shape: facet id validity and order, sentence id validity and emitted order, duplicates, and the consistency between `covered` and `sentence_ids`. It has no directness check at all, and the ratified `sentence_ids` description restates one of those shape rules. Directness lives in two places, AC-12 and `COVERAGE_SYSTEM_PROMPT`, and is enforced nowhere. The argument for pinning the text survives the correction and gets slightly stronger: two unenforced statements of one rule drift, and nothing fails when they do. So the description text is still pinned here as a spec constant rather than left to the build, and the AC-16 caveat exclusion still gets no description of its own: no validator enforces it, so under the first bound it belongs in the instruction and nowhere else.
+
+## Options considered for OD-7, coverage directness (2026-08-13)
+
+Experiment 0006 set out to test whether AC-16's exclusion had over corrected, and rejected that hypothesis in both directions: removing the exclusion produced one coverage in 6 runs and that one covered with the caveat sentence, the OD-5 defect AC-16 was written to close. What it found instead is a fourth cause, alongside `not_additive`, inline markers, and over splitting. Against the frozen fixture, 11 sentences reached coverage across 6 runs and none covered the single decision facet, including one that reads as a direct, correct, well cited answer:
+
+```text
+S1: The hybrid retrieval system uses a combination of lexical BM25 and semantic
+    Chroma retrieval, followed by reciprocal rank fusion to combine their
+    contributions.
+
+uncovered F1: What was decided about hybrid lexical and semantic retrieval?
+```
+
+The facet asks what was **decided**; the sentence says what the system **uses**. Coverage was applying AC-12 correctly and AC-12 never covered this case, since its exclusion list stopped at a reason, context, consequence, premise, or anaphoric fragment. So the decision splits in two: what the rule should say, and which stage should change.
+
+The rule question was settled first, and the answer is no: a sentence stating what the system does does not state a decision. Relaxing that is the one direction the evidence already argues against, since a caveat is also a statement about the system and experiment 0006 measured what happens when this stage is loosened.
+
+### Answer generation, with the evidence blocks labeled by field (chosen)
+
+Pros:
+
+- It uses a signal the pipeline already carries and drops. Every accepted chunk is an `ActiveChunkDescriptor` with `record_id`, `record_title`, and `value_path`; `query.py` forwards only `chunk.text`. The embedding side has rendered the title and value path above the same chunk text since spec 0007, through `embedding_input`. The asymmetry between those two paths is the concrete shape of OD-7, and closing it invents nothing.
+- It leaves coverage alone, so the AC-16 caveat exclusion stays exactly as measured. The stage behaving correctly is not touched, and the stage feeding it badly is.
+- It is aligned with what the fix is for. The goal is generation writing decision language rather than system description, and a label reading `the decision this record chose` is decision language. The alternative rendering, `decision.chosen`, reaches the same place only by inference.
+- The answer improves for a reader, not only for the gate. A person asking what was decided currently gets a description and has to infer that a decision was made at all.
+
+Cons:
+
+- It changes model input, so every measurement taken over the previous phrasing is a reading of a different distribution. That includes task 13's 68 percent calibration target, which is why task 17 runs first and task 13 now begins by re reading.
+- Decision framing may run longer and more clausal, which could raise `not_additive` rather than lower it. Plausible mechanism, not a measurement.
+- It adds a mapping that has to track `chunking.py` as the record schema grows.
+
+### `COVERAGE_SYSTEM_PROMPT` (rejected)
+
+Pros: smallest possible change, one sentence, in the stage where the refusal happens.
+
+Cons: experiment 0006 already measured this direction. Removing the AC-16 exclusion produced exactly one coverage in 6 runs, and it covered with the caveat sentence, reproducing OD-5. A caveat and a description are both statements about the system, so no wording reliably separates them, and the false positive class is the one AC-16 exists to prevent. Tightening instead is worse: under AC-4 whole sentence output, a real decision statement routinely carries a descriptive clause (`The project adopted hybrid retrieval, which combines BM25 with Chroma`), so an explicit description exclusion would reject the sentences this fix exists to accept. Adding it would also put directness in a third place while it is enforced in none.
+
+### Facet extraction (rejected)
+
+Pros: the facet becomes a question a generated sentence can answer, and no prompt downstream changes.
+
+Cons: it changes the question the user asked. The gate's decision query means what it says, and rewriting `what was decided` into `what does the system use` makes the gate pass by lowering the bar rather than by fixing anything. It also puts the drift somewhere a reader of the answer cannot see it.
+
+### Giving coverage the citations (rejected, and the sharpest of the four)
+
+Pros: precise. A sentence citing a `decision.chosen` chunk is exactly the sentence a decision facet wants, and the signal is already computed.
+
+Cons: it destroys the gate. The AC-15 co located citation check is the oracle's only defence against a caveat covering the decision facet, and telling coverage that citing `decision.chosen` is what makes a sentence state the decision hands coverage the oracle's own criterion. Any covered run would then satisfy the oracle by construction, and the gate would stop discriminating exactly where it was just strengthened to discriminate. It also merges grounding into directness, which the code keeps apart: coverage receives the question, the facets, and `S1: text`, and nothing about citations.
+
+### The label rendering: plain words, not the dotted value path
+
+This sub decision is where the chosen option could still have failed. `sentence_tokens` splits on whitespace and strips only edge punctuation, so `decision.chosen` survives as one token with its internal dot. An echoed label in a draft sentence therefore enters `parent_tokens` as one content token a decomposition has no reason to carry, and the response fails the completeness half. AC-13 calls the chunk id case unconditional, which is right for a 64 hex hash; a dotted path is a shade more reproducible than a hash and far less than a word, so call it near certain. Either way it is the AC-13 failure in a new class.
+
+A strip cannot close it the way AC-13 does. AC-13's regexes work because `ch_` plus 64 hex cannot occur naturally; a dotted value path is lexically indistinguishable from ordinary prose (`adapter.py`, `U.S.`), the value path grammar is an open pattern rather than a closed list, and a hardcoded alternation would have to track the canonical schema forever. It is a second strip class strictly harder than the first.
+
+Plain words make the failure class not exist rather than catching it: every token of `the decision this record chose` is ordinary vocabulary a decomposition reproduces, and the stem rules already cover `chose` against `chosen`. The residual risk is stated rather than hidden, and the first draft of this section understated it. Prose labels read as content, so they may bleed into sentences more readily than a dotted token would, and a bleed is **not** merely cosmetic: a leaked label's words are content tokens (`decision`, `record`, and `chose` all sit outside the closed function word set), so a decomposition that treats the leaked phrase as scaffolding and omits it fails completeness and drops the whole parent, which is the same outcome by the same mechanism. What plain words buy is probability, not immunity. A hash is a token a decomposition essentially never reproduces; ordinary words are ones it usually does, especially under a prompt already telling it to cover every clause. So the risk drops sharply, the failure mode is unchanged, and the Follow-up item counts both the bleed rate and how many of those sentences ended as `incomplete`, from the kept traces.
+
+A second risk runs the other way and was missed until the cross check. Telling generation to state a decision pushes it toward assertive phrasing, and a hedged source chunk can be overclaimed into an unhedged decision statement that comes back `unsupported` and drops its parent. That is the mirror image of the `not_additive` worry, equally speculative, and it gets the same treatment: experiment 0007 records the entailment verdicts of sub claims from decision framed sentences, which the trace already carries at no extra cost.
+
+The mapping is nine entries, not more. A chunk's `value_path` is set in one place from nine `add()` calls. `title` and `supersedes` appear only in the missing field source check and never become chunks; `decision.alternatives[i].title` and `.rejection_reason` are source paths whose chunk carries `decision.alternatives[i]`. Pinning thirteen would ship four entries no chunk can carry.
+
+### `record_title` withheld
+
+Considered and rejected on trust, not cost. The title is adapter extracted corpus content, at the same trust level as the chunk text, and the evidence block is already fenced to the model as untrusted with an explicit instruction to ignore instructions inside it. Giving a corpus derived string authority inside that fence adds injection surface for no gain. `value_path` is different in kind: a closed vocabulary this project's own chunker produces.
+
+### Proving it: coverage conditional, not the gate verdict
+
+`EvaluationOutcome` carries checks, passed, failed, and an exit code. The answering half fails both when coverage refuses a good sentence and when no sentence survives verification, so a failing gate cannot attribute the result, and experiment 0006 broke that same confound by counting sentences reaching coverage separately. Experiment 0007 therefore measures per run, at sentence level as well as run level, and keeps the AC-15 co location check in the same batches so the caveat control is measured at the same time. A proof reporting only the positive half would repeat the instrument mistake experiments 0003 and 0004 were written to correct.
+
+The numerator is a semantic judgement no validator can produce, so it is labelled the human half, its rule is written before the runs, and every judged sentence is quoted verbatim, as experiment 0006 did with S1 and S4. That is what makes finding 2 of experiment 0006 still checkable, and it lets a later reader re judge the same sentences and disagree.
+
+`classify_query4_failure` is not extended. It returns `None` for a trace with separate facets, the decision facet uncovered, and an abstained result, which is the correct reading for query 4, an abstention gate, and is exactly OD-7's shape on a query where answering is expected. Overloading it would need a mode flag to keep its query 4 semantics, and AC-15's abstention cause already separates `no_emitted_sentences` from `uncovered_facet`, so the classifier would restate what the oracle reports and still could not judge whether a sentence states the decision.
+
+### The `not_additive` split, instrumented in the same task
+
+Not a separate decision so much as a constraint the trace imposes. `sub_claim_is_additive_free` returns `False` on the first unmatched content token, while `MAX_ADDED_FUNCTION_WORDS` bounds only function word additions, so the tolerance knob reaches one of the two causes and not the other. The 68 percent has never been split, which means task 13's headroom is unmeasured and may be well below its stated target.
+
+It cannot be recovered afterwards: `RejectedDecomposition` records a sentence id, a returned count, and a disposition, and records no claim text by deliberate rule. So the split has to be instrumented before the runs that measure it. It lands in task 17 rather than task 13 because the instrument is purely observational, changing no disposition, no retry, and no drop, so there is nothing to contaminate; because a second set of runs would put the two figures in two provider sessions, reintroducing the session drift experiment 0006 records in its own threats to validity; and because the answer may reshape task 13, which is better known early than at the point the plan already treats calibration as the critical path. A closed category rather than text keeps the no claim text rule intact, and a defaulted trailing field follows the AC-10 precedent.
+
+### The chunk id notation, held deliberately
+
+`ANSWER_SYSTEM_PROMPT` says ids are copied exactly as shown in brackets while generation renders them in parentheses. The mismatch is real, and task 17 rewrites that very block, so the hold is written into the task as an instruction: an implementer would otherwise harmonize it as an obvious tidy up and the decision would vanish with no record.
+
+Deferring is safe because `validate_draft` hard rejects any cited id outside `known_chunk_ids`, so the invented id failure the bracket wording guards against surfaces as `provider.answer` rather than passing silently, and no such failure appears in experiments 0004, 0005, or 0006. The wording is inaccurate about the rendering, not load bearing in practice, because a hard validator sits underneath it.
+
+Deferring is right because experiment 0007 needs one changed input. Both fixes are worse than neutral right now. Rendering brackets would put the literal `_MARKER_GROUP_RE` shape in front of a model that already echoes markers without ever having seen them modelled. Rewording the prompt would edit the input actually driving model behaviour, and AC-13 pinned the bracket wording on a live observation that dropping it makes a model invent its own ids. Stated narrowly: a higher echo rate would not perturb `not_additive` itself, since the strip runs before the other `validate_draft` checks, but it would move the duplicate collision rate task 9 recorded and the whitespace repaired prose the human half judges.
+
+One correction that came out of settling this, recorded because the reasoning it corrects was used in this decision: the 11 of 20 marker figure from experiment 0003 is the baseline from **before** any prohibition existed. `git log -S` places the sentence forbidding a chunk id in the sentence text in the task 9 marker strip commit, after experiment 0003 measured. It shows the echo happens, not that a prohibition fails to stop it, and the post prohibition rate has never been measured because the strip removes markers before anything records the text. Any future argument about whether a prompt prohibition suffices has to start from that absence of evidence.
 
 ## Rationale
 
@@ -607,7 +696,10 @@ Two independent cross checks then pushed the matcher from a described rule to a 
 - the settled decisions cross check, 2026-08-13, Sonnet 5, recorded above; its four verified mechanism claims were checked against `infrastructure/jsmastery_adapter.py` (discovery and code path resolution), `application/chunking.py` (chunk id shape), `application/verification.py` (the matcher), and `infrastructure/openai_generation.py` (the prompts)
 - `docs/experiments/0003-whole-sentence-gate-and-a-misdiagnosis.md`, the measured drop rates on the built revision: 19 of 20 draft sentences dropped and 1 query of 12 answered, with `not_additive` at 74 percent of drops, inline citation markers at 16 percent, and `unsupported_sub_claim` at zero. Read it before the next design pass; it reorders the work
 - `docs/experiments/0004-clean-pipeline-re-measurement.md`, the gate re measured on the cleaned instrument: 19 of 21 draft sentences dropped and 0 queries of 12 answered, `not_additive` at 68 percent of drops, `unsupported_sub_claim` newly at 16 percent through over splitting, the coverage schema failure and its before and after figures, and the gate's stochastic pass on a wrong answer. It raised OD-4, OD-5, and the ratification
-- `src/decision_memory/application/evaluation.py`, `QueryOracle` and `_satisfies`, the co location rule AC-15 reuses, and `run_evaluation`, which already takes its fixtures as a parameter
+- `docs/experiments/0006-coverage-directness-isolation.md`, the two arm isolation that rejected the AC-16 over correction hypothesis in both directions and raised OD-7: 11 sentences reached coverage across 6 runs with the exclusion in place and none covered the decision facet, while removing the exclusion covered once, with the caveat sentence. Its threats to validity section is the source of the session drift argument for taking two figures from one set of runs
+- `src/decision_memory/application/chunking.py`, the nine `add()` calls that are the only source of a chunk's `value_path`, and `embedding_input`, which already renders the title and value path above the chunk text on the embedding side
+- `src/decision_memory/application/dto.py`, `ActiveChunkDescriptor` (which carries `record_id`, `record_title`, and `value_path` that generation never receives), and `RejectedDecomposition` and `DroppedSentence`, whose no claim text rule bounds the AC-19 category
+- `src/decision_memory/application/evaluation.py`, `QueryOracle` and `_satisfies`, the co location rule AC-15 reuses, `EvaluationOutcome`, which carries no per stage detail, `classify_query4_failure`, whose `None` is correct for query 4 and blind to OD-7's shape, and `run_evaluation`, which already takes its fixtures as a parameter
 - `src/decision_memory/application/verification.py`, `application/query.py`, `application/dto.py`, `infrastructure/openai_generation.py`, the code this feature changes
 
 **Practices & standards**:
