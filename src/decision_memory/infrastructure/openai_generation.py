@@ -52,7 +52,11 @@ ANSWER_SYSTEM_PROMPT = (
     "be a single complete sentence and list 1 to 8 chunk ids it is directly "
     "supported by in the chunk_ids field, copied exactly as shown in "
     "brackets in the evidence. Never write a chunk id inside the sentence "
-    "text itself. Number the sentences S1, S2, and so on. Never invent "
+    "text itself. Each chunk's Field line says which part of the record "
+    "that chunk is; never copy a Field line into the sentence text. When a "
+    "facet asks what was decided, answer it with the decision the record "
+    "chose, stated as a decision rather than as a description of how the "
+    "system works. Number the sentences S1, S2, and so on. Never invent "
     "facts outside the evidence. If the evidence cannot answer a facet, "
     "write nothing for it."
 )
@@ -92,6 +96,92 @@ COVERAGE_SYSTEM_PROMPT = (
 MAX_FACETS = 8
 MAX_SENTENCES = 12
 MAX_CITED_CHUNKS = 8
+
+# The chunk field labels generation reads above each evidence block (spec 0010
+# AC-18). Generation was the one stage that never received a chunk's
+# ``value_path``, so the model was asked what was decided from prose that never
+# said it was a decision; the embedding side has rendered the same information
+# above the same text since spec 0007.
+#
+# **The label is prose, never the dotted token.** A dotted path survives
+# ``sentence_tokens`` as one unmatchable content token, exactly like a chunk id
+# marker, so an echoed ``decision.chosen`` would fail the AC-11 completeness
+# half and drop its parent sentence. Plain words remove that failure class
+# instead of catching it: an echoed label is ordinary vocabulary a
+# decomposition reproduces. The label says which part of the record a chunk is;
+# it never says what the chunk means and is never evidence in its own right.
+#
+# ``record_title`` is deliberately not carried. It is adapter extracted corpus
+# content at the same trust level as the chunk text, inside a block already
+# fenced to the model as untrusted; ``value_path`` is a closed vocabulary this
+# project's own chunker writes.
+FIELD_LABELS: dict[str, str] = {
+    "context.problem": "the problem this record faced",
+    "context.triggering_change": "the change that triggered this record",
+    "decision.chosen": "the decision this record chose",
+    "decision.alternatives": "an alternative this record considered and did not choose",
+    "why": "a reason this record gives for its decision",
+    "rationale_summary": "this record's summary of its own reasoning",
+    "consequences.positive": "a positive consequence this record expects",
+    "consequences.negative": "a negative consequence this record accepts",
+    "body": "other prose from this record",
+}
+
+# The nine value paths a chunk can carry, written as they appear in spec 0010
+# and set in exactly one place, the nine ``add()`` calls in ``chunking.py``.
+# ``title`` and ``supersedes`` are absent on purpose: they appear only in the
+# missing field source check and never become chunks.
+# ``decision.alternatives[i].title`` and ``.rejection_reason`` are absent for
+# the same reason, since the chunk they belong to carries
+# ``decision.alternatives[i]`` with the composed alternative text.
+CHUNK_VALUE_PATHS: tuple[str, ...] = (
+    "context.problem",
+    "context.triggering_change",
+    "decision.chosen",
+    "decision.alternatives[i]",
+    "why[i]",
+    "rationale_summary",
+    "consequences.positive[i]",
+    "consequences.negative[i]",
+    "body[i]",
+)
+
+
+def field_label(value_path: str) -> str:
+    """The plain words label for a chunk's ``value_path`` (spec 0010 AC-18).
+
+    The index is not rendered and the lookup ignores it: look up the substring
+    before the first ``[`` and ignore everything from that bracket onward, so
+    ``why[0]`` and ``why[3]`` both find the ``why`` entry. A path with no
+    bracket is looked up whole. An ordinal carries no meaning to a reader, and
+    an echoed number would be noise in the sentence text.
+
+    A path with no mapping entry returns the empty string, and its evidence
+    block then omits the ``Field:`` line entirely, so an unmapped path degrades
+    to the previous behaviour rather than introducing the unmatchable token the
+    mapping exists to avoid.
+    """
+    key = value_path.split("[", 1)[0]
+    return FIELD_LABELS.get(key, "")
+
+
+def _evidence_block(index: int, chunk_id: str, value_path: str, text: str) -> str:
+    """One generation evidence block in the pinned AC-18 shape.
+
+    The chunk id notation stays in parentheses. ``ANSWER_SYSTEM_PROMPT`` says
+    the ids are shown in brackets, which is inaccurate about this rendering and
+    is deliberately left alone here: rendering ids in brackets would put the
+    literal ``_MARKER_GROUP_RE`` shape in front of a model that already echoes
+    markers, and ``validate_draft`` hard rejects any cited id outside
+    ``known_chunk_ids``, so an invented id surfaces as ``provider.answer``
+    rather than passing silently.
+    """
+    label = field_label(value_path)
+    header = f"CHUNK {index} ({chunk_id})"
+    if label:
+        header = f"{header}\nField: {label}"
+    return f"{header}\n{text}"
+
 
 # The fixed closed sentence delimiters, matching the chunker's sentence rule.
 _SENTENCE_END_RE = re.compile(r"[.!?]['\"\u2019\u201d)\]}]*(\s+|$)")
@@ -541,13 +631,19 @@ def extract_facets(
 
 def generate_answer(
     facets: Sequence[Facet],
-    chunk_texts: Sequence[str],
-    chunk_ids: Sequence[str],
+    chunks: Sequence[tuple[str, str, str]],
     notices: Sequence[SupersessionNotice],
     known_chunk_ids: frozenset[str],
     attempts: list[ProviderAttempt] | None = None,
 ) -> tuple[DraftSentence, ...]:
-    """Generate structured answer sentences from facets and cited chunks."""
+    """Generate structured answer sentences from facets and cited chunks.
+
+    ``chunks`` is the ordered accepted evidence as ``(chunk_id, value_path,
+    text)`` triples, one sequence rather than three parallel ones (spec 0010
+    AC-18): the previous pair of parallel sequences zipped with
+    ``strict=False``, so a length mismatch misaligned silently, and a third
+    parallel list would have widened that class rather than left it alone.
+    """
     system = ANSWER_SYSTEM_PROMPT
     notices_text = ""
     if notices:
@@ -562,10 +658,8 @@ def generate_answer(
             )
         )
     evidence = "\n\n---\n\n".join(
-        f"CHUNK {index} ({chunk_id}): {text}"
-        for index, (chunk_id, text) in enumerate(
-            zip(chunk_ids, chunk_texts, strict=False)
-        )
+        _evidence_block(index, chunk_id, value_path, text)
+        for index, (chunk_id, value_path, text) in enumerate(chunks)
     )
     messages = [
         {

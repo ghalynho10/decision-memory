@@ -82,7 +82,7 @@ from decision_memory.application.pipeline import (
 from decision_memory.application.store_format import STORE_FORMAT_VERSION
 from decision_memory.application.verification import (
     RETRYABLE_DISPOSITIONS,
-    classify_decomposition,
+    classify_decomposition_detail,
     deterministic_containment,
 )
 
@@ -194,11 +194,15 @@ class QueryDependencies:
     raw_manifest_digest: Callable[[], str]
     resolve_source: Callable[[str], ResolutionState]
     extract_facets: Callable[[str, list[ProviderAttempt] | None], tuple[Facet, ...]]
+    # The accepted evidence travels as one sequence of (chunk_id, value_path,
+    # text) triples, not as parallel sequences (spec 0010 AC-18). Generation
+    # was the one stage that never received a chunk's ``value_path``, and a
+    # third parallel list would have widened the silent misalignment the
+    # existing non strict zip already allowed.
     generate_answer: Callable[
         [
             Sequence[Facet],
-            Sequence[str],
-            Sequence[str],
+            Sequence[tuple[str, str, str]],
             Sequence[SupersessionNotice],
             frozenset[str],
             list[ProviderAttempt] | None,
@@ -540,13 +544,16 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
         cited_chunk_ids=(),
     )
 
-    accepted_texts = [chunk.text for chunk in accepted_chunks]
-    accepted_ids_list = [chunk.chunk_id for chunk in accepted_chunks]
+    # One sequence of triples, so the id, the field label source, and the text
+    # cannot drift apart on the way to generation (AC-18).
+    accepted_evidence = [
+        (chunk.chunk_id, chunk.value_path, chunk.text) for chunk in accepted_chunks
+    ]
     known_ids = frozenset(chunk.chunk_id for chunk in accepted_chunks)
     notices = _collect_notices(deps.store, accepted_chunks)
     try:
         draft = deps.generate_answer(
-            facets, accepted_texts, accepted_ids_list, notices, known_ids, attempts
+            facets, accepted_evidence, notices, known_ids, attempts
         )
     except Exception as exc:  # noqa: BLE001 - provider failure is a result
         return _failed_result(
@@ -629,6 +636,7 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
         # property of the sentence; an over cap or duplicate response is
         # rejected outright (AC-11).
         rejection: str | None = None
+        additive_failure = ""
         sub_claim_texts: tuple[str, ...] = ()
         for attempt in range(2):
             try:
@@ -645,7 +653,9 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
                 )
             if not sub_claim_texts:
                 break
-            rejection = classify_decomposition(sub_claim_texts, sentence.text)
+            rejection, additive_failure = classify_decomposition_detail(
+                sub_claim_texts, sentence.text
+            )
             if rejection is None or rejection not in RETRYABLE_DISPOSITIONS:
                 break
             if attempt == 1:
@@ -667,7 +677,10 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
             # never recorded (AC-6, AC-11).
             rejected_decompositions.append(
                 RejectedDecomposition(
-                    sentence.sentence_id, len(sub_claim_texts), rejection
+                    sentence.sentence_id,
+                    len(sub_claim_texts),
+                    rejection,
+                    additive_failure,
                 )
             )
             removed.append(sentence.sentence_id)

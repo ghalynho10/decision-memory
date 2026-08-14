@@ -41,13 +41,16 @@ from decision_memory.application.query import (
 )
 from decision_memory.application.verification import (
     MAX_SUB_CLAIMS,
+    RETRYABLE_DISPOSITIONS,
     classify_decomposition,
+    classify_decomposition_detail,
     response_is_complete,
     sentence_tokens,
     sub_claim_is_additive_free,
 )
 from decision_memory.infrastructure.openai_generation import (
     GenerationError,
+    field_label,
     validate_decompose,
     validate_draft,
 )
@@ -635,7 +638,7 @@ def test_second_invalid_response_drops_the_parent_with_its_disposition() -> None
     assert result.state == QueryState.ABSTAINED
     assert len(calls) == 2
     assert result.trace.verification.rejected_decompositions == (
-        RejectedDecomposition("S1", 2, "not_additive"),
+        RejectedDecomposition("S1", 2, "not_additive", "content_token"),
     )
     assert result.trace.verification.dropped_sentences == (
         DroppedSentence("S1", "decomposition_invalid"),
@@ -681,7 +684,7 @@ def test_exactly_one_drop_reason_per_unemitted_sentence() -> None:
     assert len(sentence_ids) == len(set(sentence_ids))
     # The `decomposition_invalid` row pairs with its specific disposition.
     assert result.trace.verification.rejected_decompositions == (
-        RejectedDecomposition("S2", 1, "not_additive"),
+        RejectedDecomposition("S2", 1, "not_additive", "content_token"),
     )
 
 
@@ -838,9 +841,14 @@ def test_under_split_emits_the_parent_under_its_own_id() -> None:
 
 
 def _additive(sub_claim: str, parent: str) -> bool:
-    """Whether one sub claim passes the additive half against the parent."""
-    return sub_claim_is_additive_free(
-        sentence_tokens(sub_claim), sentence_tokens(parent)
+    """Whether one sub claim passes the additive half against the parent.
+
+    ``sub_claim_is_additive_free`` returns the AC-19 failure category, or None
+    when the sub claim is additive free, so passing is ``is None``.
+    """
+    return (
+        sub_claim_is_additive_free(sentence_tokens(sub_claim), sentence_tokens(parent))
+        is None
     )
 
 
@@ -1189,3 +1197,186 @@ def test_debug_trace_renders_dropped_sentence(capsys) -> None:
     _print_query_debug(result)
     out = capsys.readouterr().out
     assert "dropped_sentence S1 reason=unsupported_sub_claim" in out
+
+
+# ---------------------------------------------------------------------------
+# AC-19: the additive failure category. Observational only: the disposition,
+# the retry set, and the drop are all unchanged, which is what lets it ship in
+# the same task as a change to model input without contaminating it.
+# ---------------------------------------------------------------------------
+
+
+def _category(sub_claims: tuple[str, ...], parent: str) -> tuple[str | None, str]:
+    return classify_decomposition_detail(sub_claims, parent)
+
+
+def test_an_unmatched_content_token_records_content_token() -> None:
+    """A sub claim whose first failing token is an unmatched content token
+    records ``content_token`` (AC-19).
+
+    This is the share the tolerance knob cannot reach:
+    ``MAX_ADDED_FUNCTION_WORDS`` bounds function word additions only, so no
+    setting of it rescues a substituted content word.
+    """
+    parent = "The board approved the merger on Tuesday."
+    assert _category(("The board bought a yacht.",), parent) == (
+        "not_additive",
+        "content_token",
+    )
+    assert (
+        sub_claim_is_additive_free(
+            sentence_tokens("The board bought a yacht."), sentence_tokens(parent)
+        )
+        == "content_token"
+    )
+
+
+def test_a_function_word_past_the_bound_records_function_word_overrun() -> None:
+    """A sub claim whose first failing token is the function word past
+    ``MAX_ADDED_FUNCTION_WORDS`` records ``function_word_overrun`` (AC-19).
+
+    This is the only share the tolerance knob can move, which is why the two
+    are separated at all.
+    """
+    parent = "Board approved merger."
+    # Three added function words: `the`, `not`, `there`. The first two are
+    # inside the bound; the third is the token this stops on.
+    sub_claim = "The board not there approved merger."
+    assert _category((sub_claim,), parent) == ("not_additive", "function_word_overrun")
+
+
+def test_both_causes_record_whichever_token_comes_first() -> None:
+    """A sub claim carrying both records whichever came first in token order,
+    which pins the early return reading against a full scan (AC-19).
+
+    Reporting the other would turn the check into a survey and make the
+    category a second traversal that could disagree with the verdict. The
+    consequence is stated so a reader of the figure knows what it is: this
+    counts first causes, not causes present.
+    """
+    parent = "Board approved merger."
+    # The over budget function word comes first, then an unmatched content word.
+    assert _category(("The board not there approved a yacht merger.",), parent) == (
+        "not_additive",
+        "function_word_overrun",
+    )
+    # The unmatched content word comes first, then the over budget function word.
+    assert _category(("Board approved yacht the not there merger.",), parent) == (
+        "not_additive",
+        "content_token",
+    )
+
+
+def test_every_other_disposition_records_the_empty_category() -> None:
+    """``over_cap``, ``duplicate``, and ``incomplete`` carry no category, and
+    a valid response carries none either (AC-19)."""
+    parent = "The board approved the merger on Tuesday."
+    over_cap = tuple(
+        f"The board approved {index}." for index in range(MAX_SUB_CLAIMS + 1)
+    )
+    assert len(over_cap) > MAX_SUB_CLAIMS
+    assert _category(over_cap, parent)[1] == ""
+    assert _category(over_cap, parent)[0] == "over_cap"
+    duplicate = ("The board approved.", "the board approved.")
+    assert _category(duplicate, parent) == ("duplicate", "")
+    # Completeness fails: the merger and Tuesday clause is gone entirely.
+    assert _category(("The board approved.",), parent) == ("incomplete", "")
+    valid = ("The board approved the merger.", "The merger was on Tuesday.")
+    assert _category(valid, parent) == (None, "")
+
+
+def test_the_category_comes_from_the_first_failing_sub_claim() -> None:
+    """``classify_decomposition`` scans sub claims in order and stops at the
+    first invalid one, so the category is that one's cause (AC-19)."""
+    parent = "Board approved merger."
+    response = (
+        "Board approved merger.",
+        "The board not there approved merger.",  # function word overrun
+        "Board approved a yacht.",  # content token, never reached
+    )
+    assert _category(response, parent) == ("not_additive", "function_word_overrun")
+
+
+def test_the_category_changes_no_decision_the_pipeline_makes() -> None:
+    """The disposition, the retry, and the drop are unchanged (AC-19).
+
+    An instrument added to a measurement run must change no decision the
+    pipeline makes, or the run measures the instrument.
+    """
+    parent = "The board approved the merger on Tuesday."
+    invalid = ("The board bought a yacht.",)
+    assert classify_decomposition(invalid, parent) == "not_additive"
+    assert classify_decomposition(invalid, parent) == _category(invalid, parent)[0]
+    assert "not_additive" in RETRYABLE_DISPOSITIONS
+    calls: list[str] = []
+
+    def _decompose(sentence_text, evidence, attempts=None) -> tuple[str, ...]:
+        calls.append(sentence_text)
+        return ("The board bought a yacht.",)
+
+    draft = (DraftSentence("S1", _WELD_TEXT, ("ch_a", "ch_b")),)
+    result = _run(_WELD_CHUNKS, draft, decompose=_decompose, entail=_no_call)
+    # Still one retry, still one rejection row, still one drop.
+    assert len(calls) == 2
+    assert result.trace.verification.rejected_decompositions == (
+        RejectedDecomposition("S1", 1, "not_additive", "content_token"),
+    )
+    assert result.trace.verification.dropped_sentences == (
+        DroppedSentence("S1", "decomposition_invalid"),
+    )
+
+
+def test_debug_trace_renders_the_additive_failure_category(capsys) -> None:
+    """The category reaches the debug trace, where the AC-19 measurement
+    script reads it, and it is still never claim text (AC-19)."""
+    from decision_memory.cli import _print_query_debug
+
+    draft = (DraftSentence("S1", _WELD_TEXT, ("ch_a", "ch_b")),)
+    result = _run(
+        _WELD_CHUNKS,
+        draft,
+        decompose=lambda s, c, a=None: ("The board bought a yacht.",),
+        entail=_no_call,
+    )
+    _print_query_debug(result)
+    out = capsys.readouterr().out
+    assert (
+        "rejected_decomposition S1 count=1 disposition=not_additive "
+        "additive_failure=content_token"
+    ) in out
+    assert "yacht" not in out
+
+
+# ---------------------------------------------------------------------------
+# AC-18: the property the plain words label choice buys.
+# ---------------------------------------------------------------------------
+
+
+def test_a_label_echo_survives_decomposition_where_the_dotted_path_would_not() -> None:
+    """A draft sentence echoing a rendered label whole still decomposes and
+    survives, because every token of the label is ordinary vocabulary. The
+    same sentence carrying the dotted ``value_path`` fails instead (AC-18).
+
+    This pins why the mapping exists rather than leaving it as an assertion.
+    Tokenization splits on whitespace and strips only edge punctuation, so a
+    dotted path enters ``parent_tokens`` as one token a decomposition has no
+    reason to carry, and the response fails the completeness half. That is the
+    AC-13 chunk id failure reproduced in a new token class, and a strip cannot
+    close it: a dotted path is lexically ordinary while ``ch_`` plus 64 hex
+    cannot occur in prose.
+    """
+    label = field_label("decision.chosen")
+    assert label == "the decision this record chose"
+    with_label = f"Hybrid retrieval was {label} for the query pipeline."
+    with_path = "Hybrid retrieval was decision.chosen for the query pipeline."
+    # A faithful split of each, phrased the same way in both.
+    split_label = (
+        f"Hybrid retrieval was {label}.",
+        "Hybrid retrieval was for the query pipeline.",
+    )
+    split_path = (
+        "Hybrid retrieval was.",
+        "Hybrid retrieval was for the query pipeline.",
+    )
+    assert classify_decomposition(split_label, with_label) is None
+    assert classify_decomposition(split_path, with_path) == "incomplete"

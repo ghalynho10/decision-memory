@@ -191,10 +191,25 @@ def tokens_match(a: str, b: str) -> bool:
     return _stem_match(a, b)
 
 
+# The closed categories the additive half can fail in (spec 0010 AC-19). They
+# are observational: the tolerance knob, ``MAX_ADDED_FUNCTION_WORDS``, can only
+# ever reach ``FUNCTION_WORD_OVERRUN``, and the ``not_additive`` figure task 13
+# calibrates against has never been split into the part the knob reaches and
+# the part it cannot.
+CONTENT_TOKEN = "content_token"
+FUNCTION_WORD_OVERRUN = "function_word_overrun"
+
+
 def sub_claim_is_additive_free(
     sub_tokens: Sequence[str], parent_tokens: Sequence[str]
-) -> bool:
-    """Whether one sub claim adds no content the parent sentence lacks.
+) -> str | None:
+    """Why one sub claim adds content the parent sentence lacks, or None.
+
+    Returns ``None`` when the sub claim is additive free. Otherwise it returns
+    the closed category of the token it stopped on: ``CONTENT_TOKEN`` for an
+    unmatched content token, ``FUNCTION_WORD_OVERRUN`` for the function word
+    that went past ``MAX_ADDED_FUNCTION_WORDS`` (spec 0010 AC-19). The
+    category is never claim text, so the trace's no claim text rule is intact.
 
     The additive half of the AC-11 validity test, scoped **per sub claim**:
     the sub claim is checked alone against the full parent token pool, and
@@ -209,6 +224,13 @@ def sub_claim_is_additive_free(
     sub claim. A function word with no match is instead counted against
     ``MAX_ADDED_FUNCTION_WORDS`` instances per sub claim, whatever the words
     are, and fails only past that bound.
+
+    **The category is read off the point this check already stops at, and
+    nothing scans further.** A sub claim carrying both an over budget function
+    word and a later unmatched content token records whichever came first in
+    token order, so the figure counts **first causes**, not causes present.
+    Reporting the other would turn this early return into a full survey and
+    make the category a second traversal that could disagree with the verdict.
     """
     used = [False] * len(parent_tokens)
     added_function_words = 0
@@ -222,11 +244,11 @@ def sub_claim_is_additive_free(
         if matched:
             continue
         if token not in FUNCTION_WORDS:
-            return False
+            return CONTENT_TOKEN
         added_function_words += 1
         if added_function_words > MAX_ADDED_FUNCTION_WORDS:
-            return False
-    return True
+            return FUNCTION_WORD_OVERRUN
+    return None
 
 
 def response_is_complete(
@@ -262,6 +284,36 @@ def response_is_complete(
 RETRYABLE_DISPOSITIONS = frozenset({"not_additive", "incomplete"})
 
 
+def classify_decomposition_detail(
+    sub_claim_texts: Sequence[str], parent_text: str
+) -> tuple[str | None, str]:
+    """The AC-11 verdict plus the AC-19 additive failure category.
+
+    Returns ``(disposition, additive_failure)``. The disposition is exactly
+    what ``classify_decomposition`` returns and decides everything: the retry,
+    the rejection row, and the drop. The category is observational and empty
+    for every disposition other than ``not_additive``; it names why the first
+    failing sub claim stopped, on the first sub claim that failed, since
+    ``classify_decomposition`` scans sub claims in order and stops at the
+    first invalid one.
+    """
+    if len(sub_claim_texts) > MAX_SUB_CLAIMS:
+        return "over_cap", ""
+    normalized = [normalize_for_containment(text) for text in sub_claim_texts]
+    if len(set(normalized)) != len(normalized):
+        return "duplicate", ""
+    parent_tokens = sentence_tokens(parent_text)
+    for text in sub_claim_texts:
+        additive_failure = sub_claim_is_additive_free(
+            sentence_tokens(text), parent_tokens
+        )
+        if additive_failure is not None:
+            return "not_additive", additive_failure
+    if not response_is_complete(sub_claim_texts, parent_tokens):
+        return "incomplete", ""
+    return None, ""
+
+
 def classify_decomposition(
     sub_claim_texts: Sequence[str], parent_text: str
 ) -> str | None:
@@ -289,16 +341,9 @@ def classify_decomposition(
     that actors, negation, scope, order, or factual relations were preserved.
     A decomposition that preserves every content token while inverting the
     meaning passes it; entailment is the only check that can catch that.
+
+    This is the thin half of ``classify_decomposition_detail``: one
+    implementation, so the disposition and the AC-19 category can never
+    disagree.
     """
-    if len(sub_claim_texts) > MAX_SUB_CLAIMS:
-        return "over_cap"
-    normalized = [normalize_for_containment(text) for text in sub_claim_texts]
-    if len(set(normalized)) != len(normalized):
-        return "duplicate"
-    parent_tokens = sentence_tokens(parent_text)
-    for text in sub_claim_texts:
-        if not sub_claim_is_additive_free(sentence_tokens(text), parent_tokens):
-            return "not_additive"
-    if not response_is_complete(sub_claim_texts, parent_tokens):
-        return "incomplete"
-    return None
+    return classify_decomposition_detail(sub_claim_texts, parent_text)[0]

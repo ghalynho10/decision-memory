@@ -1006,7 +1006,8 @@ def _print_query_debug(result: QueryResult) -> None:
     for rejected in trace.verification.rejected_decompositions:
         typer.echo(
             f"  rejected_decomposition {rejected.sentence_id} "
-            f"count={rejected.returned_count} disposition={rejected.disposition}"
+            f"count={rejected.returned_count} disposition={rejected.disposition} "
+            f"additive_failure={rejected.additive_failure}"
         )
     for dropped in trace.verification.dropped_sentences:
         typer.echo(f"  dropped_sentence {dropped.sentence_id} reason={dropped.reason}")

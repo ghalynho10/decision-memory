@@ -586,11 +586,22 @@ class RejectedDecomposition:
     rejection. ``disposition`` is one closed value: ``over_cap``,
     ``duplicate``, ``not_additive``, or ``incomplete`` (spec 0010 AC-6).
     Rejected claim text is never recorded.
+
+    ``additive_failure`` is observational and defaulted, so an older
+    constructor call stays valid (spec 0010 AC-19). It is one closed value:
+    ``content_token``, ``function_word_overrun``, or empty for every
+    disposition other than ``not_additive``. It exists because the additive
+    tolerance can only ever move the ``function_word_overrun`` share, and the
+    two have never been separated in the drop figures task 13 calibrates
+    against. A category is not text, so the no claim text rule above is
+    unchanged, and nothing about the disposition, the retry set, or the drop
+    depends on it.
     """
 
     sentence_id: str
     returned_count: int
     disposition: str
+    additive_failure: str = ""
 
 
 @dataclass(frozen=True)

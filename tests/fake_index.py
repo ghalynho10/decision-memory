@@ -282,7 +282,7 @@ def fake_extract_facets(question: str, attempts=None) -> tuple[Facet, ...]:
 
 
 def fake_generate_answer(
-    facets, chunk_texts, chunk_ids, notices, known_ids, attempts=None
+    facets, chunks, notices, known_ids, attempts=None
 ) -> tuple[DraftSentence, ...]:
     """The AC-11 structured propositions, cited to real accepted chunks."""
     ids = sorted(known_ids)

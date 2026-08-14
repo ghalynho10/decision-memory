@@ -10,15 +10,20 @@ from __future__ import annotations
 import pytest
 
 from decision_memory.application.dto import Facet
+from decision_memory.infrastructure import openai_generation
 from decision_memory.infrastructure.openai_generation import (
     ANSWER_SYSTEM_PROMPT,
+    CHUNK_VALUE_PATHS,
     COVERAGE_SYSTEM_PROMPT,
     FACETS_SYSTEM_PROMPT,
     GenerationError,
     _coverage_schema,
     _draft_schema,
+    _evidence_block,
     _facets_schema,
     _verdict_schema,
+    field_label,
+    generate_answer,
     validate_coverage,
     validate_draft,
     validate_facets,
@@ -576,3 +581,166 @@ def test_descriptions_carry_no_deterministic_weight() -> None:
     # never the schema at all.
     assert stripped != _coverage_schema()
     assert outcomes() == with_descriptions == [True, False, False]
+
+
+# ---------------------------------------------------------------------------
+# AC-18: the chunk field label generation reads above each evidence block.
+# ---------------------------------------------------------------------------
+
+
+def test_field_label_covers_every_pinned_value_path() -> None:
+    """Every one of the nine pinned value paths renders a nonempty label
+    (spec 0010 AC-18).
+
+    A chunk's ``value_path`` is set in exactly one place, the nine ``add()``
+    calls in ``chunking.py``, so the pinned tuple and the mapping have to stay
+    in step with it. ``/check review`` owns comparing the tuple against
+    ``chunking.py``; this test owns the mapping covering the tuple.
+    """
+    labels = [field_label(value_path) for value_path in CHUNK_VALUE_PATHS]
+    assert all(labels), dict(zip(CHUNK_VALUE_PATHS, labels, strict=True))
+    assert len(CHUNK_VALUE_PATHS) == 9
+    # The label is prose, never the dotted token: the failure class AC-18
+    # exists to remove is a token no decomposition can reproduce.
+    assert not any("." in label or "[" in label for label in labels)
+
+
+def test_field_label_ignores_the_index() -> None:
+    """The index is not rendered and the lookup ignores it, so ``why[0]`` and
+    ``why[3]`` find the same entry (spec 0010 AC-18).
+
+    An ordinal carries no meaning to a reader, and an echoed number would be
+    noise in the sentence text. The transform is pinned: look up the substring
+    before the first ``[`` and ignore everything from that bracket onward.
+    """
+    assert field_label("why[0]") == field_label("why[3]") == field_label("why[17]")
+    assert field_label("why[0]") == "a reason this record gives for its decision"
+    assert field_label("consequences.negative[2]") == (
+        "a negative consequence this record accepts"
+    )
+    # A path with no bracket is looked up whole.
+    assert field_label("decision.chosen") == "the decision this record chose"
+
+
+def test_unmapped_value_path_omits_the_field_line() -> None:
+    """An unmapped path renders no label and its block carries no ``Field:``
+    line, degrading to the previous behaviour (spec 0010 AC-18).
+
+    The fallback is deliberately not the dotted token: that would introduce
+    the unmatchable token the mapping exists to avoid.
+    """
+    assert field_label("title") == ""
+    assert field_label("supersedes") == ""
+    assert field_label("something.new[0]") == ""
+    block = _evidence_block(0, _MARKER_A, "supersedes", "Superseded by DM-0009.")
+    assert "Field:" not in block
+    assert block == f"CHUNK 0 ({_MARKER_A})\nSuperseded by DM-0009."
+
+
+def test_evidence_block_matches_the_pinned_shape() -> None:
+    """The block is the pinned AC-18 shape, with the chunk id still in
+    parentheses (spec 0010 AC-18).
+
+    ``ANSWER_SYSTEM_PROMPT`` says the ids are shown in brackets, which is
+    inaccurate about this rendering and is deliberately left alone: rendering
+    ids in brackets would put the literal marker group shape in front of a
+    model that already echoes markers.
+    """
+    block = _evidence_block(2, _MARKER_A, "decision.chosen", "Hybrid retrieval.")
+    assert block == (
+        f"CHUNK 2 ({_MARKER_A})\n"
+        "Field: the decision this record chose\n"
+        "Hybrid retrieval."
+    )
+    assert "[" not in block
+
+
+def test_answer_prompt_frames_a_decision_and_forbids_copying_the_field_line() -> None:
+    """The AC-18 prompt half: point the model at the ``Field:`` line, ask a
+    decision facet to be answered with the decision, and forbid copying the
+    line into the sentence text.
+
+    The prohibition is narrowed rather than mirrored from AC-13: the label is
+    prose, so forbidding its vocabulary would forbid ordinary words the answer
+    needs.
+    """
+    assert "Field line says which part of the record that chunk is" in (
+        ANSWER_SYSTEM_PROMPT
+    )
+    assert "never copy a Field line into the sentence text" in ANSWER_SYSTEM_PROMPT
+    assert "answer it with the decision the record chose" in ANSWER_SYSTEM_PROMPT
+    assert "rather than as a description of how the system works" in (
+        ANSWER_SYSTEM_PROMPT
+    )
+
+
+def test_record_title_never_reaches_the_generation_prompt(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The evidence block carries the id, the label, and the text, and never
+    the record title (spec 0010 AC-18).
+
+    The title is adapter extracted corpus content at the same trust level as
+    the chunk text, inside a block already fenced to the model as untrusted,
+    so giving it authority in the prompt adds injection surface for no gain.
+    It cannot reach the prompt because generation is never given it.
+    """
+    captured: list[dict[str, str]] = []
+
+    def _fake_call(concern, messages, schema, model, attempts):
+        captured.extend(messages)
+        return {
+            "sentences": [
+                {
+                    "id": "S1",
+                    "text": "Hybrid retrieval was chosen.",
+                    "chunk_ids": [_MARKER_A],
+                }
+            ]
+        }
+
+    monkeypatch.setattr(openai_generation, "_structured_call", _fake_call)
+    draft = generate_answer(
+        (Facet("F1", "what was decided?"),),
+        ((_MARKER_A, "decision.chosen", "The project chose hybrid retrieval."),),
+        (),
+        _KNOWN,
+    )
+    assert draft[0].sentence_id == "S1"
+    prompt = "\n".join(message["content"] for message in captured)
+    assert _MARKER_A in prompt
+    assert "Field: the decision this record chose" in prompt
+    assert "The project chose hybrid retrieval." in prompt
+    assert "Reliable multi source retrieval" not in prompt
+
+
+def test_labels_carry_no_deterministic_weight(monkeypatch: pytest.MonkeyPatch) -> None:
+    """With every field label removed, every validator rejects and accepts
+    exactly the same shapes (spec 0010 AC-17, AC-18).
+
+    A label is prompt text under another name, like a schema description: it
+    changes what the model is told, never what a validator decides. Nothing
+    downstream of generation reads it, and ``validate_draft`` never sees the
+    evidence blocks at all.
+    """
+
+    def outcomes() -> list[bool]:
+        results: list[bool] = []
+        for text in (
+            "Hybrid retrieval was chosen.",
+            f"Hybrid retrieval was chosen {_MARKER_A}.",
+            "",
+        ):
+            try:
+                validate_draft({"sentences": [_one(text)]}, _KNOWN)
+            except GenerationError:
+                results.append(False)
+            else:
+                results.append(True)
+        return results
+
+    with_labels = outcomes()
+    monkeypatch.setattr(openai_generation, "FIELD_LABELS", {})
+    assert all(field_label(path) == "" for path in CHUNK_VALUE_PATHS)
+    assert "Field:" not in _evidence_block(0, _MARKER_A, "decision.chosen", "text")
+    assert outcomes() == with_labels == [True, True, False]
