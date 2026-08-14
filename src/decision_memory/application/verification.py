@@ -14,7 +14,7 @@ import unicodedata
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from decision_memory.application.morphology import _stem_match
+from decision_memory.application.morphology import base_sets_intersect
 
 
 def normalize_for_containment(text: str) -> str:
@@ -144,14 +144,19 @@ def tokens_match(a: str, b: str) -> bool:
     already present in the parent is not new vocabulary however short it is
     (``db`` reused verbatim must match). Otherwise a function word never
     matches, on either side, since a function word matches only by exact
-    normalized token equality. Two content tokens match when they share a
-    stem. This is the one matcher both halves of the validity test use.
+    normalized token equality, so the base set is never consulted for one.
+    Two content tokens match when they **share a stem**, and sharing a stem is
+    symmetric: each token maps to its base set and the two match when those
+    sets intersect. This is the one matcher both halves of the validity test
+    use, which is why widening it widens the safety critical completeness half
+    too, and why task 18 re runs both AC-1 attack tests rather than assuming
+    they survive.
     """
     if a == b:
         return True
     if a in FUNCTION_WORDS or b in FUNCTION_WORDS:
         return False
-    return _stem_match(a, b)
+    return base_sets_intersect(a, b)
 
 
 # The closed categories the additive half can fail in (spec 0010 AC-19). They

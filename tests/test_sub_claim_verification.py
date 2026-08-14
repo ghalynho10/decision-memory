@@ -47,6 +47,7 @@ from decision_memory.application.verification import (
     response_is_complete,
     sentence_tokens,
     sub_claim_is_additive_free,
+    tokens_match,
 )
 from decision_memory.infrastructure.openai_generation import (
     GenerationError,
@@ -228,6 +229,66 @@ def test_omitted_fabricated_clause_fails_completeness_and_drops_the_parent() -> 
     )
     # No sub claim was verified, so no row and no entailment call.
     assert result.trace.verification.decomposed == ()
+
+
+def test_the_omission_attack_survives_the_base_set_matcher() -> None:
+    """The AC-1 omission attack still fails after the AC-11 amendment.
+
+    Both halves of the validity test match through ``tokens_match``, so
+    widening it widened the safety critical completeness half in the same
+    change that widened the additive one. A looser completeness check passes
+    more often, and that must not be taken on the reasoning that the additive
+    side was the target, so the attack is **re proven** here rather than
+    assumed to survive.
+
+    It survives because a clause is caught by its distinctive nouns rather
+    than by its verb: the shared verb now matches across its inflections, and
+    the clause still fails on a noun no sub claim carries.
+    """
+    # The kept and omitted clauses share an inflected verb, the case the
+    # amendment newly matches, so the verb can no longer catch the omission.
+    parent = (
+        "The pipeline drops the offending bullet, and the reviewer was "
+        "dropping the audit."
+    )
+    kept = "The pipeline drops the offending bullet."
+    assert tokens_match("drops", "dropping")
+    # The omission is caught anyway, on the omitted clause's own noun.
+    assert response_is_complete((kept,), sentence_tokens(parent)) == "reviewer"
+    assert classify_decomposition((kept,), parent) == "incomplete"
+
+    # The same shape on the second pair AC-1 names.
+    parent = "The guard blocks the fabrication, and the retry was blocked."
+    kept = "The guard blocks the fabrication."
+    assert tokens_match("blocks", "blocked")
+    assert response_is_complete((kept,), sentence_tokens(parent)) == "retry"
+    assert classify_decomposition((kept,), parent) == "incomplete"
+
+
+def test_the_named_residual_risk_of_the_wider_completeness_half() -> None:
+    """The bound the amendment widened, recorded rather than claimed closed.
+
+    An omitted clause **every one of whose content words** is an inflection of
+    a word surviving elsewhere in the response now passes completeness where
+    it previously failed. No such case has been observed or constructed in
+    real output, and the bound is narrow, but it is a real widening, so this
+    test pins it: if it ever starts failing, the widening has moved and that
+    is a finding, not a broken test.
+
+    The clause below is deliberately degenerate. Every content word of the
+    omitted half (``drops``, ``bullet``) is an inflection of a word the kept
+    half carries (``dropping``, ``bullets``), so nothing distinctive is left
+    to catch it.
+    """
+    parent = "The pipeline was dropping bullets, and the reviewer drops a bullet."
+    kept = "The pipeline was dropping bullets."
+    # `reviewer` is the one content word not covered, so the attack is still
+    # caught here. Remove it and the completeness half has nothing left.
+    assert response_is_complete((kept,), sentence_tokens(parent)) == "reviewer"
+
+    degenerate_parent = "The pipeline was dropping bullets, and it drops a bullet."
+    assert response_is_complete((kept,), sentence_tokens(degenerate_parent)) is None
+    assert classify_decomposition((kept,), degenerate_parent) is None
 
 
 def test_valid_fully_supported_response_emits_the_whole_parent() -> None:
