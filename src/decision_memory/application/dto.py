@@ -648,12 +648,25 @@ class VerificationTrace:
 
 @dataclass(frozen=True)
 class ProviderAttempt:
-    """One provider attempt with its timing and outcome."""
+    """One provider attempt with its timing, outcome, and token usage.
+
+    ``prompt_tokens`` and ``completion_tokens`` are the usage the provider
+    reported for this attempt, defaulted to 0 for a failed attempt or a
+    provider that reports none. They are observational, added so a run's
+    provider cost can be priced from the trace (spec 0010 AC-19, which
+    requires experiment 0007 to record what this gate actually costs; the
+    spec has called it cheap several times and no run has ever recorded a
+    figure). Nothing reads them to decide anything, and the defaulted
+    trailing fields follow the AC-10 precedent that keeps an older
+    constructor call valid.
+    """
 
     concern: str
     attempt_number: int
     elapsed_ms: int
     outcome: ProviderOutcome
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
 
 
 @dataclass(frozen=True)

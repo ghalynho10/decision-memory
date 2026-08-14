@@ -984,8 +984,14 @@ def _print_query_debug(result: QueryResult) -> None:
         typer.echo(f"  removed {removed_id}")
     for coverage_row in trace.verification.coverage:
         markers = ",".join(coverage_row.sentence_ids)
+        # The row's reason is rendered because it is what separates the two
+        # AC-15 abstention causes: ``abstention_cause`` reads
+        # ``no_emitted_sentences`` from every row carrying the deterministic
+        # reason constant. Without it a transcript reader has to re derive the
+        # cause instead of reading the same thing the shipped oracle reads.
         typer.echo(
-            f"  {coverage_row.facet_id} covered={coverage_row.covered} [{markers}]"
+            f"  {coverage_row.facet_id} covered={coverage_row.covered} "
+            f"[{markers}] reason={coverage_row.reason}"
         )
     for facet in trace.verification.uncovered_facets:
         typer.echo(f"  uncovered {facet.facet_id}: {facet.text}")
@@ -1018,7 +1024,9 @@ def _print_query_debug(result: QueryResult) -> None:
     for attempt in trace.providers:
         typer.echo(
             f"  {attempt.concern} attempt={attempt.attempt_number} "
-            f"elapsed_ms={attempt.elapsed_ms} outcome={attempt.outcome.value}"
+            f"elapsed_ms={attempt.elapsed_ms} outcome={attempt.outcome.value} "
+            f"prompt_tokens={attempt.prompt_tokens} "
+            f"completion_tokens={attempt.completion_tokens}"
         )
     typer.echo("Citations")
     for citation in result.citations:

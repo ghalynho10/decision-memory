@@ -350,6 +350,11 @@ def _structured_call(
     """One structured chat call with one schema repair attempt (AC-15)."""
     require_api_key()
     client = _client()
+    # The usage the provider reported for the attempt that just succeeded,
+    # read back through ``usage_probe``. Observational only (spec 0010 AC-19):
+    # it is what lets experiment 0007 price this gate instead of calling it
+    # cheap again.
+    usage: list[tuple[int, int]] = []
 
     def call(payload_messages: Sequence[dict[str, str]]) -> dict[str, Any]:
         response = client.chat.completions.create(
@@ -365,10 +370,22 @@ def _structured_call(
                 },
             },
         )
+        reported = getattr(response, "usage", None)
+        usage.append(
+            (
+                int(getattr(reported, "prompt_tokens", 0) or 0),
+                int(getattr(reported, "completion_tokens", 0) or 0),
+            )
+        )
         return _parse_content(response.choices[0].message.content)
 
     try:
-        return run_with_retries(concern, lambda: call(messages), attempts)
+        return run_with_retries(
+            concern,
+            lambda: call(messages),
+            attempts,
+            lambda: usage[-1] if usage else (0, 0),
+        )
     except GenerationError:
         raise
     except Exception as exc:  # noqa: BLE001 - normalized at the boundary

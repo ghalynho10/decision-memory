@@ -9,8 +9,9 @@ from __future__ import annotations
 
 import pytest
 
-from decision_memory.application.dto import Facet
+from decision_memory.application.dto import Facet, ProviderAttempt, ProviderOutcome
 from decision_memory.infrastructure import openai_generation
+from decision_memory.infrastructure.openai_common import run_with_retries
 from decision_memory.infrastructure.openai_generation import (
     ANSWER_SYSTEM_PROMPT,
     CHUNK_VALUE_PATHS,
@@ -744,3 +745,25 @@ def test_labels_carry_no_deterministic_weight(monkeypatch: pytest.MonkeyPatch) -
     assert all(field_label(path) == "" for path in CHUNK_VALUE_PATHS)
     assert "Field:" not in _evidence_block(0, _MARKER_A, "decision.chosen", "text")
     assert outcomes() == with_labels == [True, True, False]
+
+
+def test_provider_usage_is_recorded_and_decides_nothing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A successful provider attempt records the token usage the provider
+    reported, and a provider reporting none records zeros (spec 0010 AC-19).
+
+    The figure is observational: experiment 0007 prices this gate from it,
+    because the spec has called the self corpus gate cheap several times and
+    no run had ever recorded a number. Nothing reads it to decide anything,
+    so an absent usage object degrades to zeros rather than failing.
+    """
+    attempts: list[ProviderAttempt] = []
+    assert run_with_retries("answer", lambda: "ok", attempts, lambda: (120, 7)) == "ok"
+    assert (attempts[0].prompt_tokens, attempts[0].completion_tokens) == (120, 7)
+    assert attempts[0].outcome is ProviderOutcome.SUCCESS
+    # No probe at all, the embedding path: zeros, and the attempt is unchanged
+    # in every other way.
+    attempts.clear()
+    assert run_with_retries("embed", lambda: "ok", attempts) == "ok"
+    assert (attempts[0].prompt_tokens, attempts[0].completion_tokens) == (0, 0)

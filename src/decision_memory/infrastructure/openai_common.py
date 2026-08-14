@@ -77,12 +77,18 @@ def run_with_retries(
     operation: str,
     call: Callable[[], T],
     attempts: list[ProviderAttempt] | None = None,
+    usage_probe: Callable[[], tuple[int, int]] | None = None,
 ) -> T:
     """Run ``call`` under the AC-16 retry policy, recording every attempt.
 
     Raises ``OpenAIClientError`` on a non retryable or final failure. When
     ``attempts`` is given it collects one ``ProviderAttempt`` per try, so the
     trace keeps provider attempts even after a fatal failure.
+
+    ``usage_probe`` returns the ``(prompt_tokens, completion_tokens)`` the
+    provider reported for the attempt that just succeeded. It is
+    observational: nothing reads the result to decide anything, and a caller
+    that passes none records zeros (spec 0010 AC-19).
     """
     last_error: BaseException | None = None
     for attempt in range(1, MAX_ATTEMPTS + 1):
@@ -113,12 +119,17 @@ def run_with_retries(
             continue
         elapsed = int((time.monotonic() - started) * 1000)
         if attempts is not None:
+            prompt_tokens, completion_tokens = (
+                usage_probe() if usage_probe is not None else (0, 0)
+            )
             attempts.append(
                 ProviderAttempt(
                     concern=operation,
                     attempt_number=attempt,
                     elapsed_ms=elapsed,
                     outcome=ProviderOutcome.SUCCESS,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
                 )
             )
         return result
