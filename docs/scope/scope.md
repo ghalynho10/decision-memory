@@ -25,7 +25,7 @@ _You are in charge. Every box below is a suggestion, not a gate: run any, skip a
 | 12 | Flat single file spec support | V2 | planned |
 | 13 | Declarative adapters | V2 | planned |
 | 14 | MCP server interface | V2 | planned |
-| 15 | CLI presentation redesign | Slice 4 | planned |
+| 15 | CLI presentation redesign | Slice 4 | in-progress |
 | 16 | Abstention verification reliability | Slice 3 | in-progress |
 | 17 | Retrieval query hardening | Slice 2 | planned |
 | 18 | Corpus gap and staleness awareness | Slice 3 | planned |
@@ -277,12 +277,21 @@ The tool cannot tell when it is answering from an incomplete or outdated corpus,
 
 Runs after Slice 2 and Slice 3, and before V2. The number 15 is only the next free ordinal, it is not a claim that this comes after everything else. Ordering against Feature 8 (built-in ADR adapters) is irrelevant, the two do not touch the same surface, and Feature 8 keeps its own sequencing (a `doctor` survey of real corpora first).
 
-### 15. CLI presentation redesign · needs a decision
+### 15. CLI presentation redesign
 Restyle the human facing output of the CLI to one defined visual language: a teal accent, aligned reports at 80 columns, status markers that carry both a shape and a word so meaning survives without color, a single line summary paired with the exit code, and a consistent error then hint then exit grammar. The visual target is an external design (opendesign), corrected against what the CLI really prints today.
-**Done when:** every one of the 7 commands (`version`, `validate`, `doctor`, `adapt`, `test-adapter`, `ingest`, `query`) prints in the new language, including its failure paths, and the whole surface stays untouched underneath: same commands, same flags, same exit codes, same JSON output, same DTOs, same backends.
+**Done when:** every one of the 8 commands (`version`, `validate`, `doctor`, `adapt`, `test-adapter`, `ingest`, `query`, `evaluate`) prints in the new language, including its failure paths, and the whole surface stays untouched underneath: same commands, same flags, same exit codes, same JSON output, same DTOs, same backends. `evaluate` was missing from this list until spec 0013 checked the design against the code; it is a real command the README documents, and leaving it in the old language is a seam a reader hits immediately.
 **Scope guardrails (carry into the spec):** presentation only. No new command, no new or renamed flag, no changed exit code, no changed DTO field, no retrieval or storage change. The change lives in `src/decision_memory/cli.py` plus one new rendering module; machine readable output (`--json` and friends) stays byte stable, since scripts depend on it.
 **Why it waits for Features 10, 11, and now 16:** Feature 10 (reliable multi source retrieval) rewrites what `query --debug` traces, since filtering and lexical stages add candidate sets and scores the current trace has no shape for. Styling today's trace first means styling it twice. Feature 11 (the evaluation harness) is the other output producer whose report shape is not settled yet. Feature 16 (abstention verification reliability) is a fix to the same verification layer the debug trace exposes, so it can reshape that output the same way Feature 10 did; build the visual language once, over output that has stopped moving.
-- [ ] Design it (spec): `/architect CLI presentation redesign`
+spec [0013](../specs/0013-cli-presentation-redesign/index.md) · code in src/decision_memory/
+- [x] Design it (spec): `/architect CLI presentation redesign`
+- [ ] Build it: `/develop CLI presentation redesign`
+  - [ ] Capture and commit the frozen baselines from the current build, and add the layering test with its one named exemption (AC-5, AC-6, AC-11)
+  - [ ] Build the rendering module: capability predicate, semantic palette, markers, layout primitives, and a byte exact test per degradation path (AC-3, AC-4)
+  - [ ] Restyle the six report commands screen by screen, each with its own assertions updated in the same task (AC-1, AC-2, AC-7, AC-8)
+  - [ ] Install the error then hint then exit grammar from the spec's hint table, including the Click usage error override and its pinning tests, and rewrite the eight help screens (AC-9, AC-10)
+  - [ ] Add colour to the two frozen surfaces last, wire the baseline diff tests, and refresh the README, user guide, and AGENTS.md (AC-5, AC-6)
+- [ ] Verify it: `/check verify CLI presentation redesign`
+- [ ] Test it: `/test CLI presentation redesign`
 
 ## V2
 
@@ -308,6 +317,10 @@ Out of scope for the current build pass, kept so the plan stays honest.
 - **Coverage direction (query 2 citation completeness)**: query 2's `DM-0004` citation is intermittent because generation is not required to cite every accepted chunk that directly answers a facet, while `DM-0019` is. Deliberately kept out of spec 0010 so the fabrication direction ships as one measurable change. Needs a decision on a stricter generation contract or a citation completeness verification stage · needs a decision
 - **Facet extraction, the contrast clause and its instability** (from spec 0010): `query-3-provisional` is the one failing live fixture that belongs to neither half of AC-11. It rejects no decomposition and drops no sentence, so `docs/experiments/0012-the-other-three-abstentions.md` attributed it away from the function word set entirely. Two defects sit in one fixture. The contrast term in `provisional rather than ratified` narrows the request and is being promoted to a second facet the answer must satisfy. And that facet inverts between runs on identical input at temperature 0: `Which decisions are ratified?` in two runs and `Which decisions are not ratified?` in the third, the strongest form of instability available, with the second version arguably already covered by the first sentence. Needs a decision on whether facet extraction should split a contrast clause at all, and on what makes the split deterministic · needs a decision
 - **Store level nondeterminism in `evaluate`** (from spec 0010, OD-12): which fixtures pass may depend on which index build ran, not only on provider sampling. One `evaluate` invocation adapts once and ingests once, then runs every fixture `--runs N` times, so a batch holds the store constant. In [experiment 0013](../experiments/0013-the-connectives-cleared-and-entailment-is-next.md) `query-1-private-beta-gate` went 0 of 3 then 3 of 3 on identical code, a clean split on the store boundary, while two other fixtures varied inside a single batch. AC-24 deliberately refused to absorb this into a larger run count, because averaging would hide the larger of the two effects. **First step is concrete: compare chunk identity and ordering across two builds of the same corpus, before looking at anything downstream.** A retrieval path whose results depend on the build would also be consistent with experiment 0007 finding no `decision.chosen` chunk retrieved at all, so this may belong to spec 0011 rather than here · needs a decision
+- **The one layer rule violation** (from spec 0013): `application/settings.py:22` imports `infrastructure.project_config` at module level, the only place application reaches outward. Spec 0013's layering test names it as a single exemption rather than weakening the assertion, so it is now visible and counted. The fix is a port in application with the concrete reader wired at the composition root, the shape already applied to `adapt_corpus` and `validate_file`.
+- **A truthful providers line in the query trace** (from spec 0013): the design drew one and it was invented; the real mapping is OpenAI with `text-embedding-3-small`, `gpt-4o` for facets, answer, and coverage, and `gpt-4o-mini` for entailment and decomposition. It cannot be added under spec 0013's frozen surface rule, so printing it needs its own decision about unfreezing `query --debug` or about a new surface · needs a decision
+- **Whether `query --debug` stays frozen** (from spec 0013): the freeze buys instrument safety by construction and costs the trace ever gaining the visual language on a pipe. Revisit once the experiment programme settles · needs a decision
+- **Two small truths worth repairing** (from spec 0013): `MODEL_ENTAILMENT_COVERAGE` is misnamed and its module docstring is wrong, since coverage calls `gpt-4o`; and two regexes in `docs/experiments/data/coverage-directness-extract.py` expect lowercase `c1` citation ids while the code emits `C1`, so they have never fired.
 - **Capture**: interview based record creation for projects with no existing decision shaped artifacts · needs a decision
 - **Capture revisit trigger**: revisit capture after the tool has been used on three projects that lack decision shaped artifacts and the need is demonstrated.
 - **Web UI**: a frontend over a thin HTTP layer on the core · needs a decision
