@@ -9,6 +9,7 @@ package boots and builds.
 import json
 import tempfile
 from contextlib import ExitStack
+from datetime import UTC, datetime
 from importlib.metadata import version
 from pathlib import Path
 from typing import Annotated
@@ -1175,6 +1176,30 @@ def _resolve_evaluate_paths(
     return records_dir, store_dir
 
 
+def _resolve_traces_dir(traces: Path | None) -> Path:
+    """Resolve --traces to a concrete directory, one per invocation (AC-23).
+
+    Deliberately **not** a ``TemporaryDirectory`` and deliberately not
+    registered on the ``ExitStack``: a defaulted --records or --store is
+    removed when the command returns, and writing the evidence there would
+    destroy exactly what this exists to keep.
+
+    The default carries a per invocation timestamp because each invocation
+    numbers its runs from 1, so a name built from fixture id and run index
+    alone would collide across the four batches a decision grade measurement
+    takes (AC-24) and destroy the store versus provider attribution. The
+    timestamp is resolved to microseconds so two invocations inside one
+    second are still separate directories.
+
+    Nothing is created here. The directory is made on the first deviating
+    run's write, so a clean batch leaves no empty directory behind.
+    """
+    if traces is not None:
+        return traces
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S.%fZ")
+    return Path(".decision-memory") / "evaluate-traces" / stamp
+
+
 @app.command("evaluate")
 def evaluate_command(
     corpus_path: Annotated[
@@ -1214,6 +1239,17 @@ def evaluate_command(
             ),
         ),
     ] = None,
+    traces: Annotated[
+        Path | None,
+        typer.Option(
+            "--traces",
+            help=(
+                "Directory for the traces of runs that miss their "
+                "expectation; defaults to a fresh timestamped directory "
+                "under ./.decision-memory/evaluate-traces/"
+            ),
+        ),
+    ] = None,
 ) -> None:
     """Run the evaluation harness: the five defining queries plus two assertions.
 
@@ -1230,6 +1266,11 @@ def evaluate_command(
     way. A manifest key this build does not recognize, or an expectation the
     adapted corpus cannot satisfy, is a usage error rather than a quietly
     weakened gate.
+
+    Every run that misses its fixture's expectation writes its full traced
+    result under ``--traces`` (spec 0010 AC-23), so a surprising run can be
+    read afterwards instead of being lost with the report. A run that meets
+    its expectation writes nothing.
     """
     fixtures: tuple[EvaluationFixture, ...] = EVALUATION_FIXTURES
     if battery is not None:
@@ -1274,6 +1315,8 @@ def evaluate_command(
             "output would not match the fixture battery's expected record ids"
         )
 
+    traces_dir = _resolve_traces_dir(traces)
+
     with ExitStack() as stack:
         records_dir, store_dir = _resolve_evaluate_paths(records, store, stack)
         # Printed before adapt/ingest/the battery run, not just before the
@@ -1285,7 +1328,12 @@ def evaluate_command(
         store_label = "" if store is not None else " (temporary, removed on exit)"
         typer.echo(f"records: {records_dir}{records_label}")
         typer.echo(f"store: {store_dir}{store_label}")
-        runner = EvaluationRunner(settings.corpus_root, records_dir, store_dir)
+        # Named beside them, and pointedly not labelled temporary: this is the
+        # one directory of the three that outlives the command.
+        typer.echo(f"traces: {traces_dir} (deviating runs only)")
+        runner = EvaluationRunner(
+            settings.corpus_root, records_dir, store_dir, traces_dir
+        )
 
         adapt_outcome = runner.adapt()
         if adapt_outcome.exit_code != 0:

@@ -714,6 +714,20 @@ def test_full_battery_exit_code_zero_only_when_all_pass() -> None:
                     QueryState.ANSWERED,
                     tuple(_citation(record_id, prefix) for record_id in record_ids),
                 )
+            elif fixture.oracle and fixture.oracle.expected_abstention is not None:
+                # AC-23 pins a cause on query 4 and query 5, so a whole
+                # battery pass now needs a claim verification abstention with
+                # a facet judged and uncovered, not a bare abstained state.
+                answered_good[fixture.question or ""] = _abstained_result(
+                    (
+                        CoverageRow(
+                            facet_id="F1",
+                            covered=False,
+                            reason="not covered",
+                            sentence_ids=(),
+                        ),
+                    )
+                )
             else:
                 answered_good[fixture.question or ""] = _result(QueryState.ABSTAINED)
     port = FakePort(
@@ -1119,13 +1133,34 @@ def test_covering_sentence_scope_fails_when_no_covered_row_names_a_sentence() ->
 
 
 def test_the_jobpilot_battery_keeps_the_whole_answer_semantics() -> None:
-    """Nothing already built moves: no built in fixture opts into either new
-    field (AC-15)."""
+    """The covering sentence scope stays a manifest battery opt in (AC-15).
+
+    The abstention cause did not stay one: AC-23 moved it onto the built in
+    battery, and the test below pins where.
+    """
     for fixture in EVALUATION_FIXTURES:
         if fixture.oracle is None:
             continue
-        assert fixture.oracle.expected_abstention is None, fixture.id
         assert fixture.oracle.covering_sentence_scope is False, fixture.id
+
+
+def test_both_jobpilot_abstention_gates_pin_the_uncovered_facet_cause() -> None:
+    """Query 4 and query 5 assert a cause, not only a state (AC-23).
+
+    Both are expected to fail on that cause today, and that is the finding
+    rather than a regression: query 5 abstains through wholesale rejection
+    (experiment 0013), and nothing has ever established that query 4's 6 of 6
+    rests on a verdict rather than on the same thing.
+    """
+    pinned = {
+        fixture.id: fixture.oracle.expected_abstention
+        for fixture in EVALUATION_FIXTURES
+        if fixture.oracle is not None and fixture.oracle.expected_abstention is not None
+    }
+    assert pinned == {
+        "query-4-db-clients": AbstentionCause.UNCOVERED_FACET,
+        "query-5-uploaded-files": AbstentionCause.UNCOVERED_FACET,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -1181,3 +1216,125 @@ def test_a_satisfiable_battery_reports_nothing() -> None:
     )
     paths = {"DM-0008": frozenset({"decision.chosen", "decision.alternatives[0]"})}
     assert unsatisfiable_oracles((fixture, abstaining), paths) == ()
+
+
+# ---------------------------------------------------------------------------
+# A deviating run is handed to the port (spec 0010 AC-23)
+# ---------------------------------------------------------------------------
+
+
+class _RecordingPort(FakePort):
+    """A port that remembers every deviation the engine hands it."""
+
+    def __init__(self, **kwargs: object) -> None:
+        super().__init__(**kwargs)  # type: ignore[arg-type]
+        self.deviations: list[tuple[str, int, QueryResult]] = []
+
+    def record_deviation(
+        self, fixture_id: str, run_index: int, result: QueryResult
+    ) -> None:
+        self.deviations.append((fixture_id, run_index, result))
+
+
+def _deviation_fixture() -> EvaluationFixture:
+    """A fixture whose oracle needs DM-0012 among the citations."""
+    return EvaluationFixture(
+        id="query-1-private-beta-gate",
+        kind=FixtureKind.QUERY,
+        question="q",
+        oracle=QueryOracle(
+            expected_state=QueryState.ANSWERED,
+            required_record_ids=frozenset({"DM-0012"}),
+        ),
+    )
+
+
+def test_a_matching_run_records_no_deviation() -> None:
+    """A clean batch costs nothing: only surprises are kept."""
+    fixture = _deviation_fixture()
+    good = _result(
+        QueryState.ANSWERED,
+        citations=(_citation("DM-0012", "decision.chosen"),),
+        sentences=(_sentence("The gate was added.", "C1"),),
+    )
+    port = _RecordingPort(results={"q": good})
+    outcome = run_evaluation((fixture,), port, runs=3)
+    assert outcome.passed == 1
+    assert port.deviations == []
+
+
+def test_a_deviating_run_hands_its_fixture_id_run_index_and_result_over() -> None:
+    """The run index is 1 based and identifies the run inside its own batch."""
+    fixture = _deviation_fixture()
+    bad = _result(
+        QueryState.ANSWERED,
+        citations=(_citation("DM-0019", "decision.chosen"),),
+        sentences=(_sentence("Something else entirely.", "C1"),),
+    )
+    port = _RecordingPort(results={"q": bad})
+    outcome = run_evaluation((fixture,), port, runs=2)
+    assert outcome.failed == 1
+    assert [(fixture_id, index) for fixture_id, index, _ in port.deviations] == [
+        ("query-1-private-beta-gate", 1),
+        ("query-1-private-beta-gate", 2),
+    ]
+    assert port.deviations[0][2] is bad
+
+
+def test_a_mixed_batch_records_only_the_runs_that_deviated() -> None:
+    """The same boolean the rate counts decides what is kept; no second
+    notion of deviation exists (AC-23)."""
+    fixture = _deviation_fixture()
+    good = _result(
+        QueryState.ANSWERED,
+        citations=(_citation("DM-0012", "decision.chosen"),),
+        sentences=(_sentence("The gate was added.", "C1"),),
+    )
+    bad = _result(
+        QueryState.ANSWERED,
+        citations=(_citation("DM-0019", "decision.chosen"),),
+        sentences=(_sentence("Something else entirely.", "C1"),),
+    )
+    queue: list[QueryResult] = [good, bad, good]
+
+    class _FlakyRecordingPort(_RecordingPort):
+        def run_query(self, question: str) -> QueryResult:
+            return queue.pop(0)
+
+    port = _FlakyRecordingPort()
+    outcome = run_evaluation((fixture,), port, runs=3)
+    assert outcome.checks[0].runs_passed == 2
+    assert [index for _, index, _ in port.deviations] == [2]
+
+
+def test_a_retrieval_failure_records_no_deviation() -> None:
+    """That path has no QueryResult to hand over; the stage is already named
+    in the check detail."""
+    fixture = _deviation_fixture()
+    partial = PartialQueryTrace(
+        freshness=_empty_trace(QueryState.ANSWERED).freshness,
+        filters=None,
+        lexical=None,
+        semantic=None,
+        fusion=None,
+        diversity=None,
+        providers=(),
+    )
+
+    class _FailingRecordingPort(_RecordingPort):
+        def run_query(self, question: str) -> QueryResult:
+            raise RetrievalFailure(RetrievalStage.SEMANTIC, partial)
+
+    port = _FailingRecordingPort()
+    outcome = run_evaluation((fixture,), port)
+    assert outcome.failed == 1
+    assert port.deviations == []
+
+
+def test_the_default_port_method_is_a_no_op() -> None:
+    """A port with nowhere to put a trace is unaffected (AC-23)."""
+    fixture = _deviation_fixture()
+    bad = _result(QueryState.ABSTAINED)
+    port = FakePort(results={"q": bad})
+    outcome = run_evaluation((fixture,), port)
+    assert outcome.failed == 1

@@ -237,6 +237,28 @@ class EvaluationPort(Protocol):
         self, record_id: str, rationale_relpath: str
     ) -> ReingestEvidence: ...
 
+    def record_deviation(
+        self, fixture_id: str, run_index: int, result: QueryResult
+    ) -> None:
+        """Keep the full traced result of a run that missed its expectation.
+
+        Optional, and a no op by default (spec 0010 AC-23), so a port that
+        has nowhere to put a trace is unaffected. ``EvaluationCheck`` keeps
+        four scalar fields, so a surprising run was previously unattributable
+        the moment the command returned: experiment 0013's single answering
+        run of query 5 cannot be recovered by any amount of re running.
+
+        The engine calls this only when a run's own oracle result is false,
+        which is the same boolean the rate already counts, so no second
+        notion of deviation exists. It is the seam for the write, because
+        ``_run_query_fixture`` is pure application code and this project
+        forbids the application layer from touching the filesystem. An
+        implementation must not re derive the pass or fail itself; two
+        implementations of one oracle can disagree, which AC-20 refused for
+        ``classify_decomposition``.
+        """
+        return None
+
 
 def abstention_cause(result: QueryResult) -> AbstentionCause | None:
     """Why this result abstained, read from the existing trace (AC-15).
@@ -391,14 +413,28 @@ EVALUATION_FIXTURES: tuple[EvaluationFixture, ...] = (
         id="query-4-db-clients",
         kind=FixtureKind.QUERY,
         question=QUERY_FOUR,
-        oracle=QueryOracle(expected_state=QueryState.ABSTAINED),
+        # AC-23 pins the cause on both abstention gates: an abstention that
+        # happened only because every sentence was dropped stops satisfying
+        # them. Both are expected to fail on cause today, and that is the
+        # finding rather than a regression. Nothing has ever established that
+        # this fixture's 6 of 6 rests on a verdict rather than on the
+        # wholesale rejection experiment 0013 found underneath query 5, and
+        # examining one and not the other would be choosing which answer to
+        # learn.
+        oracle=QueryOracle(
+            expected_state=QueryState.ABSTAINED,
+            expected_abstention=AbstentionCause.UNCOVERED_FACET,
+        ),
         classify_failure=classify_query4_failure,
     ),
     EvaluationFixture(
         id="query-5-uploaded-files",
         kind=FixtureKind.QUERY,
         question=QUERY_FIVE,
-        oracle=QueryOracle(expected_state=QueryState.ABSTAINED),
+        oracle=QueryOracle(
+            expected_state=QueryState.ABSTAINED,
+            expected_abstention=AbstentionCause.UNCOVERED_FACET,
+        ),
     ),
     EvaluationFixture(
         id="assertion-rationale-summary",
@@ -497,10 +533,13 @@ def _run_query_fixture(
     passed = 0
     single_run_detail = ""
     first_failing_detail = ""
-    for _ in range(runs):
+    for run_index in range(1, runs + 1):
         try:
             result = port.run_query(fixture.question)
         except RetrievalFailure as failure:
+            # No QueryResult exists on this path, so there is no traced
+            # result to hand the port; the retrieval stage is already named
+            # in the detail below.
             ok, detail = (
                 False,
                 f"retrieval integrity failure at {failure.stage.value}",
@@ -511,6 +550,11 @@ def _run_query_fixture(
                 stage = fixture.classify_failure(result)
                 if stage:
                     detail = f"{detail}; query4 stage: {stage}"
+            if not ok:
+                # Only the deviating runs, so a clean batch costs nothing and
+                # the run this exists for is never the one that goes missing
+                # (AC-23).
+                port.record_deviation(fixture.id, run_index, result)
         if ok:
             passed += 1
         elif not first_failing_detail:

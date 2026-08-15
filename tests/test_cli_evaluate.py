@@ -40,12 +40,32 @@ _FIXTURE_LINE = re.compile(r"^(PASS|FAIL) ([^ :]+)")
 class _FakeRunner:
     """Stand in for EvaluationRunner: adapt and ingest succeed, no providers."""
 
-    def __init__(self, corpus_root: Path, records_dir: Path, store_dir: Path) -> None:
+    def __init__(
+        self,
+        corpus_root: Path,
+        records_dir: Path,
+        store_dir: Path,
+        traces_dir: Path | None = None,
+    ) -> None:
         self.corpus_root = corpus_root
         self.records_dir = records_dir
         self.store_dir = store_dir
+        self.traces_dir = traces_dir
         self.adapt_called = False
         self.ingest_called = False
+
+    def record_deviation(self, fixture_id: str, run_index: int, result: object) -> None:
+        """Write a marker where the real runner writes its trace.
+
+        The real writer is locked in test_evaluation_runner.py; what these
+        tests need from it is only that the CLI hands over a directory that
+        still exists when the command returns.
+        """
+        assert self.traces_dir is not None
+        self.traces_dir.mkdir(parents=True, exist_ok=True)
+        (self.traces_dir / f"{fixture_id}-run{run_index}.json").write_text(
+            "{}", encoding="utf-8"
+        )
 
     def adapt(self) -> SimpleNamespace:
         self.adapt_called = True
@@ -483,3 +503,102 @@ def test_the_built_in_battery_is_never_checked_for_satisfiability(
     # would raise AttributeError rather than pass quietly.
     result = _invoke_evaluate(corpus, tmp_path)
     assert result.exit_code == 0
+
+
+# ---------------------------------------------------------------------------
+# The traces directory (spec 0010 AC-23)
+# ---------------------------------------------------------------------------
+
+
+def _one_deviation_outcome(
+    fixtures: object, port: object, runs: int = 1
+) -> EvaluationOutcome:
+    """Script one deviating run through the port the CLI built."""
+    assert isinstance(port, _FakeRunner)
+    port.record_deviation("query-5-uploaded-files", 2, None)
+    return EvaluationOutcome(
+        checks=(
+            EvaluationCheck(
+                fixture_id="query-5-uploaded-files", status=False, detail="scripted"
+            ),
+        ),
+        passed=0,
+        failed=1,
+        exit_code=1,
+    )
+
+
+def test_evaluate_writes_deviating_runs_to_an_explicit_traces_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    corpus = make_corpus(tmp_path)
+    traces_dir = tmp_path / "kept-traces"
+    monkeypatch.setattr("decision_memory.cli.EvaluationRunner", _FakeRunner)
+    monkeypatch.setattr("decision_memory.cli.run_evaluation", _one_deviation_outcome)
+
+    result = _invoke_evaluate(corpus, tmp_path, "--traces", str(traces_dir))
+
+    assert result.exit_code == 1
+    assert f"traces: {traces_dir}" in result.stdout
+    assert (traces_dir / "query-5-uploaded-files-run2.json").is_file()
+
+
+def test_the_defaulted_traces_dir_survives_the_command_returning(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """It is not a TemporaryDirectory and not on the ExitStack: writing the
+    evidence under a defaulted --records or --store would delete it with them,
+    which is the failure this exists to fix (AC-23)."""
+    corpus = make_corpus(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("decision_memory.cli.EvaluationRunner", _FakeRunner)
+    monkeypatch.setattr("decision_memory.cli.run_evaluation", _one_deviation_outcome)
+
+    result = runner.invoke(app, ["evaluate", str(corpus)])
+
+    assert result.exit_code == 1
+    written = sorted(
+        (tmp_path / ".decision-memory" / "evaluate-traces").rglob("*.json")
+    )
+    assert [path.name for path in written] == ["query-5-uploaded-files-run2.json"]
+    # The temporary records and store are gone by now; this one is not.
+    assert "(temporary, removed on exit)" in result.stdout
+    assert "traces:" in result.stdout
+
+
+def test_two_invocations_get_their_own_traces_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Every invocation numbers its runs from 1, so a shared directory would
+    let the fourth batch overwrite the first (AC-24)."""
+    corpus = make_corpus(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("decision_memory.cli.EvaluationRunner", _FakeRunner)
+    monkeypatch.setattr("decision_memory.cli.run_evaluation", _one_deviation_outcome)
+
+    runner.invoke(app, ["evaluate", str(corpus)])
+    runner.invoke(app, ["evaluate", str(corpus)])
+
+    batches = sorted((tmp_path / ".decision-memory" / "evaluate-traces").iterdir())
+    assert len(batches) == 2
+    for batch in batches:
+        assert [path.name for path in batch.iterdir()] == [
+            "query-5-uploaded-files-run2.json"
+        ]
+
+
+def test_a_clean_batch_leaves_no_traces_directory_behind(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    corpus = make_corpus(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("decision_memory.cli.EvaluationRunner", _FakeRunner)
+    monkeypatch.setattr(
+        "decision_memory.cli.run_evaluation",
+        lambda *args, **kwargs: _all_pass_outcome(),
+    )
+
+    result = runner.invoke(app, ["evaluate", str(corpus)])
+
+    assert result.exit_code == 0
+    assert not (tmp_path / ".decision-memory").exists()

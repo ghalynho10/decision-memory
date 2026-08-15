@@ -11,6 +11,7 @@ adapt/ingest/chunk-id seams, so nothing hits OpenAI or a real Chroma store.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Iterable
 from pathlib import Path
 from types import SimpleNamespace
@@ -18,7 +19,17 @@ from types import SimpleNamespace
 import pytest
 from spec_factory import make_corpus, write_spec
 
-from decision_memory.application.dto import IngestState
+# The engine's own trace builder, reused rather than duplicated: this file
+# needs a valid QueryResult only as the writer's input.
+from test_evaluation import _empty_trace as make_empty_query_trace
+
+from decision_memory.application.dto import (
+    AbstentionStage,
+    FreshnessState,
+    IngestState,
+    QueryResult,
+    QueryState,
+)
 from decision_memory.domain.records import CanonicalDecisionRecord, Status
 from decision_memory.infrastructure.evaluation_runner import EvaluationRunner
 from decision_memory.infrastructure.file_reader import write_record_file
@@ -336,3 +347,90 @@ def test_proposed_record_ids_empty_directory_is_a_clean_empty_set(
 
     assert proposed.ids == frozenset()
     assert proposed.unparsed_count == 0
+
+
+# ---------------------------------------------------------------------------
+# The deviation writer (spec 0010 AC-23)
+# ---------------------------------------------------------------------------
+
+
+def _traced_result() -> QueryResult:
+    """A minimal abstained result carrying one readable trace field."""
+    return QueryResult(
+        schema_version=2,
+        state=QueryState.ABSTAINED,
+        exit_code=0,
+        sentences=(),
+        citations=(),
+        freshness=FreshnessState.CURRENT,
+        abstention_stage=AbstentionStage.CLAIM_VERIFICATION,
+        trace=make_empty_query_trace(QueryState.ABSTAINED),
+        failure=None,
+    )
+
+
+def test_record_deviation_writes_the_run_named_by_fixture_and_index(
+    tmp_path: Path,
+) -> None:
+    traces_dir = tmp_path / "traces"
+    runner = EvaluationRunner(
+        tmp_path / "corpus", tmp_path / "records", tmp_path / "store", traces_dir
+    )
+
+    runner.record_deviation("query-5-uploaded-files", 2, _traced_result())
+
+    written = sorted(path.name for path in traces_dir.iterdir())
+    assert written == ["query-5-uploaded-files-run2.json"]
+    payload = json.loads((traces_dir / written[0]).read_text(encoding="utf-8"))
+    assert payload["fixture_id"] == "query-5-uploaded-files"
+    assert payload["run_index"] == 2
+    assert payload["result"]["state"] == "abstained"
+    assert payload["result"]["abstention_stage"] == "claim_verification"
+    # The whole result, not a projection: the trace is the reason the file
+    # exists, and a projection drops the field the next reader wants.
+    assert "trace" in payload["result"]
+    assert "verification" in payload["result"]["trace"]
+
+
+def test_record_deviation_creates_the_directory_on_the_first_write(
+    tmp_path: Path,
+) -> None:
+    """A clean batch leaves no empty directory behind."""
+    traces_dir = tmp_path / "nested" / "traces"
+    runner = EvaluationRunner(
+        tmp_path / "corpus", tmp_path / "records", tmp_path / "store", traces_dir
+    )
+    assert not traces_dir.exists()
+
+    runner.record_deviation("query-4-db-clients", 1, _traced_result())
+
+    assert (traces_dir / "query-4-db-clients-run1.json").is_file()
+
+
+def test_record_deviation_without_a_traces_directory_is_the_protocol_no_op(
+    tmp_path: Path,
+) -> None:
+    """The re ingest runner builds one this way; it must not write or raise."""
+    runner = EvaluationRunner(tmp_path / "corpus", tmp_path / "records", tmp_path)
+
+    runner.record_deviation("query-4-db-clients", 1, _traced_result())
+
+    assert sorted(path.name for path in tmp_path.iterdir()) == []
+
+
+def test_record_deviation_never_pastes_a_fixture_id_into_a_path(
+    tmp_path: Path,
+) -> None:
+    """A fixture id can come from a battery manifest, so it is filtered."""
+    traces_dir = tmp_path / "traces"
+    runner = EvaluationRunner(
+        tmp_path / "corpus", tmp_path / "records", tmp_path / "store", traces_dir
+    )
+
+    runner.record_deviation("../../escape me", 1, _traced_result())
+
+    written = sorted(path.name for path in traces_dir.iterdir())
+    # Every separator is replaced, so the write stays inside the traces
+    # directory whatever the id was.
+    assert written == [".._.._escape_me-run1.json"]
+    assert not (tmp_path / "escape me-run1.json").exists()

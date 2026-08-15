@@ -11,6 +11,8 @@ corpus is never mutated.
 
 from __future__ import annotations
 
+import dataclasses
+import json
 import shutil
 import tempfile
 from pathlib import Path
@@ -72,10 +74,17 @@ _REINGEST_PROBE = (
 class EvaluationRunner:
     """The live ``EvaluationPort`` over one corpus and one store."""
 
-    def __init__(self, corpus_root: Path, records_dir: Path, store_dir: Path) -> None:
+    def __init__(
+        self,
+        corpus_root: Path,
+        records_dir: Path,
+        store_dir: Path,
+        traces_dir: Path | None = None,
+    ) -> None:
         self.corpus_root = corpus_root
         self.records_dir = records_dir
         self.store_dir = store_dir
+        self.traces_dir = traces_dir
 
     def adapt(self) -> AdaptOutcome:
         """Adapt the corpus into canonical records at ``records_dir``."""
@@ -194,6 +203,47 @@ class EvaluationRunner:
                     coverage=coverage_verdict,
                 ),
             )
+
+    def record_deviation(
+        self, fixture_id: str, run_index: int, result: QueryResult
+    ) -> None:
+        """Write one deviating run's full traced result to the traces directory.
+
+        The ``EvaluationPort`` seam for spec 0010 AC-23. The engine decides
+        what deviates and this only writes, so the oracle is never evaluated
+        twice. With no traces directory configured (the re ingest runner
+        below builds one that way) this is the protocol's own no op.
+
+        The whole ``QueryResult`` goes to JSON through ``dataclasses.asdict``
+        rather than a hand written projection: the value of a kept trace is
+        answering a question nobody had when the run happened, so a
+        projection would drop exactly the field the next reader wants. Every
+        enum on the result is a ``StrEnum`` and serializes as its own value;
+        ``default=str`` covers anything else a DTO later carries.
+
+        The file name carries the fixture id and the run index, inside the
+        invocation's own directory, which is what keeps four batches apart:
+        every invocation numbers its runs from 1. The directory is created on
+        the first write, so a clean batch leaves nothing behind.
+        """
+        if self.traces_dir is None:
+            return
+        self.traces_dir.mkdir(parents=True, exist_ok=True)
+        # A fixture id reaches this from a battery manifest as well as from
+        # code, so it is never pasted into a path unfiltered.
+        safe_id = "".join(
+            char if (char.isalnum() or char in "._-") else "_" for char in fixture_id
+        )
+        path = self.traces_dir / f"{safe_id}-run{run_index}.json"
+        payload = {
+            "fixture_id": fixture_id,
+            "run_index": run_index,
+            "result": dataclasses.asdict(result),
+        }
+        path.write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False, default=str) + "\n",
+            encoding="utf-8",
+        )
 
     def proposed_record_ids(self) -> ProposedRecords:
         """Every proposed record id, plus how many record files did not parse.
