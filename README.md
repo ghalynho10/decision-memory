@@ -38,20 +38,19 @@ uv run decision-memory query "why was the private beta gate added?"
 
 `doctor` reports file counts and heading patterns for a corpus you haven't adapted before. `adapt` supports `--dry-run` to preview without writing. `ingest` supports `--dry-run` to preview provider spend before it calls OpenAI.
 
-Here's a real run against this repo's own specs:
+Here's a real run against this repo's own specs, at commit `aa82323`:
 
 ```console
 $ decision-memory query "why was the entry point discovery approach rejected for third party adapters?"
-The entry point discovery approach was rejected. [C1]
-The entry point discovery approach adds packaging work before any external adapter exists. [C1]
-The entry point discovery approach introduces new product behavior for discovery. [C1]
-The entry point discovery approach introduces a duplicate name policy. [C1]
-The entry point discovery approach still requires runtime object validation after loading. [C1]
+The entry point discovery approach was rejected because it adds packaging work
+before any external adapter exists, introduces new product behavior for discovery
+and duplicate name policy, and still requires runtime object validation after
+loading. [C1]
 Sources
-C1 DM-0005 ch_c5895e9ab5af... decision.alternatives[0] docs/specs/0005-runtime-adapter-loading/rationale.md Options considered
+C1 DM-0005 ch_4a3ac89980c0... decision.alternatives[0] docs/specs/0005-runtime-adapter-loading/rationale.md Options considered
 ```
 
-The citation resolves to the exact spec section the claim came from, so you can check it yourself. Answers currently arrive as separate short sentences rather than flowing prose, because each claim is verified independently before it is emitted; see [Known limitations](#known-limitations). On an unsupported question:
+The citation resolves to the exact spec section the claim came from, so you can check it yourself. That answer was identical across three consecutive runs. On an unsupported question:
 
 ```console
 $ decision-memory query "why is the subscription priced at nine dollars per month?"
@@ -99,8 +98,8 @@ Two readings. The tool **over-abstains** on questions it should answer, which fa
 
 **Why, as far as it has been established.** The failure is not invention — every sub-claim in those answers was genuinely supported by its cited evidence. The answer simply was not *about* the question: it asked about uploaded files and the retrieved record discussed upload keys. The verification stack proves a claim is **grounded** in its evidence, deterministically and well. Nothing in it proves a claim is **about** the question; that judgment sits in a model stage, and it has been observed extracting a facet and its own negation from identical input at temperature zero. An unqualified "never guesses" is not reachable by verifying harder, which is the most useful thing the experiment chain found.
 
-- **Answers arrive as separate short sentences, not prose.** Each claim is verified independently and emitted on its own, so a single source sentence can become several. The content is correct and the citations resolve, but it reads poorly. Under active revision.
-- **A decision that takes more than one clause to state can be refused.** Coverage requires one sentence to state a full answer and cannot combine sentences, so a correct multi-part answer sometimes returns `not enough evidence here`. Same revision as above.
+- **Over-abstention is the common failure.** A correct answer is often assembled and then dropped, because verification rejects a sub-claim of it. The table above is mostly this: four fixtures never reach an expectation they should meet. It fails in the safe direction, and it makes the tool quieter than it should be.
+- ~~**Answers arrive as separate short sentences, not prose.**~~ Fixed. Verification now runs on sub-claims while the emitted unit is the whole sentence, so a multi-clause decision comes back as one cited sentence — see the Quickstart transcript, which was five fragments under the earlier build.
 - **One source format.** The built-in adapter reads directory-style specs (`docs/specs/NNNN-title/index.md`). Flat single-file specs are skipped, and ADR/MADR corpora need an adapter that does not exist yet.
 - **A malformed `Status` line silently drops a record.** The status must be a known value; a parenthetical note attached to it causes the whole spec to be skipped at `adapt` time, and nothing warns you again at query time.
 - **Requires an `OPENAI_API_KEY`** for `ingest` and `query`. Everything else runs offline.
