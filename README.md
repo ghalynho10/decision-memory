@@ -72,7 +72,7 @@ uv run decision-memory ingest /path/to/project/.decision-memory/records \
 uv run decision-memory query "why was X chosen?" --store /path/to/project/.decision-memory/query-index
 ```
 
-A `.decision-memory.yml` holding `adapter`, `corpus_root`, and `output` saves repeating the paths, but it is found by searching upward from the **current directory** to the Git root — so it only applies when you run from inside the project it describes, as in the first form above. `adapt` and `ingest` both take `--dry-run`; use it on `ingest` to see provider spend before it calls OpenAI.
+A `.decision-memory.yml` holding `adapter`, `corpus_root`, and `output` saves repeating the paths, but it is found by searching upward from the current directory to the Git root, so it only applies when you run from inside the project it describes, as in the first form above. `adapt` and `ingest` both take `--dry-run`; use it on `ingest` to see provider spend before it calls OpenAI.
 
 ## How it works
 
@@ -94,21 +94,21 @@ Sources (project-specific)
 
 ## Current limitations
 
-- **It over-abstains.** The common failure is a correct answer being assembled and then dropped because verification rejects part of it. Safe, but quieter than it should be.
+- **It over-abstains.** The common failure is a correct answer being assembled and then dropped because verification rejects part of it. That is the safe direction to fail in, but it leaves the tool quieter than it should be.
 - **A citation is not proof of relevance.** The verifier checks that a claim is grounded in its evidence, not that it answers your question. That gap is where the 4-in-12 wrong answers come from.
 - **Output varies between runs.** The same question does not always get the same treatment.
 - **One input format.** Directory-style specs only; see [Requirements](#requirements).
 - **Malformed statuses exclude records.** A parenthetical note attached to a `Status` line makes it unknown, and `adapt` reports the spec as skipped with its reason. After ingestion, though, `query` cannot tell you that the record is missing from the corpus it just searched.
 
-The measurements behind these, and the experiment log that produced them, are in [`docs/experiments/`](docs/experiments/) — each with its instrument, method, and threats to validity.
+The measurements behind these are in [`docs/experiments/`](docs/experiments/), along with the experiment log that produced them. Each one records its instrument, its method, and its threats to validity.
 
 ## Documentation
 
-- [What is decision-memory?](docs/what-is-this.md) — one page, plain language
-- [User guide](docs/user-guide.md) — record schema, adapter internals, exit codes, triaging a bad answer
-- [Adapter author guide](docs/reference/artifact/guide/adapter-author-guide.md) — writing an adapter for your own format
-- [`docs/specs/`](docs/specs/) — build specs and the decisions behind them
-- [`docs/experiments/`](docs/experiments/) — measured findings
+- [What is decision-memory?](docs/what-is-this.md), a one page explanation in plain language
+- [User guide](docs/user-guide.md), covering the record schema, adapter internals, exit codes, and how to triage a bad answer
+- [Adapter author guide](docs/reference/artifact/guide/adapter-author-guide.md), for writing an adapter for a format that is not supported
+- [`docs/specs/`](docs/specs/), the build specs and the decisions behind them
+- [`docs/experiments/`](docs/experiments/), the measured findings
 
 ## Development
 
@@ -125,9 +125,9 @@ Clean Architecture in four layers under `src/decision_memory/`: `domain` (no ext
 
 ## Roadmap
 
-- **Built-in ADR and MADR adapters**, so the tool works on corpora it currently skips
-- **Declarative adapters**, a YAML mapping instead of a Python package for simple formats
-- **MCP server**, exposing query as a tool an agent can call inside the editor
+- Built-in ADR and MADR adapters, so the tool works on corpora it currently skips
+- Declarative adapters, a YAML mapping instead of a Python package for simple formats
+- An MCP server, so an agent can call query from inside the editor
 
 Not planned: reconstructing history from a codebase that never recorded it, cross-repo querying, or auto-approving generated records without review.
 
