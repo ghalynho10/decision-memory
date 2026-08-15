@@ -1,0 +1,32 @@
+corpus: /Users/ghaly/Documents/Work/Personal/job_pilot
+build a adapt exit 0
+build a ingest exit 0
+build b adapt exit 0
+build b ingest exit 0
+
+--- records ---
+records: DIFFER beyond the timestamp, see records.diff
+diff -r docs/experiments/data/store-build-determinism/a/records/manifest.json docs/experiments/data/store-build-determinism/b/records/manifest.json
+4c4
+<   "generated_at": "2026-08-15T02:23:26.731088+00:00",
+---
+>   "generated_at": "2026-08-15T02:23:37.584833+00:00",
+
+--- chunks ---
+chunk count: a=378 b=378
+chunk ids DIFFER: 378 only in a, 378 only in b
+  only in a: ['ch_00837b4c26249', 'ch_017687fe8f4ad', 'ch_024ae47020ea8', 'ch_028c7c675c924', 'ch_05c315eb19e3c', 'ch_0712d5a4d94b6', 'ch_0713ef36b2ea5', 'ch_088b51c64c251']
+  only in b: ['ch_003cba3e262b7', 'ch_0075c48c9d69d', 'ch_01696baa18f21', 'ch_017471ea8400a', 'ch_018aa185a1ca0', 'ch_024cae0109f73', 'ch_033bea652bb52', 'ch_03fc34e3afab3']
+record_id differs:  none
+value_path differs: none
+ordinal differs:    none
+text differs:       none
+verdict: STORES DIFFER
+
+--- chunks by (record_id, value_path, ordinal) ---
+key count: a=378 b=378 | same key set: True
+shared keys:        378
+text differs:       0
+fingerprint differs:0
+chunk_id differs:   378
+verdict: content identical, every chunk id moved: the store is deterministic in content and not in identity
