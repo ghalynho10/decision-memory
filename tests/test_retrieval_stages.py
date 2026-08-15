@@ -1,7 +1,7 @@
 """Hybrid retrieval stage tests (spec 0008 AC-5 to AC-8).
 
 Locks the exact tokenizer and stopword digest, the lexical dispositions and
-precedence, the reciprocal rank fusion formula with the chunk id tie rule, and
+precedence, the reciprocal rank fusion formula with the build stable tie rule, and
 the two pass diversity state transition including the fill pass.
 """
 
@@ -112,11 +112,12 @@ def test_lexical_stage_dispositions_and_ranked_order() -> None:
     assert by_id["ch_server"].disposition == LexicalDisposition.RANKED
     assert by_id["ch_database"].disposition == LexicalDisposition.RANKED
     assert set(ranked) == {"ch_server", "ch_database"}
-    # Rows are sorted by chunk id in the trace (AC-10).
+    # Rows are sorted by the build stable key in the trace (AC-10, spec 0012
+    # AC-5), which here is record id order, not chunk id order.
     assert [row.chunk_id for row in trace.rows] == [
+        "ch_server",
         "ch_browser",
         "ch_database",
-        "ch_server",
     ]
 
 
@@ -150,7 +151,8 @@ def test_fusion_exact_rrf_formula_and_tie_rule() -> None:
     assert c2.semantic_rank == 2
     assert c2.fused_rank == 1
     assert math.isclose(c2.fused_score, 1 / 63 + 1 / 62)
-    # c1 and c3 tie on the semantic only contribution 1 / 61; chunk id breaks it.
+    # c1 and c3 tie on the semantic only contribution 1 / 61; the stable key
+    # breaks it, here on record id (spec 0012 AC-1).
     assert c1.chunk_id == "c1"
     assert c1.fused_rank == 2
     assert c1.semantic_rank is None
@@ -239,7 +241,8 @@ def test_diversity_fill_pass_accepts_deferred() -> None:
 
 def test_semantic_disposition_ranks_and_outside_top_24() -> None:
     """AC-6, critical scenario 6: with 26 rows tied at identical distance, the
-    application picks the top 24 by local chunk id order, never store order,
+    application picks the top 24 by the local stable key order, never store
+    order,
     and the choice is stable regardless of the order chunks are returned in.
     """
     from pathlib import Path
@@ -435,8 +438,9 @@ def test_lexical_ranks_score_desc_then_chunk_id_with_precedence() -> None:
     by_id = {row.chunk_id: row for row in trace.rows}
     assert by_id["d"].disposition == LexicalDisposition.NO_TERM_MATCH
     assert by_id["d"].rank is None
-    # Positive rows sort by score descending, then chunk id for the tie: the
-    # two 0.5 chunks order a then b, before the 0.2 chunk.
+    # Positive rows sort by score descending, then the stable key for the tie
+    # (spec 0012 AC-1): the two 0.5 chunks order a then b on record id, before
+    # the 0.2 chunk.
     assert (by_id["a"].score, by_id["a"].rank) == (0.5, 1)
     assert (by_id["b"].score, by_id["b"].rank) == (0.5, 2)
     assert (by_id["c"].score, by_id["c"].rank) == (0.2, 3)
@@ -485,8 +489,18 @@ def test_semantic_stage_sorts_locally_by_distance_then_chunk_id(tmp_path) -> Non
 
     index = ScrambledIndex()
     index.generation = "gen-fake"
-    for chunk_id in ("ch_a", "ch_b", "ch_c"):
-        index.chunks[chunk_id] = _desc(chunk_id, "DM-0012", "server side text")
+    # Distinct value paths, because the store's UNIQUE constraint makes the
+    # stable key total and this fixture must not be more degenerate than a real
+    # store can be: three chunks of one record sharing a value path and an
+    # ordinal cannot exist (spec 0012 AC-2).
+    for chunk_id, value_path in (
+        ("ch_b", "body[0]"),
+        ("ch_c", "body[1]"),
+        ("ch_a", "body[2]"),
+    ):
+        index.chunks[chunk_id] = _desc(
+            chunk_id, "DM-0012", "server side text", value_path
+        )
         index.embeddings[chunk_id] = [0.5] * 8
     result = query_index(
         QueryRequest(
@@ -499,11 +513,14 @@ def test_semantic_stage_sorts_locally_by_distance_then_chunk_id(tmp_path) -> Non
     )
     rows = result.trace.retrieval.semantic.rows
     by_id = {row.chunk_id: row for row in rows}
-    # The application ranks by distance ascending then chunk id (AC-6): the
-    # two 0.1 chunks order ch_b then ch_c, ahead of the 0.9 chunk.
+    # The application ranks by distance ascending then the build stable key
+    # (AC-6, spec 0012 AC-1): the two 0.1 chunks order ch_b (body[0]) then
+    # ch_c (body[1]), ahead of the 0.9 chunk, and the store's scrambled order
+    # does not decide it.
     assert (by_id["ch_b"].rank, by_id["ch_b"].distance) == (1, 0.1)
     assert (by_id["ch_c"].rank, by_id["ch_c"].distance) == (2, 0.1)
     assert (by_id["ch_a"].rank, by_id["ch_a"].distance) == (3, 0.9)
     assert all(row.disposition == SemanticDisposition.RANKED for row in rows)
-    # Semantic rows appear chunk id sorted in the trace (AC-10).
-    assert [row.chunk_id for row in rows] == ["ch_a", "ch_b", "ch_c"]
+    # Semantic rows appear stable key sorted in the trace (AC-10, spec 0012
+    # AC-5), which here is value path order rather than chunk id order.
+    assert [row.chunk_id for row in rows] == ["ch_b", "ch_c", "ch_a"]

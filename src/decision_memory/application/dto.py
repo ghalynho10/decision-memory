@@ -462,21 +462,36 @@ class FreshnessTrace:
 
 @dataclass(frozen=True)
 class FilterTrace:
-    """The filter stage rows, sorted by chunk id (AC-4, AC-10)."""
+    """The filter stage rows, sorted by the stable key (AC-4, AC-10).
+
+    Ordered by ``(record_id, fingerprint, value_path, ordinal)`` rather than by
+    chunk id, so two builds of one corpus produce comparable traces
+    (spec 0012 AC-5). Row order only; no rank or disposition depends on it.
+    """
 
     rows: tuple[FilterRow, ...]
 
 
 @dataclass(frozen=True)
 class LexicalTrace:
-    """The lexical stage rows, sorted by chunk id (AC-5, AC-10)."""
+    """The lexical stage rows, sorted by the stable key (AC-5, AC-10).
+
+    Ordered by ``(record_id, fingerprint, value_path, ordinal)`` rather than by
+    chunk id (spec 0012 AC-5). Rank and disposition come from the score order
+    upstream and are unaffected by this ordering.
+    """
 
     rows: tuple[LexicalRow, ...]
 
 
 @dataclass(frozen=True)
 class SemanticTrace:
-    """The semantic stage rows, sorted by chunk id (AC-6, AC-10)."""
+    """The semantic stage rows, sorted by the stable key (AC-6, AC-10).
+
+    Ordered by ``(record_id, fingerprint, value_path, ordinal)`` rather than by
+    chunk id (spec 0012 AC-5). Rank comes from the distance order upstream and
+    is unaffected by this ordering.
+    """
 
     rows: tuple[SemanticRow, ...]
 

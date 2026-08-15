@@ -116,6 +116,26 @@ NO_EMITTED_SENTENCE_REASON = "no emitted answer sentence"
 DISTANCE_EPSILON = 1e-6
 
 
+def stable_sort_key(chunk: ActiveChunkDescriptor) -> tuple[str, str, str, int]:
+    """The build stable tie break for every ranking sort (spec 0012 AC-1).
+
+    Ranking used to break ties on ``chunk_id``, which hashes the generation id
+    (``chunking.chunk_id``) and is therefore fresh on every build even when the
+    content behind it is byte identical. That made the build an input to which
+    chunks reached the model. This key is built from values that move only when
+    the content does.
+
+    ``fingerprint`` stays in this key permanently (AC-4), and that is a
+    decision rather than an accident. It is what keeps the key total while a
+    store can hold two chunks sharing the other three, which happens today
+    because an in place record update leaves the superseded chunk rows behind
+    (scope feature 21). It stays after that is fixed, so a later reader who
+    checks uniqueness cannot simplify the quadruple back to a triple and
+    quietly remove the guard that would catch the duplication returning.
+    """
+    return (chunk.record_id, chunk.fingerprint, chunk.value_path, chunk.ordinal)
+
+
 def _valid_distance(distance: float) -> bool:
     """Finite and within ``[0, 2]`` up to float noise (AC-6)."""
     return (
@@ -324,8 +344,18 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
             request, freshness, _empty_retrieval(), AbstentionStage.RETRIEVAL
         )
     filter_rows = filter_descriptors(active, request.filters)
+    # Trace rows order by the build stable key so two builds of one corpus
+    # produce comparable traces (spec 0012 AC-5). The lookup is what keeps this
+    # to row order: the rows themselves carry no fingerprint or ordinal, and
+    # re sorting the chunk collection instead would move rank.
+    active_by_id = {chunk.chunk_id: chunk for chunk in active}
     filter_trace = FilterTrace(
-        rows=tuple(sorted(filter_rows, key=lambda row: row.chunk_id))
+        rows=tuple(
+            sorted(
+                filter_rows,
+                key=lambda row: stable_sort_key(active_by_id[row.chunk_id]),
+            )
+        )
     )
     accepted_ids = frozenset(
         row.chunk_id for row in filter_rows if row.state == FilterState.ACCEPTED
@@ -431,9 +461,9 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
                 ),
             )
         scored.append((chunk, max(0.0, min(2.0, raw_distance))))
-    # Local sort by distance ascending then chunk id; application decides the
-    # top 24 boundary, never Chroma ordering (AC-6).
-    scored.sort(key=lambda pair: (pair[1], pair[0].chunk_id))
+    # Local sort by distance ascending then the build stable key; application
+    # decides the top 24 boundary, never Chroma ordering (AC-6, spec 0012 AC-1).
+    scored.sort(key=lambda pair: (pair[1], *stable_sort_key(pair[0])))
 
     semantic_rows = [
         SemanticRow(
@@ -449,8 +479,15 @@ def query_index(request: QueryRequest, deps: QueryDependencies) -> QueryResult:
         )
         for rank, (chunk, distance) in enumerate(scored, start=1)
     ]
+    # Row order only (spec 0012 AC-5); ``scored`` above keeps its distance
+    # order, because rank was assigned from it.
     semantic_trace = SemanticTrace(
-        rows=tuple(sorted(semantic_rows, key=lambda row: row.chunk_id))
+        rows=tuple(
+            sorted(
+                semantic_rows,
+                key=lambda row: stable_sort_key(accepted_by_id[row.chunk_id]),
+            )
+        )
     )
     ranked_semantic = {
         row.chunk_id: row.rank
@@ -935,7 +972,7 @@ def _lexical_stage(
             )
         else:
             positive.append((chunk, value))
-    positive.sort(key=lambda pair: (-pair[1], pair[0].chunk_id))
+    positive.sort(key=lambda pair: (-pair[1], *stable_sort_key(pair[0])))
     ranked: dict[str, int] = {}
     for rank, (chunk, score) in enumerate(positive, start=1):
         disposition = (
@@ -948,7 +985,9 @@ def _lexical_stage(
             # (AC-5), symmetric with the semantic stage below.
             ranked[chunk.chunk_id] = rank
         rows.append(LexicalRow(chunk.chunk_id, score, rank, disposition))
-    rows.sort(key=lambda row: row.chunk_id)
+    # Row order only (spec 0012 AC-5); ``positive`` above keeps its score
+    # order, because rank and disposition were assigned from it.
+    rows.sort(key=lambda row: stable_sort_key(accepted_by_id[row.chunk_id]))
     return LexicalTrace(rows=tuple(rows)), ranked
 
 
@@ -976,7 +1015,11 @@ def _fusion_stage(
         if semantic_rank is not None:
             fused += 1.0 / (RRF_CONSTANT + semantic_rank)
         scored.append((chunk_id, fused, lexical_rank, semantic_rank))
-    scored.sort(key=lambda item: (-item[1], item[0]))
+    # ``scored`` carries chunk ids, not descriptors, so the stable key comes
+    # through the accepted map rather than off the tuple (spec 0012 AC-1). The
+    # tuple is deliberately not restructured to carry the descriptor: that is a
+    # wider change than this decision.
+    scored.sort(key=lambda item: (-item[1], *stable_sort_key(accepted_by_id[item[0]])))
     candidates: list[FusedCandidate] = []
     for fused_rank, (chunk_id, fused, lexical_rank, semantic_rank) in enumerate(
         scored, start=1
