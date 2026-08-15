@@ -4,11 +4,13 @@ A local, cited RAG system that makes software decision history queryable.
 
 Point it at a project's decision records and ask why something is built the way it is. Answers come back cited to a source spec, commit, or file, or an honest "not enough evidence here" when the history doesn't support one.
 
-**Status: early development.** Eight commands ship (`version`, `validate`, `doctor`, `adapt`, `test-adapter`, `ingest`, `query`, `evaluate`), verified live against a real project's specs: a known-answer question returns a correct, cited answer, an unsupported question returns `not enough evidence here`, exit `0`, and the evaluation harness runs the five defining queries plus two assertions against the real corpus and reports PASS or FAIL per fixture. Hybrid retrieval ships with the query index: explicit metadata filters, BM25 keyword and cosine semantic search, reciprocal rank fusion, and record diversity. Built-in ADR adapters are planned, not shipped yet.
+**Status: working end to end, with a measured gap.** Eight commands ship (`version`, `validate`, `doctor`, `adapt`, `test-adapter`, `ingest`, `query`, `evaluate`). Against a real 20-spec corpus the pipeline runs the whole way: records adapt, chunks embed, hybrid retrieval fuses BM25 and cosine search with reciprocal rank fusion and record diversity, and answers come back cited to the exact record and field. The evaluation harness runs five queries plus three assertions and reports a rate per fixture.
+
+**The abstention guarantee in the next paragraph is not met, and the gap is characterised rather than estimated.** Measured over twelve runs across four independent index builds, the tool over-abstains on questions it should answer, and on one fixture it returns a fluent, well-cited, *wrong* answer in three runs of twelve. See [Known limitations](#known-limitations) for the numbers and [`docs/experiments/`](docs/experiments/) for the sixteen experiments that established them. Built-in ADR adapters are planned, not shipped yet.
 
 ## What this is for
 
-decision-memory answers one question about one project: **why is it built this way?** It's a narrow tool, not a general assistant, and it won't replace reading the codebase. The value is the evidence contract: every claim is cited to a source spec and section, or the tool abstains rather than guess.
+decision-memory answers one question about one project: **why is it built this way?** It's a narrow tool, not a general assistant, and it won't replace reading the codebase. The value is the evidence contract: every claim is cited to a source spec and section, or the tool abstains rather than guess. That is the design goal, and [Known limitations](#known-limitations) records how reliably it currently holds.
 
 It pays off during onboarding and code review, when checking whether an earlier choice was already tried and rejected, and on corpora large enough that a focused, cited answer beats reading everything.
 
@@ -56,7 +58,7 @@ $ decision-memory query "why is the subscription priced at nine dollars per mont
 not enough evidence here
 ```
 
-That's an honest abstention, not a failure, and the tool exits `0` either way.
+That's an honest abstention, not a failure, and the tool exits `0` either way. Both transcripts above are real runs, and neither is the whole story: the same question does not always get the same treatment, and the measured rates are in [Known limitations](#known-limitations).
 
 ## The approach
 
@@ -78,7 +80,24 @@ New here? [What is decision-memory?](docs/what-is-this.md) is a one-page plain-l
 
 ## Known limitations
 
-Measured against this repo's own specs on 2026-08-12 (`docs/experiments/`):
+Measured, not estimated. Every figure below comes from a committed harness with its runs and traces kept in [`docs/experiments/`](docs/experiments/).
+
+**The abstention guarantee is not met.** Twelve runs across four independent index builds against a real 20-spec corpus ([experiment 0014](docs/experiments/0014-the-causes-pinned-and-the-store-split.md)):
+
+| Fixture | Expected | Result |
+|---|---|---|
+| `assertion-incremental-reingest` | chunks change | 4/4 |
+| `query-4-db-clients` | abstain | 9/12 |
+| `assertion-unverifiable-claim` | abstain | 5/12 |
+| `assertion-rationale-summary` | answer | 4/12 |
+| `query-1-private-beta-gate` | answer | 3/12 |
+| `query-5-uploaded-files` | abstain | 3/12 |
+| `query-2-resume-generation` | answer | 0/12 |
+| `query-3-provisional` | answer | 0/12 |
+
+Two readings. The tool **over-abstains** on questions it should answer, which fails in the safe direction. And on `query-5` it does the thing this project exists to prevent: four runs in twelve produce a confident, cited, wrong answer.
+
+**Why, as far as it has been established.** The failure is not invention — every sub-claim in those answers was genuinely supported by its cited evidence. The answer simply was not *about* the question: it asked about uploaded files and the retrieved record discussed upload keys. The verification stack proves a claim is **grounded** in its evidence, deterministically and well. Nothing in it proves a claim is **about** the question; that judgment sits in a model stage, and it has been observed extracting a facet and its own negation from identical input at temperature zero. An unqualified "never guesses" is not reachable by verifying harder, which is the most useful thing the experiment chain found.
 
 - **Answers arrive as separate short sentences, not prose.** Each claim is verified independently and emitted on its own, so a single source sentence can become several. The content is correct and the citations resolve, but it reads poorly. Under active revision.
 - **A decision that takes more than one clause to state can be refused.** Coverage requires one sentence to state a full answer and cannot combine sentences, so a correct multi-part answer sometimes returns `not enough evidence here`. Same revision as above.
