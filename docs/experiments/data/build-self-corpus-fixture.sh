@@ -17,6 +17,28 @@
 # The gate's queries and their expected records live in the manifest, outside
 # the corpus entirely, so no spec can become a source for its own gate answer.
 #
+# The membership rule for this corpus (spec 0012 AC-8), stated because the one
+# entry in EXCLUDED below was a bare assignment with no recorded reason, and a
+# second undocumented entry either way would have made the list a habit rather
+# than a rule:
+#
+#   A spec is excluded when its own prose contains the gate's queries, its
+#   expected records, or its expected states. Everything else goes in.
+#
+# That is what holds the line above. The manifest is the home for those values,
+# but a spec that quotes them in prose becomes a source for them anyway, and
+# then the gate is reading its own answer back. Spec 0010 is excluded under
+# exactly that rule and under no other: it carries the gate's literal query
+# text (index.md and rationale.md) and its expected record and state
+# (index.md, rationale.md), because that spec is where the gate was designed.
+# Its own Follow-up already names holding it out as the fixture level fix.
+#
+# The rule is not "exclude whatever is under active build". That reading was
+# considered and rejected: it would make fixture membership change as specs
+# finish, which is drift in a fixture whose whole purpose is being frozen.
+#
+# Spec 0012 contains none of that material and is deliberately included.
+#
 # Usage: build-self-corpus-fixture.sh [destination]
 # The destination defaults to the pinned fixture path; the tests pass a
 # temporary directory so a check never rewrites the committed fixture.
@@ -25,6 +47,9 @@ set -uo pipefail
 ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
 SPECS="$ROOT/docs/specs"
 FIXTURE=${1:-"$ROOT/docs/experiments/data/self-corpus-fixture"}
+# Excluded under the membership rule above: this spec's prose carries the
+# gate's own queries, expected record, and expected state. Add an entry only
+# for a spec that does the same, never for one that is merely churning.
 EXCLUDED="0010-abstention-verification-reliability"
 
 if [ ! -d "$SPECS" ]; then

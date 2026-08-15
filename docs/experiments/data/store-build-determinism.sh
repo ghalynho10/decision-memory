@@ -86,4 +86,17 @@ echo "" | tee -a "$OUT/meta.txt"
 uv run python "$HERE/compare-stores.py" "$OUT" --by-position 2>&1 \
   | tee -a "$OUT/meta.txt"
 
-tail -24 "$OUT/meta.txt"
+# Level 4: what the two builds actually put in front of the model (spec 0012
+# AC-7). The levels above compare what the stores hold; this compares what
+# retrieval selects from them, which is the half that reaches the answer, and
+# it is the only level that exercises the embedding vectors. Skipped without an
+# API key, because every question costs one real query per build.
+echo "" | tee -a "$OUT/meta.txt"
+if grep -q '^OPENAI_API_KEY=.' .env 2>/dev/null; then
+  uv run python "$HERE/compare-retrieval.py" "$OUT" 2>&1 | tee -a "$OUT/meta.txt"
+else
+  echo "--- retrieval: skipped, no OPENAI_API_KEY in .env ---" \
+    | tee -a "$OUT/meta.txt"
+fi
+
+tail -32 "$OUT/meta.txt"
