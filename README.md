@@ -37,32 +37,39 @@ This is a narrow tool for that one question. It won't replace reading the codeba
 
 ## Quickstart
 
-Try it on this repository:
+Install it, no clone needed:
+
+```bash
+uv tool install git+https://github.com/ghalynho10/decision-memory
+```
+
+Point it at a project. `doctor` needs no API key, so you can check whether the built-in adapter fits before committing to anything:
+
+```bash
+cd /path/to/project
+decision-memory doctor .                                         # inspect the corpus structure
+
+export OPENAI_API_KEY=sk-...
+decision-memory adapt .                                          # specs → canonical records
+decision-memory ingest .decision-memory/records                  # records → query index
+decision-memory query "why was X chosen?"
+```
+
+To try it against this project's own decision records, you need the specs, so clone first:
 
 ```bash
 git clone https://github.com/ghalynho10/decision-memory && cd decision-memory
 uv sync
 export OPENAI_API_KEY=sk-...
 
-uv run decision-memory adapt .                                   # specs → canonical records
-uv run decision-memory ingest .decision-memory/records           # records → query index
+uv run decision-memory adapt .
+uv run decision-memory ingest .decision-memory/records
 uv run decision-memory query "why was the entry point discovery approach rejected for third party adapters?"
 ```
 
 Depending on provider output, that query may return the answer above or abstain. See [Current limitations](#current-limitations).
 
-To use it on another project, install the CLI and work from that project's directory, so `.decision-memory.yml` and the default paths resolve against it:
-
-```bash
-uv tool install .                                                # from this repo, once
-cd /path/to/project
-decision-memory doctor .                                         # inspect the corpus structure
-decision-memory adapt .
-decision-memory ingest .decision-memory/records
-decision-memory query "why was X chosen?"
-```
-
-Or stay where you are and pass explicit paths:
+You can also stay where you are and pass explicit paths:
 
 ```bash
 uv run decision-memory doctor /path/to/project                   # inspect the corpus structure
