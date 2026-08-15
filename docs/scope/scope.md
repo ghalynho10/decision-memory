@@ -30,6 +30,8 @@ _You are in charge. Every box below is a suggestion, not a gate: run any, skip a
 | 17 | Retrieval query hardening | Slice 2 | planned |
 | 18 | Corpus gap and staleness awareness | Slice 3 | planned |
 | 19 | Field aware retrieval ranking | Slice 2 | in-progress |
+| 20 | Stable ranking tie break | Slice 2 | in-progress |
+| 21 | Superseded chunks served after reingest | Slice 2 | planned |
 
 ## Foundations
 
@@ -175,6 +177,34 @@ spec [0011](../specs/0011-field-aware-retrieval-ranking/index.md) · code in src
   - [ ] Complete the deterministic tests, ruff, strict mypy, and the layering check (AC-14)
 - [ ] Verify it: `/check verify field aware retrieval ranking`
 - [ ] Test it: `/test field aware retrieval ranking`
+
+### 20. Stable ranking tie break · from spec 0012
+Retrieval breaks ties on `chunk_id` in all three ranking paths, and a chunk id is fresh on every build of the store even when the content behind it is byte identical ([experiment 0015](../experiments/0015-the-store-is-deterministic-its-names-are-not.md)). So two builds of one corpus can put a different set of chunks in front of the model, and the tool can answer the same question differently for no reason a reader could see. Replace the tie break with a key built from values that do not move across builds, and order the trace rows the same way so traces from different builds can be compared row by row.
+**Done when:** the same corpus, built twice, accepts the same chunks for the same question, proven by a permutation test that needs no provider and by the extended determinism script against two real builds. No score, rank, disposition, or accept limit changes.
+**Carried from:** experiment 0015's first follow up item, which routed the tie break to `/architect`. It went ahead of spec 0010 task 21 because it is the fabrication direction: experiment 0014's batch D answered one query three times out of three with a fluent, well cited, wrong answer, and this is the one path from a rebuild to a different evidence set that is entirely inside shipped code.
+spec [0012](../specs/0012-stable-ranking-tie-break/index.md) · code in src/decision_memory/application/query.py, src/decision_memory/application/dto.py, tests/test_stable_ranking.py, docs/experiments/data/compare-retrieval.py
+- [x] Design it (spec): `/architect abstention verification reliability`
+- [x] Build it: `/develop stable ranking tie break`
+  - [x] Extend the determinism script with a retrieval comparison keyed by the stable quadruple, and take the pre fix reading (AC-7)
+  - [x] Add `stable_sort_key` and move the three ranking sorts onto it, with the permutation and totality tests (AC-1, AC-2, AC-3, AC-4)
+  - [x] Re run the script and write the numbered experiment (AC-7)
+  - [x] Order the trace rows through the descriptor lookup, correct the three `Trace` docstrings, and prove ranks and dispositions unchanged (AC-5, AC-9)
+  - [x] Pin the scorer's order independence, state the fixture membership rule, and lock the suite (AC-6, AC-8, AC-9)
+
+**Build result (2026-08-14):** shipped, 656 unit tests passing with ruff, format, strict mypy, and the layering check green. The measurement is [experiment 0016](../experiments/0016-the-tie-break-was-real-and-never-fired.md), and it came back negative: both builds accepted the same eight chunks in the same order, before the fix as well as after, so the tie break was real in code and was not changing answers on this corpus. Experiment 0014's batch D is therefore **not** explained by it, and provider variance is the only named candidate left standing for that spread. The property the fix delivers is carried by the deterministic tests, five of which were re run against the old rule and all five fail under it.
+- [ ] Verify it: `/check verify stable ranking tie break`
+- [ ] Test it: `/test stable ranking tie break`
+
+### 21. Superseded chunks served after reingest · needs a decision
+**Retrieval can serve superseded text.** After a changed record is reingested, its old chunks stay active and retrievable, so an answer can cite content the corpus no longer contains. Measured while designing spec 0012: ingesting one record, editing its source, and reingesting into the same store leaves both versions live, 14 chunks where 7 are current, every `(record_id, value_path, ordinal)` duplicated, two fingerprints active. `write_record` never deletes the record's prior chunk rows, and `active_chunks()` joins on `record_id` alone. There is a second, louder symptom: the old vectors are deleted after parity passes, so SQLite and Chroma disagree and the semantic identity check then fails every query against that store.
+**Done when:** a changed record's superseded chunks are gone from the store after reingest, SQLite and Chroma agree, and a fixture exercises incremental reingest against a changed record so the path stops being untested.
+**Invisible to the harness, which is why it has no numbers:** every `evaluate` batch is a fresh adapt plus ingest, so no run this project has taken could have reached it, and none later will unless a fixture exercises incremental reingest against a changed record. Its absence from the measurements is not evidence it is rare.
+**Sequenced after feature 20**, deliberately: the tie break has measured evidence behind it and this does not, and spec 0012's quadruple key is correct whether or not this is fixed, so nothing waits on it.
+code in src/decision_memory/
+- [ ] Design it (spec): `/architect superseded chunks served after reingest`
+- [ ] Build it: `/develop superseded chunks served after reingest`
+- [ ] Verify it: `/check verify superseded chunks served after reingest`
+- [ ] Test it: `/test superseded chunks served after reingest`
 
 ## Slice 3: Proven correctness (evaluation harness)
 
