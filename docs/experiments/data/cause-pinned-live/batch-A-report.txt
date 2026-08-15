@@ -1,0 +1,13 @@
+records: /var/folders/6v/q6d9mcg54sj81160wq5ffpgc0000gn/T/decision-memory-evaluate-records-d9uxrcub (temporary, removed on exit)
+store: /var/folders/6v/q6d9mcg54sj81160wq5ffpgc0000gn/T/decision-memory-evaluate-store-051kvkc2 (temporary, removed on exit)
+traces: docs/experiments/data/cause-pinned-live/batch-A-traces (deviating runs only)
+FAIL query-1-private-beta-gate (0/3 runs): 0/3 runs passed; expected answered, got abstained
+FAIL query-2-resume-generation (0/3 runs): 0/3 runs passed; expected answered, got abstained
+FAIL query-3-provisional (0/3 runs): 0/3 runs passed; expected answered, got abstained
+PASS query-4-db-clients (3/3 runs): 3/3 runs passed
+FAIL query-5-uploaded-files (1/3 runs): 1/3 runs passed; abstained from no_emitted_sentences, expected uncovered_facet
+FAIL assertion-rationale-summary (1/3 runs): 1/3 runs passed; expected answered, got abstained
+FAIL assertion-unverifiable-claim (2/3 runs): 2/3 runs passed; expected abstained, got failed (citations: none)
+PASS assertion-incremental-reingest: record DM-0006 chunks changed after the rationale.md edit (23 -> 46 chunk ids)
+result: 2 passed, 6 failed
+final: failed

@@ -1,0 +1,4 @@
+batch A exit=1 seconds=191
+batch B exit=1 seconds=214
+batch C exit=1 seconds=170
+batch D exit=1 seconds=179

@@ -901,6 +901,433 @@ exists anywhere, and the claim stays re verifiable after the merge rather than o
   amendment reaches the 11 `incomplete` drops as well as the 7 `not_additive` ones experiment 0007 recorded. Reading the
   effect against the `not_additive` share alone would use the wrong denominator.
 
+## The completeness exemption (2026-08-14, OD-9)
+
+[Experiment 0012](../../experiments/0012-the-other-three-abstentions.md) attributed the three failing fixtures experiment
+0011 left untraced. Two of them stop the same way query 2 does, and the third does not belong to this decision at all.
+
+| Fixture | Disposition | Side | Token | Stable |
+|---|---|---|---|---|
+| `query-2-resume-generation` (from [experiment 0011](../../experiments/0011-where-the-matcher-stopped-next.md)) | `incomplete` | parent | `where` | 3 of 3 |
+| `query-1-private-beta-gate` | `incomplete` | parent | `while` | 2 of 3 |
+| `assertion-rationale-summary` | `incomplete` | parent | `instead` | 3 of 3 |
+| `query-3-provisional` | none, no decomposition rejected | | | 3 of 3 |
+
+### Three categories, one function
+
+`where` is a relative adverb, `while` is a subordinating conjunction, and `instead` is a conjunctive adverb sitting inside
+the complex preposition `instead of`. They share no part of speech. What they share is a job: each one relates one clause
+to another, and `DECOMPOSE_SYSTEM_PROMPT` asks for exactly the transformation that dissolves the relation. Splitting a
+sentence into standalone atomic sub claims is what removes the need for the word, so no sub claim carries it, and the
+completeness half then demands a match for a token the decomposition was right to drop.
+
+This is the third form of one defect. Experiment 0010 found it in morphology, where making a participle finite is what
+decomposition requires. Experiment 0011 found it in set membership for one word. Experiment 0012 finds that the membership
+question is not about one word and not about one category.
+
+The current set already carries most of this family: `and`, `but`, `or`, `nor`, `if`, `because`, `as`, `that`, `which`,
+`when`, `then`, and `so` are all in it. The gaps are arbitrary rather than principled. `which` is exempt and `whose` is
+not. `when` is exempt and `while` is not. `of` is exempt, which is why `instead of` looks half exempt already. Nobody
+chose those boundaries; the set was written as a list of common short words and the family was never named.
+
+### Why a rule and not three more words
+
+Adding `where`, `while`, and `instead` is the growth by failure pattern experiment 0011's own follow-up warned against.
+The next failing token is `whose` or `although` or `however`, and learning each one has a measured price: experiments
+0009, 0010, 0011, and 0012 each cost a live batch to learn a single token, and rejected claim text is never recorded, so
+the value is not recoverable after the fact. Four experiments to learn four words is the argument for a rule.
+
+### The three candidate rules
+
+**Clause connectives, enumerated now (chosen).** A word is exempt from the completeness demand when its job is relating
+one clause to another, so that a decomposition into standalone clauses leaves it nothing to do. The set is enumerated
+exhaustively today from four closed grammatical categories: coordinating conjunctions, subordinating conjunctions,
+conjunctive adverbs, and relative or interrogative pro-forms, plus the correlative markers. The rule is decidable without
+the next failure, by construction rather than by observation: take the sentence, split it into standalone one clause
+statements, and ask whether the word has anything left to do. It covers all three measured tokens and closes the `whose`
+gap that `which` already being exempt leaves open.
+
+**The whole closed word class (rejected).** Exempt every word belonging to a class you cannot add a member to by coining
+one: determiners, pronouns, auxiliaries, prepositions, conjunctions, particles, quantifiers, degree words. It is the most
+mechanical test available and it subsumes the current set cleanly. It was rejected because it exempts for a reason that
+does not apply. A quantifier is not dissolved by decomposition: `all records are indexed` splits into sub claims that keep
+`all`, and the same holds for `every`, `more`, `than`, `without`, and `during`. Those words survive a split intact, so
+their absence from a sub claim is a real omission and the completeness half should keep demanding them. Exempting them
+would give up reach the omission guard did not have to give up, and quantifiers are truth conditional in the way negation
+is, which is a class this spec already carries as accepted risk rather than one to widen further.
+
+**The three measured tokens (rejected).** Smallest possible change and precisely what was measured. Rejected as the growth
+by failure pattern above: it buys one live batch of progress and owes another decision to the next token.
+
+**A completeness side tolerance (rejected, added to this record after a cross check found it missing).** The symmetric
+design: give the completeness half a budget of unmatched parent content tokens per response, the way
+`MAX_ADDED_FUNCTION_WORDS` gives the additive half a budget of unmatched function word instances. It needs no enumeration
+to write or maintain, no second vocabulary for a reader to track, and no per word judgement like the `provided` exclusion,
+so it is genuinely simpler on every axis this record has been weighing. It was missed on the first pass and it deserves
+its rejection in writing rather than by omission.
+
+It is rejected because it is untargeted in exactly the direction that matters. A budget tolerates the omission of **any**
+N parent content tokens, which includes the nouns of a fabricated clause. That is the AC-1 omission attack: the attack
+works by dropping a clause, and a check that permits dropping up to N content words permits it directly. The connective
+exemption cannot be used that way, because it names words rather than a count, and every noun, lexical verb, and adjective
+stays demanded however many of them the response omits. The two options are not the same trade at different sizes; one
+gives up a bounded and named class, the other gives up an unbounded and unnamed one.
+
+It also has no principled setting. `MAX_ADDED_FUNCTION_WORDS` is 2 and task 13 has been queued to calibrate it since
+2026-08-12 without ever reaching it, because the drop causes kept turning out to be things a tolerance does not reach. A
+second uncalibrated knob on the safety critical half would repeat that with worse consequences. And it would answer the
+question experiment 0012 asked with a number rather than a rule, which is what the follow-up asking for a membership rule
+was written to avoid.
+
+### Ambiguous words, and the two exclusions
+
+Many closed class words have a second use, and the completeness half reads a bare token, so it cannot tell which use is
+present. Two exclusion rules decide those cases, and both are part of the membership rule rather than taste applied to it.
+
+**A word whose primary use is a content word stays a content token**, even where grammar lists a connective use for it.
+That keeps `provided`, `given`, `granted`, `considering`, and `seeing` out. `provided the record exists` is a real
+subordinator in English, and `the adapter provided the record` is far more likely in this corpus, so exempting it would
+trade a rare relating use for a common content one.
+
+**A word whose second use is truth conditional stays a content token.** This is the same test that rejected the whole
+closed word class, and the first draft of this enumeration failed to apply it to its own members, which a cross check
+caught. It keeps out `once`, `still`, `further`, `finally`, `specifically`, `similarly`, `after`, `before`, `since`,
+`till`, `until`, `than`, `except`, `besides`, `both`, `either`, and `neither`. The clearest case is `once`: `the check runs once` decomposes into `the
+check runs`, and nothing else in that clause carries the frequency, so `once` is doing a quantifier's work, and
+quantifiers surviving a split intact is precisely why the closed class option was rejected. `still` marks continuation,
+`further`, `specifically`, and `similarly` mark degree and manner, `finally` marks time, `than` carries a comparison,
+`except` and `besides` carry an exclusion, and `after`, `before`, `since`, `till`, and `until` are also prepositions,
+which is the `without` and `during` shape by another name.
+
+Seventeen words removed by that second rule out of a first draft of sixty five is a high error rate for a rule its author
+had already written down, and it took **two** passes to reach: a cross check found fourteen, and the engineer's review
+then found the three the cross check and the author had both missed, `both`, `either`, and `neither`. That second miss is
+the more instructive one. All three had been filed under a category name, correlative markers, and the category label did
+the thinking that the rule was supposed to do; nobody re asked what `both` costs when the split drops it. It is recorded
+rather than smoothed over, because the lesson is not that the rule was wrong but that a category row is a place a member
+can hide from the rule, which is precisely the failure mode this whole decision exists to replace.
+
+**The one member whose exclusion has a real cost is `both`**, and it is worth stating plainly rather than filing under a
+rule. Its two uses point opposite ways. The correlative use is genuinely dissolved: `the pipeline uses both BM25 and
+Chroma` splits into two sub claims that each name one retriever, and neither has anything left for `both` to do, so
+excluding it means that sentence can be dropped as `incomplete` on `both`. The quantifier use genuinely carries content:
+`both options were rejected` loses the count and the exhaustiveness. The exclusion takes the second reading, because the
+stated safe direction for this set is to err toward dropping a sentence, and because a spurious drop is visible in the
+trace while a permitted omission is not. It is expected to cost live drops, and `failure_token` is already pointed at it,
+so this is the one member of either list that should be revisited on evidence rather than on the rule.
+
+What survives ambiguity is the narrower class where the non relating use carries no truth conditions of its own: a dropped
+clause `whereas the adapter shipped` still owes `adapter` and `shipped`, so the connective is not what catches it.
+
+### Why the two halves get separate sets
+
+Experiment 0012 established that every measured AC-11 failure is `failure_side=parent`. The additive half is implicated by
+nothing measured, and it is the guard standing behind AC-2, the only criterion in this chain green on live evidence at 6
+of 6.
+
+A single shared set would convert each connective from budgeted to free on the additive side. Today a sub claim may add up
+to `MAX_ADDED_FUNCTION_WORDS` unmatched function word instances and fails past that bound; a set member is not counted at
+all when it finds a parent match, and when it does not it consumes budget rather than failing outright. Moving 48 words
+into `FUNCTION_WORDS` widens that tolerance for no measured reason. That is the same trade OD-8 refused when it rejected
+`morphology-v1` over 28 invented matches, and refusing it twice for the same reason is consistency rather than caution.
+
+So the exemption is a skip list on the completeness traversal only. `tokens_match` is not touched, which matters more than
+it looks: the matcher is the one function both halves share, and every previous amendment to it had to argue its way
+through the safety critical half. This amendment does not reach the matcher at all, so that argument does not have to be
+made again.
+
+The asymmetry has one visible consequence, recorded rather than discovered later. A connective outside `FUNCTION_WORDS` is
+still a content token to the additive half, so a sub claim that introduces `while` with no parent match still fails as
+`not_additive` and reports `content_token` rather than `function_word_overrun`. That is the intended reading: a
+decomposition adding a clause relation the parent never had is adding content. It is also unlikely, since decomposition
+pulls clauses apart rather than joining them, and the `failure_token` field records it if it ever happens.
+
+### What this does to the omission attack
+
+The completeness half is the safety critical direction, and this widens it. The honest statement of the cost is that an
+omitted clause every one of whose words is a connective or an existing function word would now pass where it previously
+failed.
+
+**The first draft of this section bounded that wrongly, and the correction is recorded rather than quietly swapped.** It
+said such a clause carries no proposition, because a clause needs a lexical verb or a predicate and neither is exempt.
+That is false, and its own example falsifies it. `FUNCTION_WORDS` already exempts the copulas (`is`, `are`, `was`, `were`,
+`be`, `been`, `being`), the auxiliaries, the modals, and the negators (`not`, `no`, `never`, `nor`), so a copula plus a
+negation is a complete predication built entirely from exempt words. `which it was not` is a negated identity, which is a
+proposition, not an empty fragment. Using a newly added member, `although it was not` is the same shape one door further
+in. A cross check caught this; it is corrected here rather than in place because a wrong safety argument that gets silently
+replaced by a right one leaves no record that the wrong one was ever relied on.
+
+The true bound is narrower and it is the one that matters for AC-1. The attack this half exists to stop hides a fabricated
+decision inside an omitted clause, and a fabricated decision names an entity, an action, or a property. Every word that
+names one is a noun, a lexical verb, or an adjective, and none of those is exempt under either rule. So the attack cannot
+be built out of exempt words, which is a claim about the attack rather than a claim about propositions in general. What is
+genuinely given up is the class of assertions expressible with copulas, auxiliaries, modals, negators, and connectives
+alone, and that class already existed before this amendment; what this adds is more syntactic doors into it. The
+constructed test in task 19 is a negated copula for exactly this reason, since a test built from filler would exercise a
+weaker case than the amendment creates.
+
+This is a stated bound, not a proof, so task 19 re runs both AC-1 attack tests against the widened exemption and adds a
+constructed case in the new class, exactly as task 18 re ran them against the widened matcher rather than assuming they
+survived it.
+
+### Query 3 is not this decision
+
+`query-3-provisional` rejects no decomposition and drops no sentence in any run. It abstains because facet extraction
+promoted the contrast term in `provisional rather than ratified` to a second facet the answer must satisfy, and because
+that facet inverted between runs on identical input (`Which decisions are ratified?` in runs 1 and 3, `Which decisions are
+not ratified?` in run 2). Attributing it to the function word set would be wrong, and it is enrolled as a follow-up rather
+than folded in here.
+
+### Limits of the evidence behind OD-9
+
+- **First causes, not all causes.** `failure_token` is where the check stopped in token order. Removing `where`, `while`,
+  and `instead` from the picture does not establish that these three sentences pass, which is exactly what happened when
+  `falls` gave way to `where`. The gate for task 19 is the abstention clearing, not the absence of drops.
+- **Three sentences.** Each token comes from one draft sentence on one question. Three fixtures agreeing on a mechanism is
+  stronger than experiment 0011's one, and it is still three sentences.
+- **No corpus wide count.** Nothing measures how often a connective appears in a generated sentence across the corpus, so
+  the size of the win is unmeasured and 48 words is a count of the set, not a prediction.
+- **The set is enumerated from grammar, not from this corpus.** Most of its 48 members have never been observed failing
+  here and some may never occur. That is the point of enumerating ahead of the failure, and it is also why the count is
+  large relative to the evidence behind it.
+
+## Granularity, cause, and denominator (2026-08-14, OD-10 to OD-12)
+
+[Experiment 0013](../../experiments/0013-the-connectives-cleared-and-entailment-is-next.md) cleared the cause OD-9 named
+and left three things behind. The gate fixture's blocker moved to a stage no criterion reached, a fabrication side
+criterion missed for the first time, and the two batches behind every number in the experiment disagreed on three of
+eight fixtures.
+
+### OD-10: the fragment that cannot be grounded
+
+The measured trace, stable in 3 of 3 dedicated runs, with no rejected decomposition at all:
+
+```text
+parent  The decision was made to use a per role fallback in `reconcileBullets`
+        for resume generation.
+
+S1.1  The decision was made.                                    unsupported
+S1.2  The decision was made to use a per role fallback.         supported
+S1.3  The per role fallback is in `reconcileBullets`.           supported
+S1.4  The per role fallback is for resume generation.           supported
+```
+
+The entailment reason names it exactly: the evidence does not indicate that a specific decision was made, it discusses
+references and practices without confirming any decision. `The decision was made.` carries no object, so nothing in any
+evidence can support it, and the split that produced it is the split `DECOMPOSE_SYSTEM_PROMPT` asks for. One unsupported
+sub claim drops the whole parent, which is AC-1 working exactly as written.
+
+This is the same shape [experiment 0004](../../experiments/0004-clean-pipeline-re-measurement.md) recorded as
+`The adapter warns.` and named as the opposite of the under splitting the Follow-up tracks. It has been on record since
+before AC-11 took its current form, and nothing in the spec reached it: the four validity checks ask whether the split is
+faithful, never whether a piece of it asserts anything checkable.
+
+**Skip a sub claim a sibling already covers (chosen).** The relation is a strict content subset plus matching polarity and
+modality plus order preservation, applied after the AC-11 verdict and before the first entailment call.
+
+The argument that decides it is an asymmetry no other guard in this spec has. **A prune is permission to skip a check, so
+a refused prune costs exactly today's behaviour.** Every guard the spec has argued about until now traded safety against
+capability in both directions, so each condition had to be weighed. Here a false negative is free, which is why the
+relation carries three conditions instead of the one the mechanism needs, and why each could be added against a specific
+case rather than against a measured rate:
+
+| Without it | The candidate | Is a strict subset of | And the sibling being supported says |
+|---|---|---|---|
+| polarity | `The decision was made.` | `The decision was not made to use X.` | nothing about the candidate |
+| modality | `The decision was made.` | `The decision may be made to use X.` | nothing about the candidate |
+| order | `Client side refetch was rejected.` | `The team rejected background polling and chose client side refetch.` | nothing about the candidate |
+
+**The residual is rebinding and it is not closed.** The third row above was the engineer's first counterexample and order
+preservation rejects it. The second one it does not:
+
+```text
+sibling    The team chose client side refetch and rejected background polling.
+           content positions: team 1, chose 2, client 3, side 4, refetch 5,
+                              rejected 6, background 7, polling 8
+
+candidate  Client side refetch was rejected.
+           matches positions 3, 4, 5, 6: strict, in order, no polarity marker
+           on either side
+```
+
+It prunes, unchecked, and it asserts the opposite of the evidence. That case is the test, and the test asserts the prune
+**happens**. A test asserting a refused prune pins nothing about the residual; it records that one sentence fails one
+condition. Task 19's `although it was not` worked because it was a case that passes and therefore stands on the boundary,
+and this is its equivalent.
+
+What bounds the residual is a property rather than a marker set, and it is worth stating precisely because the honest
+version is narrower than the reassuring one. Subsumption is strict, so a subsuming claim always matches more content
+tokens than the candidate, and over a finite response that ordering cannot cycle, so **a maximal claim always exists and
+always faces entailment**. The two pass rule then makes every pruned claim's recorded sibling one of those. So a pruned
+claim's content tokens are all present in a claim that is actually verified, and a fabricated content word can never leave
+the verification set by being pruned. It can only be **rebound**, which is a question about predicate argument structure,
+and no lexical relation decides that. Three conditions narrow the class; none closes it.
+
+**The two pass rule came out of the cross check and is a real correction, not a tightening.** The first draft pruned
+against any subsuming sibling and asserted that a pruned claim's tokens are present in "the sibling that stays and is
+verified". That holds only when the immediate target is itself unpruned. A chain (C under B, B under A) leaves C's
+recorded sibling pruned, and the guarantee silently becomes an assumption that `tokens_match` composes transitively. It
+does not generally: `base_sets_intersect` relates two tokens when their base sets meet, and set intersection is not
+transitive, so A can meet B and B meet C with A and C disjoint. Nobody has built a live three token example and that is
+beside the point, because the fix removes the need for one. Restricting pass two to maximal claims costs a single filter
+over a list bounded by `MAX_SUB_CLAIMS`, keeps the motivating prune (the fuller restatement of the query 2 sentence is a
+subset of nothing, so it is maximal), and turns a claim about the matcher into a property of the algorithm. **The
+alternative considered was forbidding a pruned claim from acting as a subsumer**, which reaches the same place through an
+iterative rule; it was rejected as the same guarantee expressed as a fixed point rather than as two passes, with an order
+dependence to reason about that the maximal set does not have.
+
+**A prompt only rule (rejected).** Add to `DECOMPOSE_SYSTEM_PROMPT` that every sub claim must keep the object of its verb
+and must not restate another more weakly. Cheapest, no new safety argument, no code. Rejected as the soft half of a split
+AC-13 already made the other way: the prompt lowers how often a thing happens and the deterministic half is what makes the
+guarantee. It is worth adding later as the soft half beside AC-22, and it is not a substitute for it.
+
+**Condition the drop rule instead (rejected).** Send every sub claim to entailment as today, and ignore an unsupported
+verdict when a strict superset with matching polarity came back supported. It looks like strictly more evidence per
+decision and it keeps the fragment's verdict in the trace. It was rejected on three counts, and the first is decisive:
+**it carries the identical rebinding hole**, since it reads the same relation and only reads it later. It also pays the
+entailment call the prune saves, and it turns AC-1's absolute rule (any unsupported sub claim drops the parent) into a
+conditional one. Checking a claim and then ignoring its verdict is not more safety than not checking it.
+
+**Measure the rate first and decide later (rejected).** Consistent with this spec's habit of refusing to pin detail ahead
+of evidence, and wrong here: the fixture is stable at 3 of 3, the mechanism is named in the trace, and the same shape was
+already on record from experiment 0004. There is no rate to learn that would change the decision.
+
+**On recording the prune.** The observability that option 3 offered is the one thing it had that the chosen option lacked,
+and it is recoverable without conditioning AC-1 or paying the call: a pruned claim keeps its `decomposed` row, its
+position, and its text, with `entailment="pruned"` and `subsumed_by`. Contiguous ids (AC-6) are unaffected, because
+nothing is removed from the response, only from the set of claims entailment is asked about. **The text is kept
+deliberately**, and it is not a lapse of the no claim text rule: that rule governs `rejected_decompositions`, and
+`decomposed` rows have carried full text for supported and unsupported claims since task 1. A pruned claim belongs to a
+valid response, so nothing about it is rejected text.
+
+**On where it lives.** The relation is a pure function in `verification.py`, called from `query.py`. Folding it into
+`classify_decomposition_detail` was rejected: that function answers whether the response is a faithful division of the
+parent, and pruning is not that question, so folding it in would make a disposition depend on a rule unrelated to validity
+and add a fourth traversal to the one place AC-20 insisted on keeping to a single traversal and a single verdict.
+
+### OD-11: the abstention that rests on nothing
+
+AC-3 missed for the first time, 5 of 6, and the traces that were kept say why the criterion was fragile rather than why
+that run answered. Query 5's three dedicated runs abstain through **wholesale rejection**, `not_additive` on `revision`
+every time, with a second sentence also rejected in one. An abstention that leans on every sentence being dropped is one
+loosened check away from answering, and the change measured in the same experiment loosened a check.
+
+**The miss exposed the weakness rather than caused it**, and that reading is what rules out the obvious response.
+Relaxing the bar to 5 of 6 in the AC-9 shape would lower a fabrication side guard on a single observation while leaving
+the vacuity underneath untouched, so the criterion would be both weaker and still not mean what it says.
+
+**Pin `uncovered_facet` on query 5 (chosen).** The cause to pin is a statement of correct behaviour, not an observation,
+which is why measuring first does not apply: today's cause is already known to be `no_emitted_sentences` and measuring it
+again cannot say what the gate ought to require. Pinning the observed cause instead was rejected outright, since OD-4
+already named it the vacuous one, so it would ratify the exact thing the deferred item exists to remove and keep a
+criterion green for the wrong reason.
+
+**Pin query 4 at the same time (chosen, and this is the deliberate half).** AC-2 at 6 of 6 is the one criterion this chain
+has treated as green on live evidence since experiment 0008, and nothing has ever established that its abstention rests on
+a verdict rather than on everything being dropped before one was reached. Examining query 5 and not query 4 would be
+choosing which answer to learn. If the pin turns AC-2 red, that is the same finding as query 5's and is recorded as one,
+not as a regression this round introduced.
+
+**The instrument goes first, because the oracle cannot recover what the harness discarded.** A defaulted `--records` or
+`--store` resolves to a `TemporaryDirectory` registered on an `ExitStack` (`cli.py`, `_resolve_evaluate_paths`, lines 1129
+to 1160) and is removed when `evaluate_command` returns, and `EvaluationCheck` keeps a fixture id, a status, a detail
+string, and two counts, while the port already hands back a full traced result. So experiment 0013's single answering run of query
+5 is unattributable forever, and no amount of re running recovers it. Only a run whose outcome differs from its
+expectation writes a trace, so a clean batch costs nothing and the only file ever written is the one somebody will want.
+Widening `EvaluationCheck` to carry the trace was rejected: the report is a summary, a trace is not summary shaped, and
+every consumer of that dataclass would grow a field it never reads.
+
+Three details of the writer are decisions rather than build choices, and the cross check found all three unsettled.
+**The destination is a new `--traces DIR` and explicitly not a temporary one**, because a defaulted `--records` or
+`--store` resolves onto the `ExitStack` and is deleted when the command returns, so the obvious place to write is the one
+place that guarantees the evidence disappears again. **The directory is per invocation and timestamped**, because the four
+AC-24 batches are four separate commands that each number their runs 1 to 3, so a name built from fixture id and run index
+alone collides across batches and destroys the store versus provider attribution the denominator exists to enable. And
+**the write leaves the application layer through the port**, as one optional `record_deviation` on `EvaluationPort`
+defaulting to a no op. `_run_query_fixture` is pure application code and this project forbids file I/O there, so the two
+alternatives were putting the write in the application layer or re deriving the pass or fail inside an infrastructure
+implementation. The second is the two implementations of one verdict that AC-20 refused for `classify_decomposition`
+after commit `004dc3c` shipped exactly that bug, and it would be a worse instance here, since the whole point of the file
+is to record the runs the oracle disagreed about.
+
+### OD-12: what a fraction of six can settle
+
+Every gate in this spec is a fraction of 6, and experiment 0013's two batches passed 2 and 5 on identical code, the widest
+spread any batch pair in this spec has shown.
+
+**The reserve condition offered during the design conversation was superseded by what the check found.** It read: if
+fixtures flip within a batch too, it is provider variance and eighteen runs is worth revisiting. That assumed the two
+sources were alternatives. They are not, and they are separable, which is the case the condition did not specify.
+
+The separation needed no new runs. One `evaluate` invocation adapts once, ingests once, then runs every fixture
+`--runs N` times (`evaluation.py:494-535`), so the store is constant inside a batch and varies between them. Any batch
+result that is neither 0 of 3 nor 3 of 3 is therefore a flip against a constant store:
+
+| Fixture | Batch A | Batch B | What varies |
+|---|---|---|---|
+| `query-1-private-beta-gate` | 0/3 | 3/3 | the store, cleanly |
+| `query-5-uploaded-files` | **2/3** | 3/3 | the provider, and this is the AC-3 miss itself |
+| `assertion-rationale-summary` | 0/3 | **1/3** | the provider |
+| `assertion-unverifiable-claim` | **1/3** | 3/3 | a `provider.answer` failure, not a verdict |
+
+**Eighteen runs was rejected on this separation rather than on cost.** Averaging over both sources would fold a store
+effect that moved one fixture by three runs of three into the same denominator as a provider effect that moved another by
+one of three, and the larger of the two would disappear into the number. Twelve runs across four batches is enough for the
+provider side, and the store side is a suspected correctness defect that belongs in Follow-up with an investigation rather
+than in a denominator. A retrieval path whose results depend on which build ran would also be consistent with experiment
+0007 finding no `decision.chosen` chunk retrieved at all, which is why the investigation starts at chunk identity and
+ordering across two builds of the same corpus before it looks anywhere downstream.
+
+**Forward looking rather than retroactive.** Re measuring every existing bar at twelve was rejected while the gate is still
+unmet: AC-2 and AC-3 are touched by OD-11 and are re measured at twelve anyway, and what a full sweep adds is AC-9 and
+AC-15, which nothing in this round changes, at the cost of the most live runs this spec would have paid for in one task.
+
+**The reading rule is part of the criterion rather than advice.** Every rate is reported with its denominator and with
+which of the two variances it is exposed to, and a capability figure below twelve is an observation that may not set or
+move a criterion. Experiment 0013 followed that rule voluntarily in its threats to validity; writing it down is what makes
+the next experiment owe it.
+
+**The aggregate shape is pinned for the reason AC-14, AC-15, and AC-19 each pinned theirs.** Four batches are four
+separate `evaluate` invocations and nothing joins them, so the experiment aggregates by hand, and a figure read later by
+whoever confirms a bar cannot be left to whatever table that experiment's author felt like drawing. The two spread columns
+are the load bearing part: a within batch spread counts the batches whose result is neither 0 of 3 nor 3 of 3, which is
+the provider side, and a between batch spread counts the distinct per batch results, which is the store side. Experiment
+0013 could be read this way only because someone noticed; the columns are what make the next reading automatic.
+
+### On retiring task 13
+
+The task specified its own retirement on 2026-08-13: if the content token share dominates the additive split, it changes
+shape or retires, and that outcome is a finding rather than a failure. Experiment 0007 measured the split at **7 of 7
+`content_token` and 0 `function_word_overrun`**, so the share is total rather than dominant. `sub_claim_is_additive_free`
+returns on the first unmatched content token while `MAX_ADDED_FUNCTION_WORDS` bounds function word additions alone, so the
+knob reaches one category and every measured drop is in the other: **no value of it would have changed any measured
+result**, and the five occasions this plan re ordered around it were five instruments aimed at the wrong half.
+Re pointing the number at whatever the next measurement finds was rejected as a placeholder rather than a task; a real
+tunable surfacing later earns a new task with known content and a measurement behind it. Retiring the task does not remove
+the constant: `MAX_ADDED_FUNCTION_WORDS` stays at 2 as the sanity bound it already is, and OD-8's refusal to convert
+budgeted additions into free ones still rests on it.
+
+### Threats to validity
+
+- **The rebinding residual is bounded by an argument, not a measurement.** That a maximal claim exists and faces
+  entailment follows from subsumption being strict over a finite response, and that every pruned claim points at one
+  follows from the two pass rule. Both are proofs about the algorithm rather than observations about live traces, and a
+  future change to either the strictness condition or the two passes takes the bound with it. Nothing connects those facts
+  except this paragraph and the property test task 21(d) carries.
+- **The transitivity question is avoided, not answered.** Whether `tokens_match` composes across a chain is still unknown,
+  and the two pass rule means nothing depends on the answer. If a later change reintroduces chained pruning for any
+  reason, the question comes back and it should be measured over the repository vocabulary the way OD-8's 622 and 30 were,
+  not argued.
+- **The prune has never been measured.** Its rate is unknown by construction, and the estimate that it fires on roughly
+  one sub claim per over split sentence comes from a single fixture in a single experiment.
+- **Two gates are being turned red on purpose.** If AC-2 fails its cause pin, the spec cannot immediately distinguish a
+  gate that was always vacuous from one this round broke, and the only evidence separating them is the disposition mix in
+  the new traces.
+- **The store hypothesis rests on one fixture.** `query-1-private-beta-gate` splitting 0 of 3 then 3 of 3 is one clean
+  batch boundary in one experiment. It is enough to refuse to average over it and not enough to call it a defect yet.
+- **Four batches is still four sessions.** Twelve runs raises resolution on the provider side and does nothing about
+  session level correlation between batches, which is the thing the store item exists to investigate.
+
 ## Rationale
 
 Sub claim decomposition is the chosen option because it removes the hiding place the spec 0008 evidence identified. Three entailment prompt variants failed on the whole sentence, which rules out prompt tuning and points at the unit. Verifying each sub claim alone means the invented decision no longer carries its verbatim support inside the sentence it is verified against. The deterministic span floor was rejected because it would reject legitimate paraphrases and can regress query 2; the generation rewrite was rejected because it is the largest surface change for the same goal; the stronger model was rejected because the documented failure is structural, not model capability; deterministic clause splitting (Option 5) was rejected because it only catches fusion at a syntactic seam, and the model call generalizes to fusions that have none.
@@ -951,6 +1378,12 @@ Two independent cross checks then pushed the matcher from a described rule to a 
 - `src/decision_memory/application/chunking.py`, the nine `add()` calls that are the only source of a chunk's `value_path`, and `embedding_input`, which already renders the title and value path above the chunk text on the embedding side
 - `src/decision_memory/application/dto.py`, `ActiveChunkDescriptor` (which carries `record_id`, `record_title`, and `value_path` that generation never receives), and `RejectedDecomposition` and `DroppedSentence`, whose no claim text rule bounds the AC-19 category
 - `src/decision_memory/application/evaluation.py`, `QueryOracle` and `_satisfies`, the co location rule AC-15 reuses, `EvaluationOutcome`, which carries no per stage detail, `classify_query4_failure`, whose `None` is correct for query 4 and blind to OD-7's shape, and `run_evaluation`, which already takes its fixtures as a parameter
+- `docs/experiments/0013-the-connectives-cleared-and-entailment-is-next.md`, the AC-21 live re measurement and the source of OD-10, OD-11, and OD-12: `where`, `while`, and `instead` at zero occurrences as a `failure_token` across 12 traced runs, the completeness half down to 1 of 7 rejections, `query-2-resume-generation` still 0 of 6 and now failing at entailment on `The decision was made.`, AC-2 holding at 6 of 6, AC-3's first miss at 5 of 6, and the batch table whose within batch and between batch spread is the whole basis of AC-24
+- `src/decision_memory/application/evaluation.py`, `run_evaluation` and `_run_query_fixture` (lines 494 to 535), whose `for _ in range(runs)` inside one adapt and one ingest is what makes a batch a constant store, and `EvaluationCheck`, whose four scalar fields are where the trace is discarded
+- `src/decision_memory/infrastructure/evaluation_runner.py`, the `TemporaryDirectory` at line 254 that makes a surprising run unrecoverable
+- `src/decision_memory/application/verification.py`, `FUNCTION_WORDS` (the source of the thirteen `POLARITY_MARKERS` members), `classify_decomposition_detail`, and its four ordered checks, none of which reaches decomposition granularity
+- `src/decision_memory/application/query.py` lines 696 to 760, the per sub claim verification loop and the unconditional `all_supported` drop, which is where the prune is applied and which is otherwise untouched
+- `tests/test_sub_claim_verification.py`, the two shipped AC-1 attack fixtures (`_WELD_GROUNDED` and `_WELD_FABRICATED`), whose content token sets each carry a token the other lacks (`approved`, `merger`, `tuesday` against `accepted`, `bribe`, `rush`, sharing only `board`), so neither subsumes the other and the prune does not reach either attack
 - `src/decision_memory/application/verification.py`, `application/query.py`, `application/dto.py`, `infrastructure/openai_generation.py`, the code this feature changes
 
 **Practices & standards**:
