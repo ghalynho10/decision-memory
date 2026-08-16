@@ -49,6 +49,11 @@ Additional standards:
 - Third party adapters load by an absolute selector `package.module:attribute`; the built in `jsmastery-specs` stays the default. The teaching package and author guide live at `examples/starter-adapter/` and `docs/reference/artifact/guide/adapter-author-guide.md`. Adapters prove protocol compliance with `test-adapter SELECTOR --cases PATH`; the built in adapter must pass it.
 - `.decision-memory.yml` persists `adapter`, `corpus_root`, and `output`; `adapt` and directory `validate` read the nearest file upward, stopping at the Git root, with CLI input winning over config.
 
+Evidence:
+- Verify a claim against the source before asserting it, including a claim made by a spec, an experiment writeup, or another session. This project has repeatedly produced plausible reasoning the code contradicted, and [experiment 0003](docs/experiments/0003-whole-sentence-gate-and-a-misdiagnosis.md) keeps one such case on purpose. Cite the file and line you read.
+- A claim about **how often** something happens needs a measurement with its denominator, never an instance. A claim about **what a field contains** is read from the field, never from a rendered view.
+- A figure nobody can re derive does not settle a decision. A reproducible measurement gets a committed script under `docs/experiments/data/`, not a recorded command.
+
 ## Circuit breaker
 
 If the same problem persists after one corrective prompt, stop and run `/recover` before trying again. It diagnoses whether this is an isolated bug (routes to `/debug`), a session that has gone wrong through repeated patching (hard reset), or a foundation built on a wrong assumption (rethink).
