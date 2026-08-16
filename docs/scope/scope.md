@@ -24,7 +24,7 @@ _You are in charge. Every box below is a suggestion, not a gate: run any, skip a
 | 11 | Proven correctness (evaluation harness) | Slice 3 | done |
 | 12 | Flat single file spec support | V2 | planned |
 | 13 | Declarative adapters | V2 | planned |
-| 14 | MCP server interface | V2 | planned |
+| 14 | MCP server interface | Slice 4 | planned |
 | 15 | CLI presentation redesign | Slice 4 | in-progress |
 | 16 | Abstention verification reliability | Slice 3 | in-progress |
 | 17 | Retrieval query hardening | Slice 2 | planned |
@@ -32,6 +32,8 @@ _You are in charge. Every box below is a suggestion, not a gate: run any, skip a
 | 19 | Field aware retrieval ranking | Slice 2 | in-progress |
 | 20 | Stable ranking tie break | Slice 2 | in-progress |
 | 21 | Superseded chunks served after reingest | Slice 2 | planned |
+| 22 | Shipped prebuilt index of this repo's specs | Slice 4 | in-progress |
+| 23 | Store path key in the project config | Slice 4 | planned |
 
 ## Foundations
 
@@ -277,6 +279,8 @@ The tool cannot tell when it is answering from an incomplete or outdated corpus,
 
 Runs after Slice 2 and Slice 3, and before V2. The number 15 is only the next free ordinal, it is not a claim that this comes after everything else. Ordering against Feature 8 (built-in ADR adapters) is irrelevant, the two do not touch the same surface, and Feature 8 keeps its own sequencing (a `doctor` survey of real corpora first).
 
+The slice theme is how a person meets the tool. Features 14 and 22 joined it on 2026 08 15, moved out of V2 on a deliberate call: the current goal is not to grow the product, it is to make the work already done legible to someone evaluating it. V2 sits behind Slice 2 retrieval work that is not being taken up, so leaving an adoption surface there was a deferral wearing a schedule. The usual objection, that a quick demo over unhardened retrieval advertises the weakest version of the product, is answered by the README already opening with the measured failure rate and linking the experiment: a reader who hits an abstention was told it happens.
+
 ### 15. CLI presentation redesign
 Restyle the human facing output of the CLI to one defined visual language: a teal accent, aligned reports at 80 columns, status markers that carry both a shape and a word so meaning survives without color, a single line summary paired with the exit code, and a consistent error then hint then exit grammar. The visual target is an external design (opendesign), corrected against what the CLI really prints today.
 **Done when:** every one of the 8 commands (`version`, `validate`, `doctor`, `adapt`, `test-adapter`, `ingest`, `query`, `evaluate`) prints in the new language, including its failure paths, and the whole surface stays untouched underneath: same commands, same flags, same exit codes, same JSON output, same DTOs, same backends. `evaluate` was missing from this list until spec 0013 checked the design against the code; it is a real command the README documents, and leaving it in the old language is a seam a reader hits immediately.
@@ -293,6 +297,35 @@ spec [0013](../specs/0013-cli-presentation-redesign/index.md) · code in src/dec
 - [ ] Verify it: `/check verify CLI presentation redesign`
 - [ ] Test it: `/test CLI presentation redesign`
 
+### 14. MCP server interface · needs a decision
+Expose the existing query use case as one MCP tool, so an assistant inside a coding agent can ask the project why a decision was made without leaving the editor. One tool, wrapping what `query` already does, not a second surface with its own behaviour.
+**Done when:** an assistant can call the single tool and receive the same cited answer or the same honest no evidence response the CLI gives for that question, and the server takes a store path at startup so it can point at either the shipped index or a user's own corpus.
+**Correction (2026-08-15):** an earlier wording said the server reads its store path "from config", which presumed a mechanism that does not exist. `.decision-memory.yml` accepts `adapter`, `corpus_root`, and `output` only ([project_config.py:35-37](../../src/decision_memory/infrastructure/project_config.py#L35-L37)). Feature 23 owns adding a store key. This feature must not wait for it: an MCP server is configured by its own client entry, so a store path passed there is the simpler path and stays independent.
+**Constraints (carry into the spec):** `query` embeds the question ([query.py:411](../../src/decision_memory/application/query.py#L411)), so `OPENAI_API_KEY` is required and a key free demo is not available at any price. `query` takes `--store` but no `--adapter` ([cli.py:717-746](../../src/decision_memory/cli.py#L717-L746)), so this is independent of Feature 8 in both directions, neither blocks the other, and either may ship first.
+- [ ] Design it (spec): `/architect MCP server interface`
+
+### 22. Shipped prebuilt index of this repo's specs · in-progress
+Commit a prebuilt index of this project's own decision records so a new person reaches a first cited answer with no corpus setup at all. Today the fastest path is clone, install, key, adapt, ingest, query; a shipped store removes two of those steps for everyone, whether or not they ever touch MCP. That independent value is why it is its own row rather than part of Feature 14.
+**Correction (2026-08-15):** this row first promised a first answer "in about two minutes". Spec 0014's premise note retired that claim, because the feature does not control most of those two minutes. It removes `adapt` and `ingest`, which take seconds; what remains is `git clone`, `uv sync` resolving chromadb and its dependencies, and one query making several provider calls, and the install dominates. The claim the feature can actually keep is no corpus setup: a real cited answer whatever the reader's own project looks like. A wall clock promise is the kind that quietly becomes false on a slow network.
+**Done when:** a fresh clone with only a key set answers a question against the committed index with no adapt and no ingest step, a regeneration script rebuilds that index from the repo's specs in one command, and the test suite fails when the committed index no longer matches the current pipeline signature.
+**The freshness criterion is the load bearing one.** It is stated as acceptance, not as a task detail, because it is the whole reason a committed binary is safe to ship: the risk is silent rot when chunking or embedding changes, and a check that runs every suite catches that where a one time human review would not.
+**Constraints (carry into the spec):** the store is a committed binary, roughly 7MB today and expected near 10MB as the corpus grows, a deliberate cost on the record rather than something a reviewer finds in a diff. Query time staleness is already handled and does not need rebuilding: a stored signature that differs from the running one is a hard failure, not a wrong answer ([query.py:294-310](../../src/decision_memory/application/query.py#L294-L310)), with `--allow-stale` as the deliberate override. The gap this feature closes is on the build side, stopping a stale index from shipping at all.
+spec [0014](../specs/0014-shipped-prebuilt-index/index.md) · code (filled by /develop)
+- [x] Design it (spec): `/architect shipped prebuilt index`
+- [ ] Build it: `/develop shipped prebuilt index`
+  - [ ] Portable resolution: the snapshot reader with its strict validate or ignore rule, the fallback inside the index reader so it reaches freshness classification, the corpus root fallback, and one shared helper replacing the duplicated closures in `cli.py` and `evaluation_runner.py` (AC-1, AC-1a, AC-1b, AC-1c, AC-3, AC-4, AC-5)
+  - [ ] The regeneration script: adapt and ingest into a temporary bundle, blank both absolute fields, write the snapshot, swap with recovery from an interrupted previous run (AC-6, AC-11, AC-12)
+  - [ ] Characterisation and reporting: N runs per candidate question, refuse to publish on any disposition instability, report specs absent from the bundle (AC-13, AC-14)
+  - [ ] Commit the bundle at `examples/self-index/` with wildcarded gitignore negations covering `*.sqlite3` and `*.bin` across both UUID directory levels (AC-2, AC-7, AC-8)
+  - [ ] The guards and the front door: the unit signature, digest, and snapshot check, the integration hit and miss smoke test, the README demo first rewrite, and the regeneration policy (AC-9, AC-10, AC-15, AC-16)
+- [ ] Verify it: `/check verify shipped prebuilt index`
+- [ ] Test it: `/test shipped prebuilt index`
+
+### 23. Store path key in the project config · needs a decision · from spec 0014
+Let `.decision-memory.yml` carry a store path, so pointing the tool at an index stops meaning repeating `--store` on every command. The config accepts `adapter`, `corpus_root`, and `output` only today, which is why spec 0014's demo command spells out `--store` and why the README's own corpus path repeats it across two commands.
+**Done when:** a project config can name a store, CLI input still wins over it, and the commands that take `--store` read it with the same precedence the existing keys use.
+- [ ] Design it (spec): `/architect store path key in the project config`
+
 ## V2
 
 V2 theme: usable on more corpora, used more often. These are hypotheses formed before v1 has real usage, so they may be reordered or replaced once v1 evidence exists. Nothing in V2 starts before the evaluation harness passes.
@@ -307,13 +340,11 @@ Let common decision formats implement the `SourceAdapter` protocol from a YAML m
 **Done when:** after at least two hand written adapters exist, a config driven adapter can map a simple real corpus into valid canonical records, malformed configs fail clearly, and formats needing branching logic are pointed back to a Python adapter rather than guessed.
 - [ ] Design it (spec): `/architect declarative adapters`
 
-### 14. MCP server interface · needs a decision
-Expose the query function as an MCP tool inside a coding agent, where day to day decision memory is most likely to be used.
-**Done when:** an agent can ask the project why a decision was made and receive the same cited answer or honest no evidence response as the CLI, through a small MCP surface.
-- [ ] Design it (spec): `/architect MCP server interface`
-
 ## Deferred
 Out of scope for the current build pass, kept so the plan stays honest.
+- **Spec 0009 has no `index.md`** (from spec 0014): the directory holds only `verify.md`, so the evaluation harness decision is absent from the corpus entirely and no shipped index can answer about it. A fresh adapt writes 10 records from 13 specs; the other two absences are the flat specs 0001 and 0002 that feature 12 owns. Fix at the source rather than working around it
+- **Promote the snapshot's layout fields into the store itself** (from spec 0014): would make every store self describing and retire the fallback chain, which is the cleaner end state. Not taken now because it is a store format change that invalidates every existing index including the evaluation baselines, and feature 15 is mid build. Bound to a condition rather than left open: land it with the next store format change that happens for an independent reason
+- **State the empty case on both stored path fields** (from spec 0014): after this feature both `records_manifest_path` and `source_root_hint` carry empty for a shipped store. `source_root_hint` is documented as absolute at `adapter.py:161`; `records_manifest_path` has no docstring at all and is written absolute at `ingest.py:226`. Both should say so, and a nullable type would beat an empty string sentinel
 - **Coverage direction (query 2 citation completeness)**: query 2's `DM-0004` citation is intermittent because generation is not required to cite every accepted chunk that directly answers a facet, while `DM-0019` is. Deliberately kept out of spec 0010 so the fabrication direction ships as one measurable change. Needs a decision on a stricter generation contract or a citation completeness verification stage · needs a decision
 - **Facet extraction, the contrast clause and its instability** (from spec 0010): `query-3-provisional` is the one failing live fixture that belongs to neither half of AC-11. It rejects no decomposition and drops no sentence, so `docs/experiments/0012-the-other-three-abstentions.md` attributed it away from the function word set entirely. Two defects sit in one fixture. The contrast term in `provisional rather than ratified` narrows the request and is being promoted to a second facet the answer must satisfy. And that facet inverts between runs on identical input at temperature 0: `Which decisions are ratified?` in two runs and `Which decisions are not ratified?` in the third, the strongest form of instability available, with the second version arguably already covered by the first sentence. Needs a decision on whether facet extraction should split a contrast clause at all, and on what makes the split deterministic · needs a decision
 - **Store level nondeterminism in `evaluate`** (from spec 0010, OD-12): which fixtures pass may depend on which index build ran, not only on provider sampling. One `evaluate` invocation adapts once and ingests once, then runs every fixture `--runs N` times, so a batch holds the store constant. In [experiment 0013](../experiments/0013-the-connectives-cleared-and-entailment-is-next.md) `query-1-private-beta-gate` went 0 of 3 then 3 of 3 on identical code, a clean split on the store boundary, while two other fixtures varied inside a single batch. AC-24 deliberately refused to absorb this into a larger run count, because averaging would hide the larger of the two effects. **First step is concrete: compare chunk identity and ordering across two builds of the same corpus, before looking at anything downstream.** A retrieval path whose results depend on the build would also be consistent with experiment 0007 finding no `decision.chosen` chunk retrieved at all, so this may belong to spec 0011 rather than here · needs a decision
