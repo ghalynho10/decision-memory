@@ -124,3 +124,18 @@ mvp.md
 # Standing instructions). scope.md owns durable status and session-notes.md owns
 # unresolved residue; a third file drifts from both.
 docs/where-things-stand.md
+
+# The committed self index bundle (spec 0014). A prebuilt index of this
+# project's own decision records, so a new reader asks a real cited question
+# with no corpus to prepare. Two earlier patterns in this file would otherwise
+# swallow it: *.sqlite3 (line 93) catches the records and Chroma databases, and
+# *.bin (line 80) catches the four HNSW segments, which are the vector index
+# itself. Both directory levels below are fresh UUIDs on every regeneration
+# (the generation id and the Chroma collection id), so these negations wildcard
+# them and must never name a generation path. Everything outside the bundle
+# keeps matching the original patterns.
+!examples/self-index/query-index/generations/*/records.sqlite3
+!examples/self-index/query-index/generations/*/chroma/chroma.sqlite3
+!examples/self-index/query-index/generations/*/chroma/*/*.bin
+# lock.sqlite3 stays ignored: it is runtime state, so asking a question must
+# never dirty the working tree.
