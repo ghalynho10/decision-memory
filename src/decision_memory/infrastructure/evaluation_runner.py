@@ -20,7 +20,6 @@ from pathlib import Path
 from decision_memory.application.adapter import (
     EXIT_ERROR,
     AdaptOutcome,
-    Manifest,
     adapt_corpus,
 )
 from decision_memory.application.dto import (
@@ -60,7 +59,7 @@ from decision_memory.infrastructure.openai_generation import (
     extract_facets,
     generate_answer,
 )
-from decision_memory.infrastructure.source_resolver import resolve_source_path
+from decision_memory.infrastructure.store_resolution import store_resolution
 from decision_memory.infrastructure.tokenization import tiktoken_count
 
 # The distinctive sentence appended to a rationale copy by the incremental
@@ -158,25 +157,7 @@ class EvaluationRunner:
         where it is caught.
         """
         reader = SqliteChromaIndexReader(self.store_dir)
-
-        def _stored_manifest_path() -> Path | None:
-            stored = reader.manifest_metadata()[0]
-            return Path(stored) if stored else None
-
-        def _load_stored_manifest() -> Manifest:
-            path = _stored_manifest_path()
-            if path is None:
-                raise FileNotFoundError("no stored manifest path")
-            return load_manifest(path)
-
-        def _stored_manifest_raw_digest() -> str:
-            path = _stored_manifest_path()
-            if path is None:
-                raise FileNotFoundError("no stored manifest path")
-            return raw_manifest_digest(path)
-
-        def _stored_hint() -> str | None:
-            return reader.manifest_metadata()[3]
+        resolution = store_resolution(reader.manifest_metadata)
 
         with store_lock(self.store_dir, exclusive=False):
             return query_index(
@@ -191,11 +172,9 @@ class EvaluationRunner:
                     count_tokens=tiktoken_count,
                     embed=embed_texts,
                     lexical_scorer=bm25_lexical_scorer,
-                    load_manifest=_load_stored_manifest,
-                    raw_manifest_digest=_stored_manifest_raw_digest,
-                    resolve_source=lambda path: resolve_source_path(
-                        path, _stored_hint()
-                    ),
+                    load_manifest=resolution.load_manifest,
+                    raw_manifest_digest=resolution.raw_manifest_digest,
+                    resolve_source=resolution.resolve_source,
                     extract_facets=extract_facets,
                     generate_answer=generate_answer,
                     decompose=decompose_sentence,

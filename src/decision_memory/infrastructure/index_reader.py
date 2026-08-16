@@ -36,6 +36,10 @@ from decision_memory.infrastructure.store import (
     read_format,
     read_generation_json,
 )
+from decision_memory.infrastructure.store_resolution import (
+    resolve_corpus_root,
+    resolve_manifest_path,
+)
 
 
 class SqliteChromaIndexReader(IndexReader):
@@ -187,7 +191,16 @@ class SqliteChromaIndexReader(IndexReader):
     def manifest_metadata(
         self,
     ) -> tuple[str | None, str | None, str | None, str | None]:
-        """Return records_manifest_path, semantic, raw digest, source root hint."""
+        """Return records_manifest_path, semantic, raw digest, source root hint.
+
+        The two path values are **resolved**, not raw (spec 0014 AC-1, AC-1a).
+        A store that was moved, copied, restored from a backup, or shipped in a
+        bundle holds a stored path belonging to another machine, or none at
+        all. Resolution happens here rather than at a call site because
+        ``query_index`` reads this method directly to classify freshness, so a
+        fallback placed anywhere else would never reach the classification it
+        exists to correct. The digests are returned exactly as stored.
+        """
         generation_id = self.generation_id()
         if generation_id is None:
             return (None, None, None, None)
@@ -201,11 +214,13 @@ class SqliteChromaIndexReader(IndexReader):
             ).fetchone()
             if row is None:
                 return (None, None, None, None)
+            stored_path = str(row[0]) if row[0] is not None else None
+            stored_hint = str(row[3]) if row[3] is not None else None
             return (
-                str(row[0]) if row[0] is not None else None,
+                str(resolve_manifest_path(self._store_dir, stored_path)),
                 str(row[1]) if row[1] is not None else None,
                 str(row[2]) if row[2] is not None else None,
-                str(row[3]) if row[3] is not None else None,
+                str(resolve_corpus_root(self._store_dir, stored_hint)),
             )
         finally:
             connection.close()

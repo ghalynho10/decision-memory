@@ -313,7 +313,7 @@ Commit a prebuilt index of this project's own decision records so a new person r
 spec [0014](../specs/0014-shipped-prebuilt-index/index.md) · code (filled by /develop)
 - [x] Design it (spec): `/architect shipped prebuilt index`
 - [ ] Build it: `/develop shipped prebuilt index`
-  - [ ] Portable resolution: the snapshot reader with its strict validate or ignore rule, the fallback inside the index reader so it reaches freshness classification, the corpus root fallback, and one shared helper replacing the duplicated closures in `cli.py` and `evaluation_runner.py` (AC-1, AC-1a, AC-1b, AC-1c, AC-3, AC-4, AC-5)
+  - [x] Portable resolution: the snapshot reader with its strict validate or ignore rule, the fallback inside the index reader so it reaches freshness classification, the corpus root fallback, and one shared helper replacing the duplicated closures in `cli.py` and `evaluation_runner.py` (AC-1, AC-1a, AC-1b, AC-1c, AC-3, AC-4, AC-5)
   - [ ] The regeneration script: adapt and ingest into a temporary bundle, blank both absolute fields, write the snapshot, swap with recovery from an interrupted previous run (AC-6, AC-11, AC-12)
   - [ ] Characterisation and reporting: N runs per candidate question, refuse to publish on any disposition instability, report specs absent from the bundle (AC-13, AC-14)
   - [ ] Commit the bundle at `examples/self-index/` with wildcarded gitignore negations covering `*.sqlite3` and `*.bin` across both UUID directory levels (AC-2, AC-7, AC-8)

@@ -19,7 +19,6 @@ import typer
 from decision_memory.application.adapter import (
     BUILTIN_ADAPTER_ID,
     AdaptOutcome,
-    Manifest,
     SourceAdapter,
     adapt_corpus,
 )
@@ -104,8 +103,8 @@ from decision_memory.infrastructure.project_config import (
     load_project_config,
 )
 from decision_memory.infrastructure.runtime_loader import LoadFailure, select_adapter
-from decision_memory.infrastructure.source_resolver import resolve_source_path
 from decision_memory.infrastructure.store import read_active
+from decision_memory.infrastructure.store_resolution import store_resolution
 from decision_memory.infrastructure.tokenization import tiktoken_count
 
 app = typer.Typer(
@@ -762,25 +761,7 @@ def query_command(
         typer.echo(f"error usage filters: {exc}")
         raise typer.Exit(2) from None
     reader = SqliteChromaIndexReader(store_dir)
-
-    def _stored_manifest_path() -> Path | None:
-        stored = reader.manifest_metadata()[0]
-        return Path(stored) if stored else None
-
-    def _load_stored_manifest() -> Manifest:
-        path = _stored_manifest_path()
-        if path is None:
-            raise FileNotFoundError("no stored manifest path")
-        return load_manifest(path)
-
-    def _stored_manifest_raw_digest() -> str:
-        path = _stored_manifest_path()
-        if path is None:
-            raise FileNotFoundError("no stored manifest path")
-        return raw_manifest_digest(path)
-
-    def _stored_hint() -> str | None:
-        return reader.manifest_metadata()[3]
+    resolution = store_resolution(reader.manifest_metadata)
 
     try:
         with store_lock(store_dir, exclusive=False):
@@ -796,11 +777,9 @@ def query_command(
                     count_tokens=tiktoken_count,
                     embed=embed_texts,
                     lexical_scorer=bm25_lexical_scorer,
-                    load_manifest=_load_stored_manifest,
-                    raw_manifest_digest=_stored_manifest_raw_digest,
-                    resolve_source=lambda path: resolve_source_path(
-                        path, _stored_hint()
-                    ),
+                    load_manifest=resolution.load_manifest,
+                    raw_manifest_digest=resolution.raw_manifest_digest,
+                    resolve_source=resolution.resolve_source,
                     extract_facets=extract_facets,
                     generate_answer=generate_answer,
                     decompose=decompose_sentence,
