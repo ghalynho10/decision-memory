@@ -1,0 +1,16 @@
+adapter: jsmastery-specs 5
+discovered 11 specs, skipped 1
+  skipped /Users/ghaly/Documents/Work/Personal/decision-memory/docs/specs/0009-proven-correctness-evaluation-harness: no index.md
+  written DM-0003
+  written DM-0004
+  written DM-0005
+  written DM-0006
+  written DM-0007
+  written DM-0008
+  written DM-0010
+  written DM-0011
+  written DM-0012
+  written DM-0013
+  written DM-0014
+result: written 11
+output: /Users/ghaly/Documents/Work/Personal/decision-memory/docs/experiments/data/demo-question-probe/records

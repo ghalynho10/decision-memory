@@ -1,0 +1,2268 @@
+{
+  "schema_version": 2,
+  "adapter_version": "5",
+  "generated_at": "2026-08-23T19:12:42.096537+00:00",
+  "source_root_hint": "/Users/ghaly/Documents/Work/Personal/decision-memory",
+  "entries": [
+    {
+      "id": "DM-0003",
+      "fingerprint": "448100053745980a798cbb64409f9d401f0dd0ce0b4f7ff5ba7ed4f6db8739be",
+      "contributing_files": [
+        "docs/specs/0003-jsmastery-specs-adapter/index.md",
+        "docs/specs/0003-jsmastery-specs-adapter/rationale.md"
+      ],
+      "record_path": "DM-0003.md",
+      "record_digest": "7514b5e971bd0fbcf695c3bcfc9eca99d88f06d98d47c667a1bbde1f41970ae5",
+      "entry_digest": "e0c4e06ac4367a2cb4531f4d27ea4cd72c6fc8a450b3280b8c17e27174af8522",
+      "field_sources": {
+        "body[0]": [
+          {
+            "path": "docs/specs/0003-jsmastery-specs-adapter/index.md",
+            "section": "Summary"
+          }
+        ],
+        "body[1]": [
+          {
+            "path": "docs/specs/0003-jsmastery-specs-adapter/index.md",
+            "section": "Requirements"
+          }
+        ],
+        "body[2]": [
+          {
+            "path": "docs/specs/0003-jsmastery-specs-adapter/index.md",
+            "section": "Feature design"
+          }
+        ],
+        "body[3]": [
+          {
+            "path": "docs/specs/0003-jsmastery-specs-adapter/index.md",
+            "section": "Build plan"
+          }
+        ],
+        "body[4]": [
+          {
+            "path": "docs/specs/0003-jsmastery-specs-adapter/index.md",
+            "section": "Follow-up"
+          }
+        ],
+        "body[5]": [
+          {
+            "path": "docs/specs/0003-jsmastery-specs-adapter/rationale.md",
+            "section": "Corpus evidence"
+          }
+        ],
+        "body[6]": [
+          {
+            "path": "docs/specs/0003-jsmastery-specs-adapter/index.md",
+            "section": "Consequences"
+          },
+          {
+            "path": "docs/specs/0003-jsmastery-specs-adapter/rationale.md",
+            "section": "References"
+          }
+        ],
+        "consequences.negative[0]": [
+          {
+            "path": "docs/specs/0003-jsmastery-specs-adapter/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[10]": [
+          {
+            "path": "docs/specs/0003-jsmastery-specs-adapter/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[11]": [
+          {
+            "path": "docs/specs/0003-jsmastery-specs-adapter/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[12]": [
+          {
+            "path": "docs/specs/0003-jsmastery-specs-adapter/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[1]": [
+          {
+            "path": "docs/specs/0003-jsmastery-specs-adapter/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[2]": [
+          {
+            "path": "docs/specs/0003-jsmastery-specs-adapter/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[3]": [
+          {
+            "path": "docs/specs/0003-jsmastery-specs-adapter/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[4]": [
+          {
+            "path": "docs/specs/0003-jsmastery-specs-adapter/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[5]": [
+          {
+            "path": "docs/specs/0003-jsmastery-specs-adapter/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[6]": [
+          {
+            "path": "docs/specs/0003-jsmastery-specs-adapter/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[7]": [
+          {
+            "path": "docs/specs/0003-jsmastery-specs-adapter/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[8]": [
+          {
+            "path": "docs/specs/0003-jsmastery-specs-adapter/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[9]": [
+          {
+            "path": "docs/specs/0003-jsmastery-specs-adapter/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[0]": [
+          {
+            "path": "docs/specs/0003-jsmastery-specs-adapter/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[1]": [
+          {
+            "path": "docs/specs/0003-jsmastery-specs-adapter/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[2]": [
+          {
+            "path": "docs/specs/0003-jsmastery-specs-adapter/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[3]": [
+          {
+            "path": "docs/specs/0003-jsmastery-specs-adapter/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[4]": [
+          {
+            "path": "docs/specs/0003-jsmastery-specs-adapter/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[5]": [
+          {
+            "path": "docs/specs/0003-jsmastery-specs-adapter/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "context.problem": [
+          {
+            "path": "docs/specs/0003-jsmastery-specs-adapter/rationale.md",
+            "section": "Context"
+          }
+        ],
+        "decision.alternatives[0].rejection_reason": [
+          {
+            "path": "docs/specs/0003-jsmastery-specs-adapter/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[0].title": [
+          {
+            "path": "docs/specs/0003-jsmastery-specs-adapter/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[1].rejection_reason": [
+          {
+            "path": "docs/specs/0003-jsmastery-specs-adapter/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[1].title": [
+          {
+            "path": "docs/specs/0003-jsmastery-specs-adapter/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.chosen": [
+          {
+            "path": "docs/specs/0003-jsmastery-specs-adapter/index.md",
+            "section": "Decision"
+          }
+        ],
+        "rationale_summary": [
+          {
+            "path": "docs/specs/0003-jsmastery-specs-adapter/rationale.md",
+            "section": "Rationale"
+          }
+        ],
+        "title": [
+          {
+            "path": "docs/specs/0003-jsmastery-specs-adapter/index.md",
+            "section": "preamble"
+          }
+        ]
+      }
+    },
+    {
+      "id": "DM-0004",
+      "fingerprint": "af9278a99764a583398db454fda16d95bcd30a671da2d7d993ffd7d58cc957bf",
+      "contributing_files": [
+        "docs/specs/0004-doctor-diagnostic/index.md",
+        "docs/specs/0004-doctor-diagnostic/rationale.md"
+      ],
+      "record_path": "DM-0004.md",
+      "record_digest": "7ff3054c67b80dfa23eb79dd5d8b306b9ca060f38a250021d0932a86921d6686",
+      "entry_digest": "0d629d833af1d7a75d98cd3223727122ba521faac16a3e20f17492289eb72aa7",
+      "field_sources": {
+        "body[0]": [
+          {
+            "path": "docs/specs/0004-doctor-diagnostic/index.md",
+            "section": "Summary"
+          }
+        ],
+        "body[1]": [
+          {
+            "path": "docs/specs/0004-doctor-diagnostic/index.md",
+            "section": "Requirements"
+          }
+        ],
+        "body[2]": [
+          {
+            "path": "docs/specs/0004-doctor-diagnostic/index.md",
+            "section": "Feature design"
+          }
+        ],
+        "body[3]": [
+          {
+            "path": "docs/specs/0004-doctor-diagnostic/index.md",
+            "section": "Build plan"
+          }
+        ],
+        "body[4]": [
+          {
+            "path": "docs/specs/0004-doctor-diagnostic/index.md",
+            "section": "Consequences"
+          },
+          {
+            "path": "docs/specs/0004-doctor-diagnostic/rationale.md",
+            "section": "References"
+          }
+        ],
+        "consequences.negative[0]": [
+          {
+            "path": "docs/specs/0004-doctor-diagnostic/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[1]": [
+          {
+            "path": "docs/specs/0004-doctor-diagnostic/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[2]": [
+          {
+            "path": "docs/specs/0004-doctor-diagnostic/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[3]": [
+          {
+            "path": "docs/specs/0004-doctor-diagnostic/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[0]": [
+          {
+            "path": "docs/specs/0004-doctor-diagnostic/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[1]": [
+          {
+            "path": "docs/specs/0004-doctor-diagnostic/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[2]": [
+          {
+            "path": "docs/specs/0004-doctor-diagnostic/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[3]": [
+          {
+            "path": "docs/specs/0004-doctor-diagnostic/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "context.problem": [
+          {
+            "path": "docs/specs/0004-doctor-diagnostic/rationale.md",
+            "section": "Context"
+          }
+        ],
+        "decision.alternatives[0].rejection_reason": [
+          {
+            "path": "docs/specs/0004-doctor-diagnostic/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[0].title": [
+          {
+            "path": "docs/specs/0004-doctor-diagnostic/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[1].rejection_reason": [
+          {
+            "path": "docs/specs/0004-doctor-diagnostic/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[1].title": [
+          {
+            "path": "docs/specs/0004-doctor-diagnostic/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.chosen": [
+          {
+            "path": "docs/specs/0004-doctor-diagnostic/index.md",
+            "section": "Decision"
+          }
+        ],
+        "rationale_summary": [
+          {
+            "path": "docs/specs/0004-doctor-diagnostic/rationale.md",
+            "section": "Rationale"
+          }
+        ],
+        "title": [
+          {
+            "path": "docs/specs/0004-doctor-diagnostic/index.md",
+            "section": "preamble"
+          }
+        ]
+      }
+    },
+    {
+      "id": "DM-0005",
+      "fingerprint": "f61552ecbe22e862a716f287ea23de004c9353634c28304298e5e3662ee694a4",
+      "contributing_files": [
+        "docs/specs/0005-runtime-adapter-loading/index.md",
+        "docs/specs/0005-runtime-adapter-loading/rationale.md"
+      ],
+      "record_path": "DM-0005.md",
+      "record_digest": "5dd36edd48b1b94afe909723b475424250c150de45947511347626c32e44fa60",
+      "entry_digest": "93abb713480806be30084997eb2e59cb33e39e4731f5f79ff35568cf69b504da",
+      "field_sources": {
+        "body[0]": [
+          {
+            "path": "docs/specs/0005-runtime-adapter-loading/index.md",
+            "section": "Summary"
+          }
+        ],
+        "body[1]": [
+          {
+            "path": "docs/specs/0005-runtime-adapter-loading/index.md",
+            "section": "Requirements"
+          }
+        ],
+        "body[2]": [
+          {
+            "path": "docs/specs/0005-runtime-adapter-loading/index.md",
+            "section": "Feature design"
+          }
+        ],
+        "body[3]": [
+          {
+            "path": "docs/specs/0005-runtime-adapter-loading/index.md",
+            "section": "Build plan"
+          }
+        ],
+        "body[4]": [
+          {
+            "path": "docs/specs/0005-runtime-adapter-loading/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "body[5]": [
+          {
+            "path": "docs/specs/0005-runtime-adapter-loading/index.md",
+            "section": "Later evolution"
+          }
+        ],
+        "body[6]": [
+          {
+            "path": "docs/specs/0005-runtime-adapter-loading/index.md",
+            "section": "Follow-up"
+          }
+        ],
+        "body[7]": [
+          {
+            "path": "docs/specs/0005-runtime-adapter-loading/rationale.md",
+            "section": "References"
+          }
+        ],
+        "context.problem": [
+          {
+            "path": "docs/specs/0005-runtime-adapter-loading/rationale.md",
+            "section": "Context"
+          }
+        ],
+        "decision.alternatives[0].rejection_reason": [
+          {
+            "path": "docs/specs/0005-runtime-adapter-loading/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[0].title": [
+          {
+            "path": "docs/specs/0005-runtime-adapter-loading/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[1].rejection_reason": [
+          {
+            "path": "docs/specs/0005-runtime-adapter-loading/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[1].title": [
+          {
+            "path": "docs/specs/0005-runtime-adapter-loading/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[2].rejection_reason": [
+          {
+            "path": "docs/specs/0005-runtime-adapter-loading/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[2].title": [
+          {
+            "path": "docs/specs/0005-runtime-adapter-loading/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.chosen": [
+          {
+            "path": "docs/specs/0005-runtime-adapter-loading/index.md",
+            "section": "Decision"
+          }
+        ],
+        "rationale_summary": [
+          {
+            "path": "docs/specs/0005-runtime-adapter-loading/rationale.md",
+            "section": "Rationale"
+          }
+        ],
+        "title": [
+          {
+            "path": "docs/specs/0005-runtime-adapter-loading/index.md",
+            "section": "preamble"
+          }
+        ]
+      }
+    },
+    {
+      "id": "DM-0006",
+      "fingerprint": "754f291ae29500ed1a1855f7acb3e151a28b05ce5dc1457be28d329f64871b3c",
+      "contributing_files": [
+        "docs/specs/0006-adapter-conformance-test-adapter/index.md",
+        "docs/specs/0006-adapter-conformance-test-adapter/rationale.md"
+      ],
+      "record_path": "DM-0006.md",
+      "record_digest": "e2247da61403e87521c9abb1f5ffa8003541de30c6176a9a311d13f4b40da475",
+      "entry_digest": "5ad8a29c6a37ad34c2da9deffab5ce69c4d43c2e82b5822a14a8a757ee07a427",
+      "field_sources": {
+        "body[0]": [
+          {
+            "path": "docs/specs/0006-adapter-conformance-test-adapter/index.md",
+            "section": "Summary"
+          }
+        ],
+        "body[1]": [
+          {
+            "path": "docs/specs/0006-adapter-conformance-test-adapter/index.md",
+            "section": "Requirements"
+          }
+        ],
+        "body[2]": [
+          {
+            "path": "docs/specs/0006-adapter-conformance-test-adapter/index.md",
+            "section": "Feature design"
+          }
+        ],
+        "body[3]": [
+          {
+            "path": "docs/specs/0006-adapter-conformance-test-adapter/index.md",
+            "section": "Build plan"
+          }
+        ],
+        "body[4]": [
+          {
+            "path": "docs/specs/0006-adapter-conformance-test-adapter/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "body[5]": [
+          {
+            "path": "docs/specs/0006-adapter-conformance-test-adapter/index.md",
+            "section": "Follow-up"
+          }
+        ],
+        "body[6]": [
+          {
+            "path": "docs/specs/0006-adapter-conformance-test-adapter/rationale.md",
+            "section": "References"
+          }
+        ],
+        "context.problem": [
+          {
+            "path": "docs/specs/0006-adapter-conformance-test-adapter/rationale.md",
+            "section": "Context"
+          }
+        ],
+        "decision.alternatives[0].rejection_reason": [
+          {
+            "path": "docs/specs/0006-adapter-conformance-test-adapter/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[0].title": [
+          {
+            "path": "docs/specs/0006-adapter-conformance-test-adapter/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[1].rejection_reason": [
+          {
+            "path": "docs/specs/0006-adapter-conformance-test-adapter/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[1].title": [
+          {
+            "path": "docs/specs/0006-adapter-conformance-test-adapter/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[2].rejection_reason": [
+          {
+            "path": "docs/specs/0006-adapter-conformance-test-adapter/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[2].title": [
+          {
+            "path": "docs/specs/0006-adapter-conformance-test-adapter/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.chosen": [
+          {
+            "path": "docs/specs/0006-adapter-conformance-test-adapter/index.md",
+            "section": "Decision"
+          }
+        ],
+        "rationale_summary": [
+          {
+            "path": "docs/specs/0006-adapter-conformance-test-adapter/rationale.md",
+            "section": "Rationale"
+          }
+        ],
+        "title": [
+          {
+            "path": "docs/specs/0006-adapter-conformance-test-adapter/index.md",
+            "section": "preamble"
+          }
+        ]
+      }
+    },
+    {
+      "id": "DM-0007",
+      "fingerprint": "5ad361d73508b0ca60924e986d348450284717d523ace7318ebdc6d31ddaf306",
+      "contributing_files": [
+        "docs/specs/0007-core-cited-query/index.md",
+        "docs/specs/0007-core-cited-query/rationale.md"
+      ],
+      "record_path": "DM-0007.md",
+      "record_digest": "6c41137a8ad1ccd03c80330ca04e15f1deb3daf7d2abfe54bce7fd63c5f60c27",
+      "entry_digest": "ddf376ba2e270dc1ac54efecaddbc11c754f70f09a38693d110722027ee39b20",
+      "field_sources": {
+        "body[0]": [
+          {
+            "path": "docs/specs/0007-core-cited-query/index.md",
+            "section": "Summary"
+          }
+        ],
+        "body[1]": [
+          {
+            "path": "docs/specs/0007-core-cited-query/index.md",
+            "section": "Requirements"
+          }
+        ],
+        "body[2]": [
+          {
+            "path": "docs/specs/0007-core-cited-query/index.md",
+            "section": "Feature design"
+          }
+        ],
+        "body[3]": [
+          {
+            "path": "docs/specs/0007-core-cited-query/index.md",
+            "section": "Build plan"
+          }
+        ],
+        "body[4]": [
+          {
+            "path": "docs/specs/0007-core-cited-query/index.md",
+            "section": "Follow-up"
+          }
+        ],
+        "body[5]": [
+          {
+            "path": "docs/specs/0007-core-cited-query/index.md",
+            "section": "Consequences"
+          },
+          {
+            "path": "docs/specs/0007-core-cited-query/rationale.md",
+            "section": "References"
+          }
+        ],
+        "consequences.negative[0]": [
+          {
+            "path": "docs/specs/0007-core-cited-query/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[1]": [
+          {
+            "path": "docs/specs/0007-core-cited-query/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[2]": [
+          {
+            "path": "docs/specs/0007-core-cited-query/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[3]": [
+          {
+            "path": "docs/specs/0007-core-cited-query/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[4]": [
+          {
+            "path": "docs/specs/0007-core-cited-query/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[5]": [
+          {
+            "path": "docs/specs/0007-core-cited-query/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[0]": [
+          {
+            "path": "docs/specs/0007-core-cited-query/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[1]": [
+          {
+            "path": "docs/specs/0007-core-cited-query/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[2]": [
+          {
+            "path": "docs/specs/0007-core-cited-query/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[3]": [
+          {
+            "path": "docs/specs/0007-core-cited-query/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "context.problem": [
+          {
+            "path": "docs/specs/0007-core-cited-query/rationale.md",
+            "section": "Context"
+          }
+        ],
+        "decision.alternatives[0].rejection_reason": [
+          {
+            "path": "docs/specs/0007-core-cited-query/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[0].title": [
+          {
+            "path": "docs/specs/0007-core-cited-query/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[1].rejection_reason": [
+          {
+            "path": "docs/specs/0007-core-cited-query/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[1].title": [
+          {
+            "path": "docs/specs/0007-core-cited-query/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.chosen": [
+          {
+            "path": "docs/specs/0007-core-cited-query/index.md",
+            "section": "Decision"
+          }
+        ],
+        "rationale_summary": [
+          {
+            "path": "docs/specs/0007-core-cited-query/rationale.md",
+            "section": "Rationale"
+          }
+        ],
+        "title": [
+          {
+            "path": "docs/specs/0007-core-cited-query/index.md",
+            "section": "preamble"
+          }
+        ]
+      }
+    },
+    {
+      "id": "DM-0008",
+      "fingerprint": "096dd321a4f50153136b219324dfa3eb6187ca01938a7ad2d3ced89e789b913b",
+      "contributing_files": [
+        "docs/specs/0008-reliable-multi-source-retrieval/index.md",
+        "docs/specs/0008-reliable-multi-source-retrieval/rationale.md"
+      ],
+      "record_path": "DM-0008.md",
+      "record_digest": "9221193e30add594216aa3395038f0858ccc1a2ab82413d8c8f8926f26a1d9bf",
+      "entry_digest": "862e1cf616f1e27366f213a5ec076ea5d679fe7f2ce25d04621215e1cee12c02",
+      "field_sources": {
+        "body[0]": [
+          {
+            "path": "docs/specs/0008-reliable-multi-source-retrieval/index.md",
+            "section": "Summary"
+          }
+        ],
+        "body[10]": [
+          {
+            "path": "docs/specs/0008-reliable-multi-source-retrieval/rationale.md",
+            "section": "Relevance floor decision (2026-08-11)"
+          }
+        ],
+        "body[11]": [
+          {
+            "path": "docs/specs/0008-reliable-multi-source-retrieval/rationale.md",
+            "section": "Check verify run and landing (2026-08-11)"
+          }
+        ],
+        "body[12]": [
+          {
+            "path": "docs/specs/0008-reliable-multi-source-retrieval/rationale.md",
+            "section": "Evidence from the validation corpus"
+          }
+        ],
+        "body[13]": [
+          {
+            "path": "docs/specs/0008-reliable-multi-source-retrieval/rationale.md",
+            "section": "References"
+          }
+        ],
+        "body[1]": [
+          {
+            "path": "docs/specs/0008-reliable-multi-source-retrieval/index.md",
+            "section": "Requirements"
+          }
+        ],
+        "body[2]": [
+          {
+            "path": "docs/specs/0008-reliable-multi-source-retrieval/index.md",
+            "section": "Feature design"
+          }
+        ],
+        "body[3]": [
+          {
+            "path": "docs/specs/0008-reliable-multi-source-retrieval/index.md",
+            "section": "Migration plan"
+          }
+        ],
+        "body[4]": [
+          {
+            "path": "docs/specs/0008-reliable-multi-source-retrieval/index.md",
+            "section": "Build plan"
+          }
+        ],
+        "body[5]": [
+          {
+            "path": "docs/specs/0008-reliable-multi-source-retrieval/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "body[6]": [
+          {
+            "path": "docs/specs/0008-reliable-multi-source-retrieval/index.md",
+            "section": "Follow-up"
+          }
+        ],
+        "body[7]": [
+          {
+            "path": "docs/specs/0008-reliable-multi-source-retrieval/rationale.md",
+            "section": "Oracle correction (2026-08-11)"
+          }
+        ],
+        "body[8]": [
+          {
+            "path": "docs/specs/0008-reliable-multi-source-retrieval/rationale.md",
+            "section": "Query 4 verification finding (2026-08-11)"
+          }
+        ],
+        "body[9]": [
+          {
+            "path": "docs/specs/0008-reliable-multi-source-retrieval/rationale.md",
+            "section": "Verification unit gap (2026-08-11)"
+          }
+        ],
+        "context.problem": [
+          {
+            "path": "docs/specs/0008-reliable-multi-source-retrieval/rationale.md",
+            "section": "Context"
+          }
+        ],
+        "decision.alternatives[0].rejection_reason": [
+          {
+            "path": "docs/specs/0008-reliable-multi-source-retrieval/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[0].title": [
+          {
+            "path": "docs/specs/0008-reliable-multi-source-retrieval/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[1].rejection_reason": [
+          {
+            "path": "docs/specs/0008-reliable-multi-source-retrieval/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[1].title": [
+          {
+            "path": "docs/specs/0008-reliable-multi-source-retrieval/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[2].rejection_reason": [
+          {
+            "path": "docs/specs/0008-reliable-multi-source-retrieval/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[2].title": [
+          {
+            "path": "docs/specs/0008-reliable-multi-source-retrieval/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.chosen": [
+          {
+            "path": "docs/specs/0008-reliable-multi-source-retrieval/index.md",
+            "section": "Decision"
+          }
+        ],
+        "rationale_summary": [
+          {
+            "path": "docs/specs/0008-reliable-multi-source-retrieval/rationale.md",
+            "section": "Rationale"
+          }
+        ],
+        "title": [
+          {
+            "path": "docs/specs/0008-reliable-multi-source-retrieval/index.md",
+            "section": "preamble"
+          }
+        ]
+      }
+    },
+    {
+      "id": "DM-0010",
+      "fingerprint": "0244169009f6cba5b1bcf29d21e3170428ee046d8b580f9d7b50bc9f255af801",
+      "contributing_files": [
+        "docs/specs/0010-abstention-verification-reliability/index.md",
+        "docs/specs/0010-abstention-verification-reliability/rationale.md"
+      ],
+      "record_path": "DM-0010.md",
+      "record_digest": "2ce6acff85c1ddf85773fe47735a28171aaa5825a5f9fdcbe37d0f96ed0f92a9",
+      "entry_digest": "8ba1bd36f56af9e72cab3f48baab72342e09c2cbcc4a3b42aca5988fd88b80e4",
+      "field_sources": {
+        "body[0]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Summary"
+          }
+        ],
+        "body[10]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/rationale.md",
+            "section": "Coverage options considered after live verification"
+          }
+        ],
+        "body[11]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/rationale.md",
+            "section": "Output options considered after the cross check"
+          }
+        ],
+        "body[12]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/rationale.md",
+            "section": "Options considered for the AC-9 reconciliation"
+          }
+        ],
+        "body[13]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/rationale.md",
+            "section": "Options considered for the AC-4 and AC-12 conflict"
+          }
+        ],
+        "body[14]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/rationale.md",
+            "section": "Options considered for the three open decisions (2026-08-13)"
+          }
+        ],
+        "body[15]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/rationale.md",
+            "section": "Options considered for the two open decisions and the schema ratification (2026-08-13)"
+          }
+        ],
+        "body[16]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/rationale.md",
+            "section": "Options considered for OD-7, coverage directness (2026-08-13)"
+          }
+        ],
+        "body[17]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/rationale.md",
+            "section": "The additive matcher (2026-08-14, OD-8)"
+          }
+        ],
+        "body[18]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/rationale.md",
+            "section": "The completeness exemption (2026-08-14, OD-9)"
+          }
+        ],
+        "body[19]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/rationale.md",
+            "section": "Granularity, cause, and denominator (2026-08-14, OD-10 to OD-12)"
+          }
+        ],
+        "body[1]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Requirements"
+          }
+        ],
+        "body[20]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          },
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/rationale.md",
+            "section": "References"
+          }
+        ],
+        "body[2]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Feature design"
+          }
+        ],
+        "body[3]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Build plan"
+          }
+        ],
+        "body[4]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Settled decisions"
+          }
+        ],
+        "body[5]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Follow-up"
+          }
+        ],
+        "body[6]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/rationale.md",
+            "section": "Fresh baseline evidence (2026-08-12)"
+          }
+        ],
+        "body[7]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/rationale.md",
+            "section": "Post build diagnostic evidence (2026-08-12)"
+          }
+        ],
+        "body[8]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/rationale.md",
+            "section": "Live gate evidence and AC-9 reconciliation (2026-08-12)"
+          }
+        ],
+        "body[9]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/rationale.md",
+            "section": "The AC-4 and AC-12 conflict (2026-08-12, experiments 0001 and 0002)"
+          }
+        ],
+        "consequences.negative[0]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[10]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[11]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[12]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[13]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[14]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[15]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[16]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[17]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[18]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[19]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[1]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[20]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[21]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[22]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[23]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[24]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[25]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[26]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[27]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[28]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[29]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[2]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[30]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[31]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[32]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[33]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[34]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[35]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[36]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[37]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[38]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[39]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[3]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[40]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[41]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[42]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[43]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[44]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[45]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[46]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[4]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[5]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[6]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[7]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[8]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[9]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[0]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[10]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[11]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[12]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[13]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[14]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[15]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[16]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[17]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[18]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[19]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[1]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[20]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[21]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[22]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[23]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[24]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[25]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[26]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[27]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[28]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[29]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[2]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[30]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[31]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[32]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[33]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[34]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[3]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[4]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[5]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[6]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[7]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[8]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[9]": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "context.problem": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/rationale.md",
+            "section": "Context"
+          }
+        ],
+        "decision.alternatives[0].title": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[1].title": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[2].title": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[3].title": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[4].title": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.chosen": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "Decision"
+          }
+        ],
+        "rationale_summary": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/rationale.md",
+            "section": "Rationale"
+          }
+        ],
+        "title": [
+          {
+            "path": "docs/specs/0010-abstention-verification-reliability/index.md",
+            "section": "preamble"
+          }
+        ]
+      }
+    },
+    {
+      "id": "DM-0011",
+      "fingerprint": "91f3cedfa19c800f34c6aece6fd1d0a1e650f3e8f6f517645f0076a65bdbdc15",
+      "contributing_files": [
+        "docs/specs/0011-field-aware-retrieval-ranking/index.md",
+        "docs/specs/0011-field-aware-retrieval-ranking/rationale.md"
+      ],
+      "record_path": "DM-0011.md",
+      "record_digest": "0dcf52f7d21ea11173dd9159a670f5ee24d96db951cf5f92b941de248d42e8f7",
+      "entry_digest": "a7afaab8b9f0177169cbcaf4350800873641beebf3a7940f2593b1d9d393bbe0",
+      "field_sources": {
+        "body[0]": [
+          {
+            "path": "docs/specs/0011-field-aware-retrieval-ranking/index.md",
+            "section": "Summary"
+          }
+        ],
+        "body[1]": [
+          {
+            "path": "docs/specs/0011-field-aware-retrieval-ranking/index.md",
+            "section": "Requirements"
+          }
+        ],
+        "body[2]": [
+          {
+            "path": "docs/specs/0011-field-aware-retrieval-ranking/index.md",
+            "section": "Feature design"
+          }
+        ],
+        "body[3]": [
+          {
+            "path": "docs/specs/0011-field-aware-retrieval-ranking/index.md",
+            "section": "Migration plan"
+          }
+        ],
+        "body[4]": [
+          {
+            "path": "docs/specs/0011-field-aware-retrieval-ranking/index.md",
+            "section": "Build plan"
+          }
+        ],
+        "body[5]": [
+          {
+            "path": "docs/specs/0011-field-aware-retrieval-ranking/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "body[6]": [
+          {
+            "path": "docs/specs/0011-field-aware-retrieval-ranking/index.md",
+            "section": "Follow-up"
+          }
+        ],
+        "body[7]": [
+          {
+            "path": "docs/specs/0011-field-aware-retrieval-ranking/rationale.md",
+            "section": "Evidence"
+          }
+        ],
+        "context.problem": [
+          {
+            "path": "docs/specs/0011-field-aware-retrieval-ranking/rationale.md",
+            "section": "Context"
+          }
+        ],
+        "decision.alternatives[0].rejection_reason": [
+          {
+            "path": "docs/specs/0011-field-aware-retrieval-ranking/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[0].title": [
+          {
+            "path": "docs/specs/0011-field-aware-retrieval-ranking/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[1].rejection_reason": [
+          {
+            "path": "docs/specs/0011-field-aware-retrieval-ranking/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[1].title": [
+          {
+            "path": "docs/specs/0011-field-aware-retrieval-ranking/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[2].rejection_reason": [
+          {
+            "path": "docs/specs/0011-field-aware-retrieval-ranking/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[2].title": [
+          {
+            "path": "docs/specs/0011-field-aware-retrieval-ranking/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.chosen": [
+          {
+            "path": "docs/specs/0011-field-aware-retrieval-ranking/index.md",
+            "section": "Decision"
+          }
+        ],
+        "rationale_summary": [
+          {
+            "path": "docs/specs/0011-field-aware-retrieval-ranking/rationale.md",
+            "section": "Rationale"
+          }
+        ],
+        "title": [
+          {
+            "path": "docs/specs/0011-field-aware-retrieval-ranking/index.md",
+            "section": "preamble"
+          }
+        ]
+      }
+    },
+    {
+      "id": "DM-0012",
+      "fingerprint": "94d92bbac51045558651a2c2134d3ae7cf7d12f8d36d6af53a9d7acd51b4424b",
+      "contributing_files": [
+        "docs/specs/0012-stable-ranking-tie-break/index.md",
+        "docs/specs/0012-stable-ranking-tie-break/rationale.md"
+      ],
+      "record_path": "DM-0012.md",
+      "record_digest": "23473de032e6b33c3caa042de2481c27f30d73898a350c443c37c8764411354d",
+      "entry_digest": "5704822f22ac5bb48c83624fdc0fdf13e77f304e83d282a5ac11b56fe34a53cb",
+      "field_sources": {
+        "body[0]": [
+          {
+            "path": "docs/specs/0012-stable-ranking-tie-break/index.md",
+            "section": "Summary"
+          }
+        ],
+        "body[1]": [
+          {
+            "path": "docs/specs/0012-stable-ranking-tie-break/index.md",
+            "section": "Requirements"
+          }
+        ],
+        "body[2]": [
+          {
+            "path": "docs/specs/0012-stable-ranking-tie-break/index.md",
+            "section": "Feature design"
+          }
+        ],
+        "body[3]": [
+          {
+            "path": "docs/specs/0012-stable-ranking-tie-break/index.md",
+            "section": "Build plan"
+          }
+        ],
+        "body[4]": [
+          {
+            "path": "docs/specs/0012-stable-ranking-tie-break/index.md",
+            "section": "Follow-up"
+          }
+        ],
+        "body[5]": [
+          {
+            "path": "docs/specs/0012-stable-ranking-tie-break/rationale.md",
+            "section": "Measurements taken for this decision"
+          }
+        ],
+        "body[6]": [
+          {
+            "path": "docs/specs/0012-stable-ranking-tie-break/index.md",
+            "section": "Consequences"
+          },
+          {
+            "path": "docs/specs/0012-stable-ranking-tie-break/rationale.md",
+            "section": "References"
+          }
+        ],
+        "consequences.negative[0]": [
+          {
+            "path": "docs/specs/0012-stable-ranking-tie-break/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[1]": [
+          {
+            "path": "docs/specs/0012-stable-ranking-tie-break/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[2]": [
+          {
+            "path": "docs/specs/0012-stable-ranking-tie-break/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[0]": [
+          {
+            "path": "docs/specs/0012-stable-ranking-tie-break/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[1]": [
+          {
+            "path": "docs/specs/0012-stable-ranking-tie-break/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[2]": [
+          {
+            "path": "docs/specs/0012-stable-ranking-tie-break/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "context.problem": [
+          {
+            "path": "docs/specs/0012-stable-ranking-tie-break/rationale.md",
+            "section": "Context"
+          }
+        ],
+        "decision.alternatives[0].rejection_reason": [
+          {
+            "path": "docs/specs/0012-stable-ranking-tie-break/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[0].title": [
+          {
+            "path": "docs/specs/0012-stable-ranking-tie-break/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[1].rejection_reason": [
+          {
+            "path": "docs/specs/0012-stable-ranking-tie-break/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[1].title": [
+          {
+            "path": "docs/specs/0012-stable-ranking-tie-break/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[2].rejection_reason": [
+          {
+            "path": "docs/specs/0012-stable-ranking-tie-break/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[2].title": [
+          {
+            "path": "docs/specs/0012-stable-ranking-tie-break/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.chosen": [
+          {
+            "path": "docs/specs/0012-stable-ranking-tie-break/index.md",
+            "section": "Decision"
+          }
+        ],
+        "rationale_summary": [
+          {
+            "path": "docs/specs/0012-stable-ranking-tie-break/rationale.md",
+            "section": "Rationale"
+          }
+        ],
+        "title": [
+          {
+            "path": "docs/specs/0012-stable-ranking-tie-break/index.md",
+            "section": "preamble"
+          }
+        ]
+      }
+    },
+    {
+      "id": "DM-0013",
+      "fingerprint": "34af1e62252c394df120734fafcb02ec8bbda22aec7071fab2fb379baf2cf79c",
+      "contributing_files": [
+        "docs/specs/0013-cli-presentation-redesign/index.md",
+        "docs/specs/0013-cli-presentation-redesign/rationale.md"
+      ],
+      "record_path": "DM-0013.md",
+      "record_digest": "5ad7fdbeec2096194ba003ff3c9407599d95c514316da5c696ef9a895debc42a",
+      "entry_digest": "cbb77f0d76b28b025b9c0f692ff6d3e3085e258597246408fc5811f5fdec40b5",
+      "field_sources": {
+        "body[0]": [
+          {
+            "path": "docs/specs/0013-cli-presentation-redesign/index.md",
+            "section": "Summary"
+          }
+        ],
+        "body[1]": [
+          {
+            "path": "docs/specs/0013-cli-presentation-redesign/index.md",
+            "section": "Requirements"
+          }
+        ],
+        "body[2]": [
+          {
+            "path": "docs/specs/0013-cli-presentation-redesign/index.md",
+            "section": "Feature design"
+          }
+        ],
+        "body[3]": [
+          {
+            "path": "docs/specs/0013-cli-presentation-redesign/index.md",
+            "section": "Build plan"
+          }
+        ],
+        "body[4]": [
+          {
+            "path": "docs/specs/0013-cli-presentation-redesign/index.md",
+            "section": "Follow-up"
+          }
+        ],
+        "body[5]": [
+          {
+            "path": "docs/specs/0013-cli-presentation-redesign/index.md",
+            "section": "Consequences"
+          },
+          {
+            "path": "docs/specs/0013-cli-presentation-redesign/rationale.md",
+            "section": "Evidence: the design checked against the code"
+          }
+        ],
+        "consequences.negative[0]": [
+          {
+            "path": "docs/specs/0013-cli-presentation-redesign/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[1]": [
+          {
+            "path": "docs/specs/0013-cli-presentation-redesign/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[2]": [
+          {
+            "path": "docs/specs/0013-cli-presentation-redesign/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[3]": [
+          {
+            "path": "docs/specs/0013-cli-presentation-redesign/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[4]": [
+          {
+            "path": "docs/specs/0013-cli-presentation-redesign/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[5]": [
+          {
+            "path": "docs/specs/0013-cli-presentation-redesign/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[6]": [
+          {
+            "path": "docs/specs/0013-cli-presentation-redesign/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[0]": [
+          {
+            "path": "docs/specs/0013-cli-presentation-redesign/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[1]": [
+          {
+            "path": "docs/specs/0013-cli-presentation-redesign/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[2]": [
+          {
+            "path": "docs/specs/0013-cli-presentation-redesign/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[3]": [
+          {
+            "path": "docs/specs/0013-cli-presentation-redesign/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[4]": [
+          {
+            "path": "docs/specs/0013-cli-presentation-redesign/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[5]": [
+          {
+            "path": "docs/specs/0013-cli-presentation-redesign/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "context.problem": [
+          {
+            "path": "docs/specs/0013-cli-presentation-redesign/rationale.md",
+            "section": "Context"
+          }
+        ],
+        "decision.alternatives[0].rejection_reason": [
+          {
+            "path": "docs/specs/0013-cli-presentation-redesign/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[0].title": [
+          {
+            "path": "docs/specs/0013-cli-presentation-redesign/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[1].rejection_reason": [
+          {
+            "path": "docs/specs/0013-cli-presentation-redesign/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[1].title": [
+          {
+            "path": "docs/specs/0013-cli-presentation-redesign/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[2].rejection_reason": [
+          {
+            "path": "docs/specs/0013-cli-presentation-redesign/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[2].title": [
+          {
+            "path": "docs/specs/0013-cli-presentation-redesign/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.chosen": [
+          {
+            "path": "docs/specs/0013-cli-presentation-redesign/index.md",
+            "section": "Decision"
+          }
+        ],
+        "rationale_summary": [
+          {
+            "path": "docs/specs/0013-cli-presentation-redesign/rationale.md",
+            "section": "Rationale"
+          }
+        ],
+        "title": [
+          {
+            "path": "docs/specs/0013-cli-presentation-redesign/index.md",
+            "section": "preamble"
+          }
+        ]
+      }
+    },
+    {
+      "id": "DM-0014",
+      "fingerprint": "df567b2b73d9f8b32732114ef4d3190dfc0d68804a47a631284e178900b01dfe",
+      "contributing_files": [
+        "docs/specs/0014-shipped-prebuilt-index/index.md",
+        "docs/specs/0014-shipped-prebuilt-index/rationale.md"
+      ],
+      "record_path": "DM-0014.md",
+      "record_digest": "80d0a9a2c665317c75a63491d6cc9adf34484aa35b9421c3e4148931cc2554f4",
+      "entry_digest": "50c89a666a129ccfbdc4103b618a43e70aac025f2fab96e6684235e5f74d42dc",
+      "field_sources": {
+        "body[0]": [
+          {
+            "path": "docs/specs/0014-shipped-prebuilt-index/index.md",
+            "section": "Summary"
+          }
+        ],
+        "body[1]": [
+          {
+            "path": "docs/specs/0014-shipped-prebuilt-index/index.md",
+            "section": "Requirements"
+          }
+        ],
+        "body[2]": [
+          {
+            "path": "docs/specs/0014-shipped-prebuilt-index/index.md",
+            "section": "Feature design"
+          }
+        ],
+        "body[3]": [
+          {
+            "path": "docs/specs/0014-shipped-prebuilt-index/index.md",
+            "section": "Build plan"
+          }
+        ],
+        "body[4]": [
+          {
+            "path": "docs/specs/0014-shipped-prebuilt-index/index.md",
+            "section": "Follow-up"
+          }
+        ],
+        "body[5]": [
+          {
+            "path": "docs/specs/0014-shipped-prebuilt-index/rationale.md",
+            "section": "Measurements taken while designing this"
+          }
+        ],
+        "body[6]": [
+          {
+            "path": "docs/specs/0014-shipped-prebuilt-index/index.md",
+            "section": "Consequences"
+          },
+          {
+            "path": "docs/specs/0014-shipped-prebuilt-index/rationale.md",
+            "section": "References"
+          }
+        ],
+        "consequences.negative[0]": [
+          {
+            "path": "docs/specs/0014-shipped-prebuilt-index/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[1]": [
+          {
+            "path": "docs/specs/0014-shipped-prebuilt-index/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[2]": [
+          {
+            "path": "docs/specs/0014-shipped-prebuilt-index/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[3]": [
+          {
+            "path": "docs/specs/0014-shipped-prebuilt-index/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.negative[4]": [
+          {
+            "path": "docs/specs/0014-shipped-prebuilt-index/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[0]": [
+          {
+            "path": "docs/specs/0014-shipped-prebuilt-index/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[1]": [
+          {
+            "path": "docs/specs/0014-shipped-prebuilt-index/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[2]": [
+          {
+            "path": "docs/specs/0014-shipped-prebuilt-index/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[3]": [
+          {
+            "path": "docs/specs/0014-shipped-prebuilt-index/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "consequences.positive[4]": [
+          {
+            "path": "docs/specs/0014-shipped-prebuilt-index/index.md",
+            "section": "Consequences"
+          }
+        ],
+        "context.problem": [
+          {
+            "path": "docs/specs/0014-shipped-prebuilt-index/rationale.md",
+            "section": "Context"
+          }
+        ],
+        "decision.alternatives[0].rejection_reason": [
+          {
+            "path": "docs/specs/0014-shipped-prebuilt-index/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[0].title": [
+          {
+            "path": "docs/specs/0014-shipped-prebuilt-index/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[1].rejection_reason": [
+          {
+            "path": "docs/specs/0014-shipped-prebuilt-index/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[1].title": [
+          {
+            "path": "docs/specs/0014-shipped-prebuilt-index/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[2].rejection_reason": [
+          {
+            "path": "docs/specs/0014-shipped-prebuilt-index/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.alternatives[2].title": [
+          {
+            "path": "docs/specs/0014-shipped-prebuilt-index/rationale.md",
+            "section": "Options considered"
+          }
+        ],
+        "decision.chosen": [
+          {
+            "path": "docs/specs/0014-shipped-prebuilt-index/index.md",
+            "section": "Decision"
+          }
+        ],
+        "rationale_summary": [
+          {
+            "path": "docs/specs/0014-shipped-prebuilt-index/rationale.md",
+            "section": "Rationale"
+          }
+        ],
+        "title": [
+          {
+            "path": "docs/specs/0014-shipped-prebuilt-index/index.md",
+            "section": "preamble"
+          }
+        ]
+      }
+    }
+  ],
+  "skipped": [
+    {
+      "path": "/Users/ghaly/Documents/Work/Personal/decision-memory/docs/specs/0009-proven-correctness-evaluation-harness",
+      "reason": "no index.md"
+    }
+  ],
+  "collisions": []
+}
