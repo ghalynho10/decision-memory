@@ -124,6 +124,9 @@ mvp.md
 # Standing instructions). scope.md owns durable status and session-notes.md owns
 # unresolved residue; a third file drifts from both.
 docs/where-things-stand.md
+docs/explain-decision-memory.*
+docs/interview-prep-decision-memory.*
+idea.md
 
 # The committed self index bundle (spec 0014). A prebuilt index of this
 # project's own decision records, so a new reader asks a real cited question

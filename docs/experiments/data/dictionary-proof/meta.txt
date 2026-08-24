@@ -1,0 +1,25 @@
+--- what is a canonical record in this project? [run 1] state=answered
+--- what is a canonical record in this project? [run 2] state=answered
+--- what is a canonical record in this project? [run 3] state=answered
+--- what is an adapter in this project? [run 1] state=no_state
+--- what is an adapter in this project? [run 2] state=answered
+--- what is an adapter in this project? [run 3] state=answered
+--- what does abstention mean in this project? [run 1] state=answered
+--- what does abstention mean in this project? [run 2] state=abstained
+--- what does abstention mean in this project? [run 3] state=abstained
+--- what is a facet in this project? [run 1] state=answered
+--- what is a facet in this project? [run 2] state=abstained
+--- what is a facet in this project? [run 3] state=answered
+--- what is a coverage judge in this project? [run 1] state=abstained
+--- what is a coverage judge in this project? [run 2] state=abstained
+--- what is a coverage judge in this project? [run 3] state=abstained
+--- what is a fingerprint in this project? [run 1] state=abstained
+--- what is a fingerprint in this project? [run 2] state=abstained
+--- what is a fingerprint in this project? [run 3] state=abstained
+--- what does supersedes mean in this project? [run 1] state=abstained
+--- what does supersedes mean in this project? [run 2] state=abstained
+--- what does supersedes mean in this project? [run 3] state=abstained
+--- what is the manifest in this project? [run 1] state=answered
+--- what is the manifest in this project? [run 2] state=answered
+--- what is the manifest in this project? [run 3] state=answered
+RESULT: answered=11 abstained=12 failed=1 of 24
