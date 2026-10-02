@@ -279,10 +279,20 @@ then, over the whole response, in two passes:
 POLARITY_MARKERS = FUNCTION_WORDS & frozenset(
     {
         # negators
-        "not", "no", "never", "nor",
+        "not",
+        "no",
+        "never",
+        "nor",
         # modals
-        "can", "could", "will", "would", "shall", "should",
-        "may", "might", "must",
+        "can",
+        "could",
+        "will",
+        "would",
+        "shall",
+        "should",
+        "may",
+        "might",
+        "must",
     }
 )
 ```
