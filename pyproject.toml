@@ -39,6 +39,13 @@ dev = [
 line-length = 88
 target-version = "py311"
 
+[tool.ruff.format]
+# Recorded experiment outputs are frozen artifacts (AGENTS.md, Experiments):
+# their records carry digests in a committed manifest, so reformatting a code
+# block inside one would break the record it documents. The instrument scripts
+# at the top of docs/experiments/data/ stay formatted.
+exclude = ["docs/experiments/data/*/**"]
+
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
 

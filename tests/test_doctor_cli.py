@@ -7,6 +7,7 @@ unusable corpus root.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -15,6 +16,10 @@ from typer.testing import CliRunner
 from decision_memory.cli import app
 
 runner = CliRunner()
+
+# Rich styles help output with ANSI escapes when the environment forces color
+# (GitHub Actions does), which splits option names apart in the raw text.
+_ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
 
 
 def _build_fixture_corpus(root: Path) -> None:
@@ -183,7 +188,7 @@ def test_unreadable_root_is_surveyed_as_a_dot_skip(
 def test_doctor_help_lists_the_command() -> None:
     result = runner.invoke(app, ["doctor", "--help"])
     assert result.exit_code == 0
-    assert "--samples" in result.stdout
+    assert "--samples" in _ANSI_ESCAPE.sub("", result.stdout)
 
 
 def test_unexpected_failure_exits_one(
